@@ -24,6 +24,12 @@ public class NodeEditor : EditorWindow
     List<Node> nodes;
     List<Connection> connections;
 
+    //General sizing variables - no more hard-coding
+    float nodeWidth = 200.0f;
+    float nodeHeight = 50.0f;
+    Vector2 connectionLineTangent = Vector2.left * 50.0f;
+    float connectionLineWidth = 2.0f;
+
     [MenuItem("Window/NodeEditor")]
     static void OpenWindow()
     {
@@ -70,9 +76,7 @@ public class NodeEditor : EditorWindow
         //string test = "Meow mix meow mix bacon";
         //test = EditorGUILayout.TextArea(test, new GUILayoutOption[] { });
         //GUILayout.Label(test, EditorStyles.boldLabel);
-
         
-
         if (GUI.changed) Repaint();
     }
 
@@ -135,13 +139,13 @@ public class NodeEditor : EditorWindow
     {
         if (selectedInPoint != null && selectedOutPoint == null)
         {
-            Handles.DrawBezier(selectedInPoint.rect.center, e.mousePosition, selectedInPoint.rect.center + Vector2.left * 50.0f, e.mousePosition - Vector2.left * 50.0f, Color.white, null, 2.0f);
+            Handles.DrawBezier(selectedInPoint.rect.center, e.mousePosition, selectedInPoint.rect.center + connectionLineTangent, e.mousePosition - connectionLineTangent, Color.white, null, connectionLineWidth);
             GUI.changed = true;
         }
 
         if (selectedOutPoint != null && selectedInPoint == null)
         {
-            Handles.DrawBezier(selectedOutPoint.rect.center, e.mousePosition, selectedOutPoint.rect.center - Vector2.left * 50.0f, e.mousePosition + Vector2.left * 50.0f, Color.white, null, 2.0f);
+            Handles.DrawBezier(selectedOutPoint.rect.center, e.mousePosition, selectedOutPoint.rect.center - connectionLineTangent, e.mousePosition + connectionLineTangent, Color.white, null, connectionLineWidth);
             GUI.changed = true;
         }
     }
@@ -218,8 +222,8 @@ public class NodeEditor : EditorWindow
         {
             nodes = new List<Node>();
         }
-
-        nodes.Add(new Node(mousePos, 200, 50, nodeStyle, selectedNodeStyle, inStyle, outStyle, OnClickInPoint, OnClickOutPoint, OnClickRemoveNode));
+        
+        nodes.Add(new Node(mousePos, nodeWidth, nodeHeight, nodeStyle, selectedNodeStyle, inStyle, outStyle, OnClickInPoint, OnClickOutPoint, OnClickRemoveNode));
     }
 
     void OnClickRemoveNode(Node node)

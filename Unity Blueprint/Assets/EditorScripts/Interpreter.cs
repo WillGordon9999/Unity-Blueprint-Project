@@ -20,7 +20,7 @@ public class CodeNode
     string returnVarName;
 }
 
-public class Interpreter : MonoBehaviour
+public class Interpreter
 {
     //TO-DO: Either make these locals or in general get to delegate construction
     Text text;
@@ -30,11 +30,31 @@ public class Interpreter : MonoBehaviour
     object target;
     Func<object, object[], object> newTest;
     public List<string> includes;
+    static Interpreter mInstance;
+
+    Interpreter()
+    {
+
+    }
+
+    public static Interpreter Instance
+    {   get
+        {
+            if (mInstance == null)            
+                mInstance = new Interpreter();                
+            
+            return mInstance;
+        }
+        private set { }
+    }
+
+    
+
     // Start is called before the first frame update
     void Start()
     {
-        text = GameObject.Find("InputField").transform.Find("Text").GetComponent<Text>();
-        if (text == null) print("text is null");
+        //text = GameObject.Find("InputField").transform.Find("Text").GetComponent<Text>();
+        //if (text == null) print("text is null");
         
     }
 
@@ -47,41 +67,84 @@ public class Interpreter : MonoBehaviour
 
     public void Compile()
     {        
-        string proc = text.text;
+        //string proc = text.text;
+        //string[] raw = proc.Split(' ');
+        //string[] args = new string[raw.Length - 2];
+        //        
+        //var comp = GetComponent(raw[0]);        
+        //Type type = null;
+        //
+        //if (comp == null)
+        //{
+        //    //Source: https://stackoverflow.com/questions/8499593/c-sharp-how-to-check-if-namespace-class-or-method-exists-in-c
+        //    type = (from assembly in AppDomain.CurrentDomain.GetAssemblies() from type2 in assembly.GetTypes() where type2.Name == raw[0] select type2).FirstOrDefault();
+        //
+        //    if (type == null)
+        //    {
+        //        print("Interpretor Error: No Component or Class defintion Found");
+        //        return;
+        //    }
+        //}
+        //
+        //else
+        //{
+        //    type = comp.GetType();
+        //    target = comp;
+        //}
+        //
+        //print("Type is " + type.ToString());
+        //
+        //Array.Copy(raw, 2, args, 0, raw.Length - 2);
+        //object[] finalArgs = ParseArgumentTypes(args);
+        //passArgs = finalArgs;
+        //
+        //MethodInfo method = GetMethodMatch(type, raw[1], finalArgs);
+        //
+        //print(method.Name);                              
+        //newTest = method.Bind();             
+    }
+        
+    public MethodInfo[] GetFunctionDefinitions(string text)
+    {
+        string proc = text;
         string[] raw = proc.Split(' ');
-        string[] args = new string[raw.Length - 2];
-                
-        var comp = GetComponent(raw[0]);        
+        string name = raw[1];
+        //string[] args = new string[raw.Length - 2];
+
+        //var comp = GetComponent(raw[0]);
         Type type = null;
+       
+        //Source: https://stackoverflow.com/questions/8499593/c-sharp-how-to-check-if-namespace-class-or-method-exists-in-c
+        type = (from assembly in AppDomain.CurrentDomain.GetAssemblies() from type2 in assembly.GetTypes() where type2.Name == raw[0] select type2).FirstOrDefault();
 
-        if (comp == null)
+        if (type == null)
         {
-            //Source: https://stackoverflow.com/questions/8499593/c-sharp-how-to-check-if-namespace-class-or-method-exists-in-c
-            type = (from assembly in AppDomain.CurrentDomain.GetAssemblies() from type2 in assembly.GetTypes() where type2.Name == raw[0] select type2).FirstOrDefault();
-
-            if (type == null)
-            {
-                print("Interpretor Error: No Component or Class defintion Found");
-                return;
-            }
+            Debug.Log("Interpreter Error: No Component or Class defintion Found");
+            return null;
         }
+              
+        Debug.Log("Type is " + type.ToString());
 
-        else
+        List<MethodInfo> target = new List<MethodInfo>();
+        MethodInfo[] methods = type.GetMethods(); 
+
+        foreach (MethodInfo m in methods)
         {
-            type = comp.GetType();
-            target = comp;
+            if (m.Name == name)
+                target.Add(m);
         }
+        
+        return target.ToArray();
 
-        print("Type is " + type.ToString());
-      
-        Array.Copy(raw, 2, args, 0, raw.Length - 2);
-        object[] finalArgs = ParseArgumentTypes(args);
-        passArgs = finalArgs;
+        //Array.Copy(raw, 2, args, 0, raw.Length - 2);
+        //object[] finalArgs = ParseArgumentTypes(args);
+        //passArgs = finalArgs;
 
-        MethodInfo method = GetMethodMatch(type, raw[1], finalArgs);
+        //MethodInfo method = GetMethodMatch(type, raw[1], finalArgs);
 
-        print(method.Name);                              
-        newTest = method.Bind();             
+        //print(method.Name);
+        //newTest = method.Bind();
+
     }
 
     object[] ParseArgumentTypes(string[] args)
@@ -98,28 +161,28 @@ public class Interpreter : MonoBehaviour
 
             if (Boolean.TryParse(args[i], out bVal))
             {
-                print("Parsing Bool!");
+                //print("Parsing Bool!");
                 objs[i] = bVal;
                 continue;
             }
 
             if (Int32.TryParse(args[i], out iVal))
             {
-                print("Parsing int");
+                //print("Parsing int");
                 objs[i] = iVal;
                 continue;
             }
 
             if (Single.TryParse(args[i], out fVal))
             {
-                print("Parsing float");
+                //print("Parsing float");
                 objs[i] = fVal;
                 continue;
             }
 
             if (Double.TryParse(args[i], out dVal))
             {
-                print("Parsing string");
+                //print("Parsing string");
                 objs[i] = dVal;
                 continue;
             }
@@ -147,7 +210,7 @@ public class Interpreter : MonoBehaviour
 
         if (methods.Count > 0)
         {
-            print("starting parameter loop");
+            //print("starting parameter loop");
             foreach (MethodInfo m in methods)
             {
                 bool isMatch = true;
@@ -157,12 +220,12 @@ public class Interpreter : MonoBehaviour
                     continue;
                 else
                 {
-                    print("parameter count is the same!");
+                    //print("parameter count is the same!");
                     for (int i = 0; i < parameters.Length; i++)
                         if (parameters[i].ParameterType != args[i].GetType())
                             isMatch = false;
-                        else
-                            print("Got a matching parameter type");
+                        //else
+                        //    print("Got a matching parameter type");
 
                     if (isMatch)
                         return m;

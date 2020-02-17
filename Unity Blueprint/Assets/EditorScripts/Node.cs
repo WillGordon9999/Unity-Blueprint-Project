@@ -4,6 +4,7 @@ using UnityEngine;
 using UnityEditor;
 using UnityEditor.UIElements;
 using System;
+using System.Reflection;
 
 public class Node
 {
@@ -20,9 +21,11 @@ public class Node
     public ConnectionPoint outPoint;
 
     public string input;
+    string prevInput;
 
     public Action<Node> OnRemoveNode;
-    FloatField myField;
+
+    MethodInfo[] methodDefinitions;
 
     public Node(Vector2 position, float width, float height, GUIStyle nodeStyle, GUIStyle selectStyle, GUIStyle inStyle, GUIStyle outStyle, Action<ConnectionPoint> inAction, Action<ConnectionPoint> outAction, Action<Node> onRemove)
     {
@@ -33,7 +36,8 @@ public class Node
         defaultNodeStyle = nodeStyle;
         selectedNodeStyle = selectStyle;
         OnRemoveNode = onRemove;
-        myField = new FloatField();        
+        input = "";
+        prevInput = "";
     }    
 
     public void Drag(Vector2 delta)
@@ -47,10 +51,12 @@ public class Node
         outPoint.Draw();
         GUI.Box(rect, title, style);
         float width = rect.width * 0.75f;
-        float height = rect.height * 0.75f;
-        Vector2 pos = Vector2.Lerp(rect.position, rect.position + new Vector2(width, height), 0.25f);        
-        input = EditorGUI.TextField(new Rect(pos, new Vector2(width, height)), input);        
+        float height = rect.height * 0.5f;
+        float x = Mathf.Lerp(rect.position.x, rect.position.x + rect.width, 0.125f);
+        float y = Mathf.Lerp(rect.position.y, rect.position.y + rect.height, 0.2f);
+        //Vector2 pos = Vector2.Lerp(rect.position, rect.position + new Vector2(width, height), 0.3f);        
 
+        input = EditorGUI.TextField(new Rect(x, y, width, height), input);         
     }
 
     public bool ProcessEvents(Event e)
@@ -79,6 +85,7 @@ public class Node
                 if (e.button == 1 && isSelected && rect.Contains(e.mousePosition))
                 {
                     e.Use();
+                    ProcessContextMenu();
                 }
                 break;
 
@@ -94,16 +101,16 @@ public class Node
             case EventType.KeyDown:
                 if (isSelected)
                 {
-                    if (e.keyCode == KeyCode.Backspace)
+                    if (e.keyCode == KeyCode.Return)
                     {
-                        input.Remove(input.Length - 1);
-                        GUI.changed = true;
-                    }
-
-                    else
-                    {
-                        input += e.keyCode.ToString();
-                        GUI.changed = true;
+                        Debug.Log("In return on node");
+                        if (input != prevInput)
+                        {
+                            e.Use();
+                            Debug.Log("Trying to call reflection");
+                            //Do a reflection call here
+                            methodDefinitions = Interpreter.Instance.GetFunctionDefinitions(input);
+                        }
                     }
                 }
                 break;
@@ -125,6 +132,19 @@ public class Node
     {
         GenericMenu menu = new GenericMenu();
         menu.AddItem(new GUIContent("Remove node"), false, OnClickRemoveNode);
+
+        foreach(MethodInfo m in methodDefinitions)
+        {
+            ParameterInfo[] args = m.GetParameters();
+            string final = m.Name;
+
+            foreach(ParameterInfo p in args)
+            {
+                final += " " + p.Name;
+            }
+
+            menu.AddItem(new GUIContent(final), false, null);
+        }
     }
 
     void OnClickRemoveNode()
