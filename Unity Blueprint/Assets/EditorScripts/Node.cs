@@ -27,6 +27,12 @@ public class Node
 
     MethodInfo[] methodDefinitions;
 
+    public float testProperty;
+    public GameObject testObj;
+
+    ObjectField[] fields;
+    ObjectField test;
+
     public Node(Vector2 position, float width, float height, GUIStyle nodeStyle, GUIStyle selectStyle, GUIStyle inStyle, GUIStyle outStyle, Action<ConnectionPoint> inAction, Action<ConnectionPoint> outAction, Action<Node> onRemove)
     {
         rect = new Rect(position.x, position.y, width, height);
@@ -38,6 +44,7 @@ public class Node
         OnRemoveNode = onRemove;
         input = "";
         prevInput = "";
+        test = new ObjectField();
     }    
 
     public void Drag(Vector2 delta)
@@ -54,9 +61,11 @@ public class Node
         float height = rect.height * 0.5f;
         float x = Mathf.Lerp(rect.position.x, rect.position.x + rect.width, 0.125f);
         float y = Mathf.Lerp(rect.position.y, rect.position.y + rect.height, 0.2f);
-        //Vector2 pos = Vector2.Lerp(rect.position, rect.position + new Vector2(width, height), 0.3f);        
-
-        input = EditorGUI.TextField(new Rect(x, y, width, height), input);         
+                
+        input = EditorGUI.TextField(new Rect(x, y, width, height), input);
+        //testProperty = EditorGUI.ObjectField(new Rect(x, y + height, width, height), "Test", testProperty, testProperty.GetType());
+        //testObj = (GameObject)EditorGUI.ObjectField(new Rect(x, y + height, width, height), testObj, testObj.GetType(), true);
+        testProperty = EditorGUI.FloatField(new Rect(x, y + height, width * 2, height), "Test", testProperty);        
     }
 
     public bool ProcessEvents(Event e)
@@ -82,9 +91,12 @@ public class Node
                     }
                 }
 
-                if (e.button == 1 && isSelected && rect.Contains(e.mousePosition))
+                //if (e.button == 1 && isSelected)
+                if (e.button == 1 && rect.Contains(e.mousePosition))
                 {
+                    Debug.Log("In right click");
                     e.Use();
+                    methodDefinitions = Interpreter.Instance.GetFunctionDefinitions(input);
                     ProcessContextMenu();
                 }
                 break;
@@ -132,19 +144,33 @@ public class Node
     {
         GenericMenu menu = new GenericMenu();
         menu.AddItem(new GUIContent("Remove node"), false, OnClickRemoveNode);
-
-        foreach(MethodInfo m in methodDefinitions)
+        
+        if (methodDefinitions != null)
         {
-            ParameterInfo[] args = m.GetParameters();
-            string final = m.Name;
-
-            foreach(ParameterInfo p in args)
+            foreach (MethodInfo m in methodDefinitions)
             {
-                final += " " + p.Name;
-            }
+                ParameterInfo[] args = m.GetParameters();
+                string final = m.Name + "(";
+               
+                for (int i = 0; i < args.Length; i++)
+                {
+                    final += " " + args[i].ParameterType.Name + " " + args[i].Name;
 
-            menu.AddItem(new GUIContent(final), false, null);
+                    if (i < args.Length - 1)
+                        final += ", ";
+
+                }
+
+                final += " )";
+                
+                menu.AddItem(new GUIContent(final), false, ChangeToMethod, m);
+            }
         }
+
+        else
+            Debug.Log("Method Definitions is null");
+
+        menu.ShowAsContext();
     }
 
     void OnClickRemoveNode()
@@ -153,5 +179,14 @@ public class Node
         {
             OnRemoveNode.Invoke(this);
         }
+    }
+
+    void ChangeToMethod(object method)
+    {
+        MethodInfo info = (MethodInfo)method;
+
+        ParameterInfo[] args = info.GetParameters();
+
+        fields = new ObjectField[args.Length];
     }
 }

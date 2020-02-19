@@ -23,13 +23,13 @@ public class CodeNode
 public class Interpreter
 {
     //TO-DO: Either make these locals or in general get to delegate construction
-    Text text;
-    MethodInfo method;
-    FieldInfo field;
-    object[] passArgs;
-    object target;
-    Func<object, object[], object> newTest;
-    public List<string> includes;
+    //Text text;
+    //MethodInfo method;
+    //FieldInfo field;
+    //object[] passArgs;
+    //object target;
+    //Func<object, object[], object> newTest;
+    //public List<string> includes;
     static Interpreter mInstance;
 
     Interpreter()
@@ -61,8 +61,8 @@ public class Interpreter
     // Update is called once per frame
     void Update()
     {
-        if (newTest != null)
-            newTest.Invoke(target, passArgs);
+        //if (newTest != null)
+        //    newTest.Invoke(target, passArgs);
     }
 
     public void Compile()
@@ -108,6 +108,13 @@ public class Interpreter
     {
         string proc = text;
         string[] raw = proc.Split(' ');
+        
+        if (raw.Length <= 1)
+        {
+            Debug.Log("Too few arguments or not enough");
+            return null;
+        }
+
         string name = raw[1];
         //string[] args = new string[raw.Length - 2];
 
