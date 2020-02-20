@@ -111,7 +111,7 @@ public class Interpreter
         
         if (raw.Length <= 1)
         {
-            Debug.Log("Too few arguments or not enough");
+            //Debug.Log("Too few arguments or not enough");
             return null;
         }
 
@@ -130,7 +130,7 @@ public class Interpreter
             return null;
         }
               
-        Debug.Log("Type is " + type.ToString());
+        //Debug.Log("Type is " + type.ToString());
 
         List<MethodInfo> target = new List<MethodInfo>();
         MethodInfo[] methods = type.GetMethods(); 

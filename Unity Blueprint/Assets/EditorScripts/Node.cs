@@ -9,9 +9,13 @@ using System.Reflection;
 public class Node
 {
     public Rect rect;
+    Rect fieldRect;
+    Vector2 initPos;
+    Vector2 initDimensions;
     public string title;
     public bool isDragged;
     public bool isSelected;
+    bool isDefined;
 
     public GUIStyle style;
     public GUIStyle defaultNodeStyle;
@@ -20,18 +24,107 @@ public class Node
     public ConnectionPoint inPoint;
     public ConnectionPoint outPoint;
 
-    public string input;
-    string prevInput;
+    public string input;    
 
     public Action<Node> OnRemoveNode;
 
     MethodInfo[] methodDefinitions;
 
-    public float testProperty;
-    public GameObject testObj;
+    class Parameter
+    {
+        public string name;
+        public object arg;
+        public Type type;
+        public UnityEngine.Object obj;
 
-    ObjectField[] fields;
-    ObjectField test;
+        public Parameter() { }
+                      
+        //public Parameter(object obj, Type objType)
+        //{
+        //    arg = obj;
+        //    type = objType;
+        //}
+
+        public Parameter(Type objType)
+        {            
+            type = objType;            
+        }
+
+        public Parameter(object obj, Type objType, string label)
+        {
+            arg = obj;
+            type = objType;
+            name = label;
+        }
+
+        T GetType<T>() where T: new()
+        {
+            if (arg == null)
+                arg = new T();
+
+            return (T)arg;
+        }
+               
+        public void GetFieldType(Rect rect)
+        {
+            if (type.IsPrimitive)
+            {                
+                if (type == typeof(bool))
+                {
+
+                    arg = EditorGUI.Toggle(rect, GetType<bool>());
+                    return;
+                }
+
+                if (type == typeof(int))
+                {
+                    arg = EditorGUI.IntField(rect, GetType<int>());
+                    return;
+                }
+
+                if (type == typeof(long))
+                {
+                    arg = EditorGUI.LongField(rect, GetType<long>());
+                    return;
+                }
+                
+                if (type == typeof(float))
+                {
+                    arg = EditorGUI.FloatField(rect, GetType<float>());
+                    return;
+                }
+
+                if (type == typeof(double))
+                {
+                    arg = EditorGUI.DoubleField(rect, GetType<double>());
+                    return;
+                }
+
+                Debug.Log($"{type} is not a primitive");
+            }
+
+            else
+            {
+                if (type == typeof(string))
+                {
+                    arg = EditorGUI.TextField(rect, (string)arg);
+                    return;
+                }
+
+                if (type == typeof(UnityEngine.Object))
+                {
+                    arg = EditorGUI.ObjectField(rect, (UnityEngine.Object)arg, type, true);                    
+                    return;
+                }
+
+                Debug.Log("Type not found");
+                
+            }                        
+        }
+        
+    }
+
+    List<Parameter> paramList;
 
     public Node(Vector2 position, float width, float height, GUIStyle nodeStyle, GUIStyle selectStyle, GUIStyle inStyle, GUIStyle outStyle, Action<ConnectionPoint> inAction, Action<ConnectionPoint> outAction, Action<Node> onRemove)
     {
@@ -42,9 +135,15 @@ public class Node
         defaultNodeStyle = nodeStyle;
         selectedNodeStyle = selectStyle;
         OnRemoveNode = onRemove;
-        input = "";
-        prevInput = "";
-        test = new ObjectField();
+        input = "";        
+        paramList = new List<Parameter>();
+        isDefined = false;
+        
+        Vector2 lerp = new Vector2(Mathf.Lerp(rect.position.x, rect.position.x + rect.width, 0.125f), Mathf.Lerp(rect.position.y, rect.position.y + rect.height, 0.2f));
+        
+        //The initial relative offset
+        initPos = lerp - rect.position;                
+        initDimensions = new Vector2(rect.width * 0.75f, rect.height * 0.5f);
     }    
 
     public void Drag(Vector2 delta)
@@ -56,16 +155,29 @@ public class Node
     {
         inPoint.Draw();
         outPoint.Draw();
+              
         GUI.Box(rect, title, style);
-        float width = rect.width * 0.75f;
-        float height = rect.height * 0.5f;
-        float x = Mathf.Lerp(rect.position.x, rect.position.x + rect.width, 0.125f);
-        float y = Mathf.Lerp(rect.position.y, rect.position.y + rect.height, 0.2f);
+
+        if (!isDefined)
+            input = EditorGUI.TextField(new Rect(rect.position + initPos, initDimensions), input);
+        else
+            EditorGUI.LabelField(new Rect(rect.position + initPos, initDimensions), input);
+
+        if (paramList.Count > 0)
+        {            
+            for (int i = 0; i < paramList.Count; i++)
+            {               
+                Vector2 pos = rect.position + initPos;
+                pos.y += (initDimensions.y * (i + 1));
+                Rect entry = new Rect(pos, initDimensions);
+                paramList[i].GetFieldType(entry);
+                //paramList[i].obj = EditorGUI.ObjectField(entry, paramList[i].obj, paramList[i].type, true);                
+                //EditorGUI.PropertyField(entry, paramList[i].property);   
                 
-        input = EditorGUI.TextField(new Rect(x, y, width, height), input);
-        //testProperty = EditorGUI.ObjectField(new Rect(x, y + height, width, height), "Test", testProperty, testProperty.GetType());
-        //testObj = (GameObject)EditorGUI.ObjectField(new Rect(x, y + height, width, height), testObj, testObj.GetType(), true);
-        testProperty = EditorGUI.FloatField(new Rect(x, y + height, width * 2, height), "Test", testProperty);        
+
+            }
+        }
+
     }
 
     public bool ProcessEvents(Event e)
@@ -90,11 +202,9 @@ public class Node
                         style = defaultNodeStyle;
                     }
                 }
-
-                //if (e.button == 1 && isSelected)
+                
                 if (e.button == 1 && rect.Contains(e.mousePosition))
-                {
-                    Debug.Log("In right click");
+                {                    
                     e.Use();
                     methodDefinitions = Interpreter.Instance.GetFunctionDefinitions(input);
                     ProcessContextMenu();
@@ -108,33 +218,7 @@ public class Node
                     e.Use();
                     return true;
                 }
-                break;
-
-            case EventType.KeyDown:
-                if (isSelected)
-                {
-                    if (e.keyCode == KeyCode.Return)
-                    {
-                        Debug.Log("In return on node");
-                        if (input != prevInput)
-                        {
-                            e.Use();
-                            Debug.Log("Trying to call reflection");
-                            //Do a reflection call here
-                            methodDefinitions = Interpreter.Instance.GetFunctionDefinitions(input);
-                        }
-                    }
-                }
-                break;
-
-            //case EventType.MouseUp:
-            //    if (e.button == 0 && isDragged)
-            //    {
-            //        Drag(e.delta);
-            //        e.Use();
-            //        return true;
-            //    }
-            //    break;
+                break;                                
         }
 
         return false;
@@ -167,8 +251,8 @@ public class Node
             }
         }
 
-        else
-            Debug.Log("Method Definitions is null");
+        //else
+        //    Debug.Log("Method Definitions is null");
 
         menu.ShowAsContext();
     }
@@ -187,6 +271,15 @@ public class Node
 
         ParameterInfo[] args = info.GetParameters();
 
-        fields = new ObjectField[args.Length];
+        foreach(ParameterInfo p in args)
+        {
+            //paramList.Add(new Parameter(p.DefaultValue, p.ParameterType));
+            paramList.Add(new Parameter(p.ParameterType));
+        }
+
+        if (paramList.Count > 0)            
+            rect = new Rect(rect.x, rect.y, rect.width, rect.height * (paramList.Count));
+
+        isDefined = true;
     }
 }

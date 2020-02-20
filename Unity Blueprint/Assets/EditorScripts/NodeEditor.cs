@@ -69,13 +69,10 @@ public class NodeEditor : EditorWindow
         DrawNodes();
         DrawConnections();
         DrawConnectionLine(Event.current);
-        //DrawResizer();
+        
         ProcessNodeEvents(Event.current);
         ProcessEvents(Event.current);
-
-        //string test = "Meow mix meow mix bacon";
-        //test = EditorGUILayout.TextArea(test, new GUILayoutOption[] { });
-        //GUILayout.Label(test, EditorStyles.boldLabel);
+        //DrawResizer();
         
         if (GUI.changed) Repaint();
     }
