@@ -5,7 +5,7 @@ using System.Reflection;
 using System.Linq;
 using System.Linq.Expressions;
 using System;
-class RealTimeVar
+public class RealTimeVar
 {
     object obj;
     Type type;
@@ -153,11 +153,22 @@ public class Interpreter
     public void ParseKeywords(string text, Node node)
     {
         //MethodInfo info = typeof(MonoBehaviour).GetMethod(text);
-        MethodInfo info = typeof(Sample).GetMethod(text);
-        if (info != null)
-            Debug.Log(info.Name);
+        MethodInfo info = typeof(BlueprintComponent).GetMethod(text);
+        BlueprintComponent test = GameObject.FindObjectOfType<BlueprintComponent>();
+        if (test != null)
+            test.SetUp();
         else
+            Debug.Log("Component test is null");
+
+        if (info != null)
+        {
+            Debug.Log(info.Name);
+
+        }
+        else
+        {
             Debug.Log("Keyword is null");
+        }
 
     }
 
