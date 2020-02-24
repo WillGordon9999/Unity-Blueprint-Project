@@ -64,9 +64,11 @@
   <ItemGroup>
     <Compile Include="Assets\EditorScripts\Connection.cs" />
     <Compile Include="Assets\EditorScripts\ConnectionPoint.cs" />
+    <Compile Include="Assets\EditorScripts\FastDelegate.cs" />
     <Compile Include="Assets\EditorScripts\Interpreter.cs" />
     <Compile Include="Assets\EditorScripts\Node.cs" />
     <Compile Include="Assets\EditorScripts\NodeEditor.cs" />
+    <Compile Include="Assets\EditorScripts\Sample.cs" />
     <Reference Include="Unity.Timeline.Editor">
       <HintPath>C:/Users/Will/Desktop/Unity Blueprint Repo/Unity-Blueprint-Project/Unity Blueprint/Library/ScriptAssemblies/Unity.Timeline.Editor.dll</HintPath>
     </Reference>

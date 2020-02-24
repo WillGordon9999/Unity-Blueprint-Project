@@ -1,7 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.UI;
 using System.Reflection;
 using System.Linq;
 using System.Linq.Expressions;
@@ -22,20 +21,79 @@ public class CodeNode
 
 public class Interpreter
 {
-    //TO-DO: Either make these locals or in general get to delegate construction
-    //Text text;
-    //MethodInfo method;
-    //FieldInfo field;
-    //object[] passArgs;
-    //object target;
-    //Func<object, object[], object> newTest;
-    //public List<string> includes;
+    public List<string> keywords = new List<string>()
+    {        
+    "Awake",	                        //Awake is called when the script instance is being loaded.
+    "FixedUpdate",	                    //Frame-rate independent MonoBehaviour.FixedUpdate message for physics calculations.
+    "LateUpdate",	                    //LateUpdate is called every frame, if the Behaviour is enabled.
+    "OnAnimatorIK",	                    //Callback for setting up animation IK (inverse kinematics).
+    "OnAnimatorMove",	                //Callback for processing animation movements for modifying root motion.
+    "OnApplicationFocus",	            //Sent to all GameObjects when the player gets or loses focus.
+    "OnApplicationPause",	            //Sent to all GameObjects when the application pauses.
+    "OnApplicationQuit",	            //Sent to all game objects before the application quits.
+    "OnAudioFilterRead",	            //If OnAudioFilterRead is implemented, Unity will insert a custom filter into the audio DSP chain.
+    "OnBecameInvisible",	            //OnBecameInvisible is called when the renderer is no longer visible by any camera.
+    "OnBecameVisible",	                //OnBecameVisible is called when the renderer became visible by any camera.
+    "OnCollisionEnter",	                //OnCollisionEnter is called when this collider/rigidbody has begun touching another rigidbody/collider.
+    "OnCollisionEnter2D",	            //Sent when an incoming collider makes contact with this object's collider (2D physics only).
+    "OnCollisionExit",	                //OnCollisionExit is called when this collider/rigidbody has stopped touching another rigidbody/collider.
+    "OnCollisionExit2D",	            //Sent when a collider on another object stops touching this object's collider (2D physics only).
+    "OnCollisionStay",	                //OnCollisionStay is called once per frame for every collider/rigidbody that is touching rigidbody/collider.
+    "OnCollisionStay2D",	            //Sent each frame where a collider on another object is touching this object's collider (2D physics only).
+    "OnConnectedToServer",	            //Called on the client when you have successfully connected to a server.
+    "OnControllerColliderHit",	        //OnControllerColliderHit is called when the controller hits a collider while performing a Move.
+    "OnDestroy",	                    //Destroying the attached Behaviour will result in the game or Scene receiving OnDestroy.
+    "OnDisable",	                    //This function is called when the behaviour becomes disabled.
+    "OnDisconnectedFromServer",	        //Called on the client when the connection was lost or you disconnected from the server.
+    "OnDrawGizmos",	                    //Implement OnDrawGizmos if you want to draw gizmos that are also pickable and always drawn.
+    "OnDrawGizmosSelected",	            //Implement OnDrawGizmosSelected to draw a gizmo if the object is selected.
+    "OnEnable",	                        //This function is called when the object becomes enabled and active.
+    "OnFailedToConnect",	            //Called on the client when a connection attempt fails for some reason.
+    "OnFailedToConnectToMasterServer",	//Called on clients or servers when there is a problem connecting to the MasterServer.
+    "OnGUI",	                        //OnGUI is called for rendering and handling GUI events.
+    "OnJointBreak",	                    //Called when a joint attached to the same game object broke.
+    "OnJointBreak2D",	                //Called when a Joint2D attached to the same game object breaks.
+    "OnMasterServerEvent",	            //Called on clients or servers when reporting events from the MasterServer.
+    "OnMouseDown",	                    //OnMouseDown is called when the user has pressed the mouse button while over the Collider.
+    "OnMouseDrag",	                    //OnMouseDrag is called when the user has clicked on a Collider and is still holding down the mouse.
+    "OnMouseEnter",	                    //Called when the mouse enters the Collider.
+    "OnMouseExit",	                    //Called when the mouse is not any longer over the Collider.
+    "OnMouseOver",	                    //Called every frame while the mouse is over the Collider.
+    "OnMouseUp",	                    //OnMouseUp is called when the user has released the mouse button.
+    "OnMouseUpAsButton",	            //OnMouseUpAsButton is only called when the mouse is released over the same Collider as it was pressed.
+    "OnNetworkInstantiate",	            //Called on objects which have been network instantiated with Network.Instantiate.
+    "OnParticleCollision",	            //OnParticleCollision is called when a particle hits a Collider.
+    "OnParticleSystemStopped",	        //OnParticleSystemStopped is called when all particles in the system have died, and no new particles will be born. New particles cease to be created either after Stop is called, or when the duration property of a non-looping system has been exceeded.
+    "OnParticleTrigger",	            //OnParticleTrigger is called when any particles in a Particle System meet the conditions in the trigger module.
+    "OnParticleUpdateJobScheduled",	    //OnParticleUpdateJobScheduled is called when a Particle System's built-in update job has been scheduled.
+    "OnPlayerConnected",	            //Called on the server whenever a new player has successfully connected.
+    "OnPlayerDisconnected",	            //Called on the server whenever a player disconnected from the server.
+    "OnPostRender",	                    //OnPostRender is called after a camera finished rendering the Scene.
+    "OnPreCull",	                    //OnPreCull is called before a camera culls the Scene.
+    "OnPreRender",	                    //OnPreRender is called before a camera starts rendering the Scene.
+    "OnRenderImage",	                //OnRenderImage is called after all rendering is complete to render image.
+    "OnRenderObject",	                //OnRenderObject is called after camera has rendered the Scene.
+    "OnSerializeNetworkView",	        //Used to customize synchronization of variables in a script watched by a network view.
+    "OnServerInitialized",	            //Called on the server whenever a Network.InitializeServer was invoked and has completed.
+    "OnTransformChildrenChanged",	    //This function is called when the list of children of the transform of the GameObject has changed.
+    "OnTransformParentChanged",	        //This function is called when the parent property of the transform of the GameObject has changed.
+    "OnTriggerEnter",	                //When a GameObject collides with another GameObject, Unity calls OnTriggerEnter.
+    "OnTriggerEnter2D",	                //Sent when another object enters a trigger collider attached to this object (2D physics only).
+    "OnTriggerExit",	                //OnTriggerExit is called when the Collider other has stopped touching the trigger.
+    "OnTriggerExit2D",	                //Sent when another object leaves a trigger collider attached to this object (2D physics only).
+    "OnTriggerStay",	                //OnTriggerStay is called once per physics update for every Collider other that is touching the trigger.
+    "OnTriggerStay2D",	                //Sent each frame where another object is within a trigger collider attached to this object (2D physics only).
+    "OnValidate",	                    //This function is called when the script is loaded or a value is changed in the Inspector (Called in the editor only).
+    "OnWillRenderObject",	            //OnWillRenderObject is called for each camera if the object is visible and not a UI element.
+    "Reset",	                        //Reset to default values.
+    "Start",	                        //Start is called on the frame when a script is enabled just before any of the Update methods are called the first time.
+    "Update"                            //Update is called every frame, if the MonoBehaviour is enabled.
+ 
+    };
+
     static Interpreter mInstance;
 
-    Interpreter()
-    {
-
-    }
+    Interpreter() {}
 
     public static Interpreter Instance
     {   get
@@ -47,61 +105,72 @@ public class Interpreter
         }
         private set { }
     }
-
-    
-
-    // Start is called before the first frame update
-    void Start()
-    {
-        //text = GameObject.Find("InputField").transform.Find("Text").GetComponent<Text>();
-        //if (text == null) print("text is null");
-        
-    }
-
-    // Update is called once per frame
-    void Update()
-    {
-        //if (newTest != null)
-        //    newTest.Invoke(target, passArgs);
-    }
-
+       
     public void Compile()
-    {        
-        //string proc = text.text;
-        //string[] raw = proc.Split(' ');
-        //string[] args = new string[raw.Length - 2];
-        //        
-        //var comp = GetComponent(raw[0]);        
-        //Type type = null;
-        //
-        //if (comp == null)
-        //{
-        //    //Source: https://stackoverflow.com/questions/8499593/c-sharp-how-to-check-if-namespace-class-or-method-exists-in-c
-        //    type = (from assembly in AppDomain.CurrentDomain.GetAssemblies() from type2 in assembly.GetTypes() where type2.Name == raw[0] select type2).FirstOrDefault();
-        //
-        //    if (type == null)
-        //    {
-        //        print("Interpretor Error: No Component or Class defintion Found");
-        //        return;
-        //    }
-        //}
-        //
-        //else
-        //{
-        //    type = comp.GetType();
-        //    target = comp;
-        //}
-        //
-        //print("Type is " + type.ToString());
-        //
-        //Array.Copy(raw, 2, args, 0, raw.Length - 2);
-        //object[] finalArgs = ParseArgumentTypes(args);
-        //passArgs = finalArgs;
-        //
-        //MethodInfo method = GetMethodMatch(type, raw[1], finalArgs);
-        //
-        //print(method.Name);                              
+    {
+        string text = "";        
+        object target;
+        object[] passArgs;
+
+        string proc = text;
+        string[] raw = proc.Split(' ');
+        string[] args = new string[raw.Length - 2];
+
+        Component comp = null;
+        //var comp = GameObject.GetComponent(raw[0]);        
+        Type type = null;
+        
+        if (comp == null)
+        {
+            //Source: https://stackoverflow.com/questions/8499593/c-sharp-how-to-check-if-namespace-class-or-method-exists-in-c
+            type = (from assembly in AppDomain.CurrentDomain.GetAssemblies() from type2 in assembly.GetTypes() where type2.Name == raw[0] select type2).FirstOrDefault();
+        
+            if (type == null)
+            {
+                Debug.Log("Interpreter Error: No Component or Class defintion Found");
+                return;
+            }
+        }
+        
+        else
+        {
+            type = comp.GetType();
+            target = comp;
+        }
+        
+        Debug.Log("Type is " + type.ToString());
+        
+        Array.Copy(raw, 2, args, 0, raw.Length - 2);
+        object[] finalArgs = ParseArgumentTypes(args);
+        passArgs = finalArgs;
+        
+        MethodInfo method = GetMethodMatch(type, raw[1], finalArgs);
+        
+        Debug.Log(method.Name);                              
         //newTest = method.Bind();             
+    }
+
+    public void ParseKeywords(string text, Node node)
+    {
+        //MethodInfo info = typeof(MonoBehaviour).GetMethod(text);
+        MethodInfo info = typeof(Sample).GetMethod(text);
+        if (info != null)
+            Debug.Log(info.Name);
+        else
+            Debug.Log("Keyword is null");
+
+    }
+
+    public T CreateInstance<T>(Type type)
+    {
+        //This feels like it might be useful to store these Func<> types in a dictionary of <Type, Func>
+        //Source: https://stackoverflow.com/questions/752/how-to-create-a-new-object-instance-from-a-type
+
+        Func<T> creator = Expression.Lambda<Func<T>>(Expression.New(type.GetConstructor(Type.EmptyTypes))).Compile();
+        T obj = creator();
+        
+        if (obj == null) Debug.Log("obj in create instance is NULL");
+        return obj;
     }
         
     public MethodInfo[] GetFunctionDefinitions(string text)
@@ -110,15 +179,12 @@ public class Interpreter
         string[] raw = proc.Split(' ');
         
         if (raw.Length <= 1)
-        {
-            //Debug.Log("Too few arguments or not enough");
+        {            
             return null;
         }
 
-        string name = raw[1];
-        //string[] args = new string[raw.Length - 2];
-
-        //var comp = GetComponent(raw[0]);
+        string name = raw[1];        
+        
         Type type = null;
        
         //Source: https://stackoverflow.com/questions/8499593/c-sharp-how-to-check-if-namespace-class-or-method-exists-in-c
@@ -129,9 +195,7 @@ public class Interpreter
             Debug.Log("Interpreter Error: No Component or Class defintion Found");
             return null;
         }
-              
-        //Debug.Log("Type is " + type.ToString());
-
+                      
         List<MethodInfo> target = new List<MethodInfo>();
         MethodInfo[] methods = type.GetMethods(); 
 
@@ -142,16 +206,7 @@ public class Interpreter
         }
         
         return target.ToArray();
-
-        //Array.Copy(raw, 2, args, 0, raw.Length - 2);
-        //object[] finalArgs = ParseArgumentTypes(args);
-        //passArgs = finalArgs;
-
-        //MethodInfo method = GetMethodMatch(type, raw[1], finalArgs);
-
-        //print(method.Name);
-        //newTest = method.Bind();
-
+      
     }
 
     object[] ParseArgumentTypes(string[] args)
@@ -216,8 +271,7 @@ public class Interpreter
         }
 
         if (methods.Count > 0)
-        {
-            //print("starting parameter loop");
+        {            
             foreach (MethodInfo m in methods)
             {
                 bool isMatch = true;
@@ -226,13 +280,10 @@ public class Interpreter
                 if (parameters.Length != args.Length)
                     continue;
                 else
-                {
-                    //print("parameter count is the same!");
+                {                    
                     for (int i = 0; i < parameters.Length; i++)
                         if (parameters[i].ParameterType != args[i].GetType())
-                            isMatch = false;
-                        //else
-                        //    print("Got a matching parameter type");
+                            isMatch = false;                        
 
                     if (isMatch)
                         return m;
@@ -243,242 +294,3 @@ public class Interpreter
     }
 }
 
-//Source: https://github.com/coder0xff/FastDelegate.Net/blob/master/FastDelegate.Net/FastDelegate.cs
-
-//namespace FastDelegate.Net
-public static class MethodInfoExtensions
-{
-    private static Func<object, object[], object> CreateForNonVoidInstanceMethod(MethodInfo method)
-    {
-        ParameterExpression instanceParameter = Expression.Parameter(typeof(object), "target");
-        ParameterExpression argumentsParameter = Expression.Parameter(typeof(object[]), "arguments");
-
-        MethodCallExpression call = Expression.Call(
-            Expression.Convert(instanceParameter, method.DeclaringType),
-            method,
-            CreateParameterExpressions(method, argumentsParameter));
-
-        Expression<Func<object, object[], object>> lambda = Expression.Lambda<Func<object, object[], object>>(
-            Expression.Convert(call, typeof(object)),
-            instanceParameter,
-            argumentsParameter);
-
-        return lambda.Compile();
-    }
-
-    private static Func<object[], object> CreateForNonVoidStaticMethod(MethodInfo method)
-    {
-        ParameterExpression argumentsParameter = Expression.Parameter(typeof(object[]), "arguments");
-
-        MethodCallExpression call = Expression.Call(
-            method,
-            CreateParameterExpressions(method, argumentsParameter));
-
-        Expression<Func<object[], object>> lambda = Expression.Lambda<Func<object[], object>>(
-            Expression.Convert(call, typeof(object)),
-            argumentsParameter);
-
-        return lambda.Compile();
-    }
-
-    private static Action<object, object[]> CreateForVoidInstanceMethod(MethodInfo method)
-    {
-        ParameterExpression instanceParameter = Expression.Parameter(typeof(object), "target");
-        ParameterExpression argumentsParameter = Expression.Parameter(typeof(object[]), "arguments");
-
-        MethodCallExpression call = Expression.Call(
-            Expression.Convert(instanceParameter, method.DeclaringType),
-            method,
-            CreateParameterExpressions(method, argumentsParameter));
-
-        Expression<Action<object, object[]>> lambda = Expression.Lambda<Action<object, object[]>>(
-            call,
-            instanceParameter,
-            argumentsParameter);
-
-        return lambda.Compile();
-    }
-
-    private static Action<object[]> CreateForVoidStaticMethod(MethodInfo method)
-    {
-        ParameterExpression argumentsParameter = Expression.Parameter(typeof(object[]), "arguments");
-
-        MethodCallExpression call = Expression.Call(
-            method,
-            CreateParameterExpressions(method, argumentsParameter));
-
-        Expression<Action<object[]>> lambda = Expression.Lambda<Action<object[]>>(
-            call,
-            argumentsParameter);
-
-        return lambda.Compile();
-    }
-
-    private static Expression[] CreateParameterExpressions(MethodInfo method, Expression argumentsParameter)
-    {
-        return method.GetParameters().Select((parameter, index) =>
-            Expression.Convert(
-                Expression.ArrayIndex(argumentsParameter, Expression.Constant(index)), parameter.ParameterType)).Cast<Expression>().ToArray();
-    }
-
-    public static Func<object, object[], object> Bind(this MethodInfo method)
-    {
-        if (method.IsStatic)
-        {
-            if (method.ReturnType == typeof(void))
-            {
-                Action<object[]> wrapped = CreateForVoidStaticMethod(method);
-                return (target, parameters) => {
-                    wrapped(parameters);
-                    return (object)null;
-                };
-            }
-            else
-            {
-                Func<object[], object> wrapped = CreateForNonVoidStaticMethod(method);
-                return (target, parameters) => wrapped(parameters);
-            }
-        }
-        if (method.ReturnType == typeof(void))
-        {
-            Action<object, object[]> wrapped = CreateForVoidInstanceMethod(method);
-            return (target, parameters) => {
-                wrapped(target, parameters);
-                return (object)null;
-            };
-        }
-        else
-        {
-            Func<object, object[], object> wrapped = CreateForNonVoidInstanceMethod(method);
-            return wrapped;
-        }
-    }
-
-    public static Type LambdaType(this MethodInfo method)
-    {
-        if (method.ReturnType == typeof(void))
-        {
-            Type actionGenericType;
-            switch (method.GetParameters().Length)
-            {
-                case 0:
-                    return typeof(Action);
-                case 1:
-                    actionGenericType = typeof(Action<>);
-                    break;
-                case 2:
-                    actionGenericType = typeof(Action<,>);
-                    break;
-                case 3:
-                    actionGenericType = typeof(Action<,,>);
-                    break;
-                case 4:
-                    actionGenericType = typeof(Action<,,,>);
-                    break;
-#if NET_FX_4 //See #define NET_FX_4 as the head of this file
-                    case 5:
-                        actionGenericType = typeof(Action<,,,,>);
-                        break;
-                    case 6:
-                        actionGenericType = typeof(Action<,,,,,>);
-                        break;
-                    case 7:
-                        actionGenericType = typeof(Action<,,,,,,>);
-                        break;
-                    case 8:
-                        actionGenericType = typeof(Action<,,,,,,,>);
-                        break;
-                    case 9:
-                        actionGenericType = typeof(Action<,,,,,,,,>);
-                        break;
-                    case 10:
-                        actionGenericType = typeof(Action<,,,,,,,,,>);
-                        break;
-                    case 11:
-                        actionGenericType = typeof(Action<,,,,,,,,,,>);
-                        break;
-                    case 12:
-                        actionGenericType = typeof(Action<,,,,,,,,,,,>);
-                        break;
-                    case 13:
-                        actionGenericType = typeof(Action<,,,,,,,,,,,,>);
-                        break;
-                    case 14:
-                        actionGenericType = typeof(Action<,,,,,,,,,,,,,>);
-                        break;
-                    case 15:
-                        actionGenericType = typeof(Action<,,,,,,,,,,,,,,>);
-                        break;
-                    case 16:
-                        actionGenericType = typeof(Action<,,,,,,,,,,,,,,,>);
-                        break;
-#endif
-                default:
-                    throw new NotSupportedException("Lambdas may only have up to 16 parameters.");
-            }
-            return actionGenericType.MakeGenericType(method.GetParameters().Select(_ => _.ParameterType).ToArray());
-        }
-        Type functionGenericType;
-        switch (method.GetParameters().Length)
-        {
-            case 0:
-                return typeof(Func<>);
-            case 1:
-                functionGenericType = typeof(Func<,>);
-                break;
-            case 2:
-                functionGenericType = typeof(Func<,,>);
-                break;
-            case 3:
-                functionGenericType = typeof(Func<,,,>);
-                break;
-            case 4:
-                functionGenericType = typeof(Func<,,,,>);
-                break;
-#if NET_FX_4 //See #define NET_FX_4 as the head of this file
-                case 5:
-                    funcGenericType = typeof(Func<,,,,,>);
-                    break;
-                case 6:
-                    funcGenericType = typeof(Func<,,,,,,>);
-                    break;
-                case 7:
-                    funcGenericType = typeof(Func<,,,,,,,>);
-                    break;
-                case 8:
-                    funcGenericType = typeof(Func<,,,,,,,,>);
-                    break;
-                case 9:
-                    funcGenericType = typeof(Func<,,,,,,,,,>);
-                    break;
-                case 10:
-                    funcGenericType = typeof(Func<,,,,,,,,,,>);
-                    break;
-                case 11:
-                    funcGenericType = typeof(Func<,,,,,,,,,,,>);
-                    break;
-                case 12:
-                    funcGenericType = typeof(Func<,,,,,,,,,,,,>);
-                    break;
-                case 13:
-                    funcGenericType = typeof(Func<,,,,,,,,,,,,,>);
-                    break;
-                case 14:
-                    funcGenericType = typeof(Func<,,,,,,,,,,,,,,>);
-                    break;
-                case 15:
-                    funcGenericType = typeof(Func<,,,,,,,,,,,,,,,>);
-                    break;
-                case 16:
-                    funcGenericType = typeof(Func<,,,,,,,,,,,,,,,,>);
-                    break;
-#endif
-            default:
-                throw new NotSupportedException("Lambdas may only have up to 16 parameters.");
-        }
-        var parametersAndReturnType = new Type[method.GetParameters().Length + 1];
-        method.GetParameters().Select(_ => _.ParameterType).ToArray().CopyTo(parametersAndReturnType, 0);
-        parametersAndReturnType[parametersAndReturnType.Length - 1] = method.ReturnType;
-        return functionGenericType.MakeGenericType(parametersAndReturnType);
-    }
-}

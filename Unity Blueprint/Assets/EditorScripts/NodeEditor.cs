@@ -25,7 +25,7 @@ public class NodeEditor : EditorWindow
     List<Connection> connections;
 
     //General sizing variables - no more hard-coding
-    float nodeWidth = 200.0f;
+    float nodeWidth = 300.0f;
     float nodeHeight = 50.0f;
     Vector2 connectionLineTangent = Vector2.left * 50.0f;
     float connectionLineWidth = 2.0f;
