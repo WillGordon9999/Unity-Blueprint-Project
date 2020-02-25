@@ -95,7 +95,7 @@ public class Node
                     {
                         isDragged = true;
                         GUI.changed = true;
-                        isSelected = true;
+                        isSelected = true;                        
                         style = selectedNodeStyle;
                     }
 
@@ -129,6 +129,7 @@ public class Node
                 if (e.keyCode == KeyCode.Return)
                 {
                     e.Use();
+                    Interpreter.Instance.ParseKeywords(input, this);
                     Debug.Log("In return");
                 }
 

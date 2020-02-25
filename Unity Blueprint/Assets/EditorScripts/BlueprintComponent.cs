@@ -12,24 +12,37 @@ public class BlueprintComponent : MonoBehaviour
     public void SetUp()
     {
         print("Set up is being called!");
+
+        if (ComponentName == "Test")
+        {
+            print("got name");
+        }
     }
 
     //Initialization/Destroy
     //Awake is called when the script instance is being loaded.
     public void Awake()
     {
-        if (variables == null)
-            print("Variables is null");
-
-        if (entryPoints == null)
-            print("entry Points is null");
+        //if (variables == null)
+        //    print("Variables is null");
+        //
+        //if (entryPoints == null)
+        //    print("entry Points is null");
     }	                                                
     public void Start() { }                                                 //Start is called on the frame when a script is enabled just before any of the Update methods are called the first time.
     public void OnEnable() { }	                                            //This function is called when the object becomes enabled and active.
     public void OnDisable() { }                                             //This function is called when the behaviour becomes disabled.
     public void OnDestroy() { }                                             //Destroying the attached Behaviour will result in the game or Scene receiving OnDestroy.
     public void Reset() { }                                                 //Reset to default values.
-    public void OnValidate() { }	                                        //This function is called when the script is loaded or a value is changed in the Inspector (Called in the editor only).
+
+    //This function is called when the script is loaded or a value is changed in the Inspector (Called in the editor only).
+    public void OnValidate()
+    {
+        if (ComponentName == "Test")
+        {            
+            print("Test confirmed");
+        }
+    }	                                        
 
     //Updates
     public void Update() { }                                                //Update is called every frame, if the MonoBehaviour is enabled.

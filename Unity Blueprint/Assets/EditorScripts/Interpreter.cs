@@ -1,10 +1,12 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEditor;
 using System.Reflection;
 using System.Linq;
 using System.Linq.Expressions;
 using System;
+using System.IO;
 public class RealTimeVar
 {
     object obj;
@@ -104,6 +106,38 @@ public class Interpreter
             return mInstance;
         }
         private set { }
+    }
+
+    //Source: https://wiki.unity3d.com/index.php/CreateScriptableObjectAsset
+    public T CreateAsset<T>(string filePath) where T: ScriptableObject
+    {       
+        T asset = AssetDatabase.LoadAssetAtPath<T>(filePath);
+
+        if (asset == null)
+        {
+            //Debug.Log("Creating new instance of blueprint collection");
+            asset = ScriptableObject.CreateInstance<T>();
+            
+            string assetPathAndName = AssetDatabase.GenerateUniqueAssetPath(filePath);
+            AssetDatabase.CreateAsset(asset, assetPathAndName);
+
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+            Selection.activeObject = asset;
+            return asset;
+        }
+
+        else
+        {
+            //Debug.Log("collection was found returning");
+            return asset;
+        }
+    }
+
+    public BlueprintData LoadBlueprint(string name)
+    {
+        BlueprintData asset = AssetDatabase.LoadAssetAtPath<BlueprintData>("Assets/" + name + ".asset");
+        return asset;
     }
        
     public void Compile()
