@@ -65,7 +65,8 @@ public class NodeEditor : EditorWindow
         //    }
         //
         //}
-       
+        AssetDatabase.Refresh();
+
         resize = new GUIStyle();
         resize.normal.background = EditorGUIUtility.Load("icons/d_AvatarBlendBackground.png") as Texture2D;
 
@@ -89,8 +90,12 @@ public class NodeEditor : EditorWindow
     }
 
     private void OnDisable()
-    {
-        //Debug.Log("In Node Editor OnDisable");
+    {        
+        Debug.Log("In Node Editor OnDisable");
+        if (current.json == "")
+            current.json = JsonUtility.ToJson(current);
+        EditorUtility.SetDirty(current);
+        AssetDatabase.Refresh();
         //current = null;
         //connections = null;
         //nodes = null;
@@ -182,6 +187,9 @@ public class NodeEditor : EditorWindow
                     //current = JsonUtility.FromJson<BlueprintData>(loadData.json);
                     JsonUtility.FromJsonOverwrite(current.json, current);
                 }
+
+                //else
+                //    current.json = JsonUtility.ToJson(current);
 
                 isLoading = false;
             }
