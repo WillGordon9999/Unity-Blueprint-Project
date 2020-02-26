@@ -15,7 +15,7 @@ public class Node
     public string title;
     public bool isDragged;
     public bool isSelected;
-    bool isDefined;
+    public bool isDefined;
 
     public GUIStyle style;
     public GUIStyle defaultNodeStyle;
@@ -29,8 +29,15 @@ public class Node
     public Action<Node> OnRemoveNode;
 
     MethodInfo[] methodDefinitions;
+    public MethodInfo currentMethod;
     
-    List<Parameter> paramList;
+    public List<Parameter> paramList;
+
+    public BlueprintData blueprint;
+
+    public Func<object, object[], object> function;
+    public object[] passArgs;
+    public object target;
 
     public Node(Vector2 position, float width, float height, GUIStyle nodeStyle, GUIStyle selectStyle, GUIStyle inStyle, GUIStyle outStyle, Action<ConnectionPoint> inAction, Action<ConnectionPoint> outAction, Action<Node> onRemove)
     {
@@ -201,6 +208,8 @@ public class Node
         {
             p.GetFieldType();
         }
+
+        currentMethod = info;
 
         isDefined = true;
     }

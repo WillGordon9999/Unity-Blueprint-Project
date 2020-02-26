@@ -11,6 +11,7 @@ public class BlueprintData : ScriptableObject
     public List<string> activeFunctions;
     public List<Node> nodes;
     public List<Connection> connections;
+    public float dotProductTest;
 
     public BlueprintData(string name)
     {

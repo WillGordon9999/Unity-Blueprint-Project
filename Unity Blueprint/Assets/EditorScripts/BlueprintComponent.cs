@@ -7,6 +7,9 @@ public class BlueprintComponent : MonoBehaviour
     public string ComponentName;
     public Dictionary<string, RealTimeVar> variables = new Dictionary<string, RealTimeVar>();
     public Dictionary<string, Node> entryPoints = new Dictionary<string, Node>();
+    [HideInInspector] public object returnObj;
+    bool isDefined = false;
+    public BlueprintData data;
 
     [ExecuteInEditMode]
     public void SetUp()
@@ -19,6 +22,19 @@ public class BlueprintComponent : MonoBehaviour
         }
     }
 
+    public void OnValidate()
+    {
+        //BlueprintData newData = Interpreter.Instance.LoadBlueprint(ComponentName);
+        //
+        //if (newData != null && data == null)
+        //{
+        //    data = newData;
+        //    Debug.Log("Found blueprint on component side");
+        //    isDefined = true;
+        //}
+
+    }
+
     //Initialization/Destroy
     //Awake is called when the script instance is being loaded.
     public void Awake()
@@ -28,24 +44,93 @@ public class BlueprintComponent : MonoBehaviour
         //
         //if (entryPoints == null)
         //    print("entry Points is null");
-    }	                                                
-    public void Start() { }                                                 //Start is called on the frame when a script is enabled just before any of the Update methods are called the first time.
+    }
+
+    //Start is called on the frame when a script is enabled just before any of the Update methods are called the first time.
+    public void Start()
+    {
+        if (data != null)
+        {
+            if (data.entryPoints == null)
+            {
+                Debug.Log("entry points is null");
+                return;
+            }
+
+            Node current = data.entryPoints["Start"];
+
+            if (current != null)
+            {
+                if (current.function != null)
+                {
+                    returnObj = current.function.Invoke(this, current.passArgs);
+
+                    if (returnObj != null)
+                    {
+                        Debug.Log($"Return object: {returnObj.ToString()}");
+                        Debug.Log($"Return object type: {returnObj.GetType()}");
+                    }
+                }
+            }
+
+            while (current.outPoint.node != null)
+            {
+                current = current.outPoint.node;
+
+                if (current != null)
+                {
+                    if (current.function != null)
+                    {
+                        returnObj = current.function.Invoke(this, current.passArgs);
+
+                        if (returnObj != null)
+                        {
+                            Debug.Log($"Return object: {returnObj.ToString()}");
+                            Debug.Log($"Return object type: {returnObj.GetType()}");
+                        }
+                    }
+                }
+            }
+        }
+
+        else
+            Debug.Log("blueprint data is null in component");
+
+        
+
+    }                                                 
     public void OnEnable() { }	                                            //This function is called when the object becomes enabled and active.
     public void OnDisable() { }                                             //This function is called when the behaviour becomes disabled.
     public void OnDestroy() { }                                             //Destroying the attached Behaviour will result in the game or Scene receiving OnDestroy.
     public void Reset() { }                                                 //Reset to default values.
 
     //This function is called when the script is loaded or a value is changed in the Inspector (Called in the editor only).
-    public void OnValidate()
-    {
-        if (ComponentName == "Test")
-        {            
-            print("Test confirmed");
-        }
-    }	                                        
+    
 
     //Updates
-    public void Update() { }                                                //Update is called every frame, if the MonoBehaviour is enabled.
+
+    //Update is called every frame, if the MonoBehaviour is enabled.
+    public void Update()
+    {
+        //Node current = data.entryPoints["Update"];
+        //
+        //if (current != null)
+        //{
+        //    if (current.function != null)
+        //        current.function.Invoke(this, current.passArgs);
+        //}
+        //
+        //while (current.outPoint.node != null)
+        //{
+        //    current = current.outPoint.node;
+        //
+        //    if (current != null)
+        //    {
+        //        if (current.function != null)
+        //            current.function.Invoke(this, current.passArgs);
+        //    }
+        //}
+    }                                                
     public void FixedUpdate() { }	                                        //Frame-rate independent MonoBehaviour.FixedUpdate message for physics calculations.
     public void LateUpdate() { }	                                        //LateUpdate is called every frame, if the Behaviour is enabled.
     

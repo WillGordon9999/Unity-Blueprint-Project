@@ -65,7 +65,7 @@ public class NodeEditor : EditorWindow
         //    }
         //
         //}
-        AssetDatabase.Refresh();
+        //AssetDatabase.Refresh();
 
         resize = new GUIStyle();
         resize.normal.background = EditorGUIUtility.Load("icons/d_AvatarBlendBackground.png") as Texture2D;
@@ -90,12 +90,16 @@ public class NodeEditor : EditorWindow
     }
 
     private void OnDisable()
-    {        
-        Debug.Log("In Node Editor OnDisable");
-        if (current.json == "")
-            current.json = JsonUtility.ToJson(current);
-        EditorUtility.SetDirty(current);
-        AssetDatabase.Refresh();
+    {
+        //Re-enable for saving after
+        //Debug.Log("In Node Editor OnDisable");
+        //if (current == null)
+        //    return;
+        //if (current.json == "")
+        //    current.json = JsonUtility.ToJson(current);
+        //EditorUtility.SetDirty(current);
+        //AssetDatabase.Refresh();
+        
         //current = null;
         //connections = null;
         //nodes = null;
@@ -154,6 +158,7 @@ public class NodeEditor : EditorWindow
                 if (current == null)
                 {
                     current = Interpreter.Instance.CreateAsset<BlueprintData>("Assets/" + text + ".asset");
+                    current.ComponentName = text;
                     createNew = false;
                     enterPressed = false;
                 }
@@ -411,13 +416,13 @@ public class NodeEditor : EditorWindow
         //original.nodes = nodes;
         //original.connections = connections;
 
-        if (current.activeFunctions == null)
-            current.activeFunctions = new List<string>();
-
-        foreach(Node node in current.nodes)
-        {
-            current.activeFunctions.Add(node.input);
-        }
+        //if (current.activeFunctions == null)
+        //    current.activeFunctions = new List<string>();
+        //
+        //foreach(Node node in current.nodes)
+        //{
+        //    current.activeFunctions.Add(node.input);
+        //}
 
         //EditorUtility.SetDirty(current);
         current.json = JsonUtility.ToJson(current);
@@ -458,7 +463,10 @@ public class NodeEditor : EditorWindow
             current.nodes = new List<Node>();
         }
 
-        current.nodes.Add(new Node(mousePos, nodeWidth, nodeHeight, nodeStyle, selectedNodeStyle, inStyle, outStyle, OnClickInPoint, OnClickOutPoint, OnClickRemoveNode));
+        Node node = new Node(mousePos, nodeWidth, nodeHeight, nodeStyle, selectedNodeStyle, inStyle, outStyle, OnClickInPoint, OnClickOutPoint, OnClickRemoveNode);
+        node.blueprint = current;
+
+        current.nodes.Add(node);
     }
 
     void OnClickRemoveNode(Node node)

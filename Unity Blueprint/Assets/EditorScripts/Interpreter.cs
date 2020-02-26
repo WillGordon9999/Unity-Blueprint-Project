@@ -184,25 +184,63 @@ public class Interpreter
         //newTest = method.Bind();             
     }
 
+    public void CompileNode(Node node)
+    {
+        Debug.Log("In compile node");
+        node.currentMethod.Bind();
+
+        if (node.paramList.Count > 0)
+        {
+            node.passArgs = new object[node.paramList.Count];
+
+            for (int i = 0; i < node.paramList.Count; i++)
+            {                
+                node.passArgs[i] = node.paramList[i].arg;
+            }
+        }
+    }
+
     public void ParseKeywords(string text, Node node)
     {
         //MethodInfo info = typeof(MonoBehaviour).GetMethod(text);
         MethodInfo info = typeof(BlueprintComponent).GetMethod(text);
-        BlueprintComponent test = GameObject.FindObjectOfType<BlueprintComponent>();
-        if (test != null)
-            test.SetUp();
-        else
-            Debug.Log("Component test is null");
-
         if (info != null)
         {
-            Debug.Log(info.Name);
+            Debug.Log($"Method found for {text}");
 
+            if (node.blueprint.entryPoints == null)
+            {
+                Debug.Log("creating new entry points");
+                node.blueprint.entryPoints = new Dictionary<string, Node>();
+            }
+                        
+            node.blueprint.entryPoints[text] = node;
+            Debug.Log($"keyword {text}");
+            Debug.Log($"node: {node.ToString()}");
+
+            if (node.blueprint.activeFunctions == null)
+                node.blueprint.activeFunctions = new List<string>();
+
+            node.blueprint.activeFunctions.Add(text);
+
+            node.isDefined = true;
         }
-        else
-        {
-            Debug.Log("Keyword is null");
-        }
+
+        //BlueprintComponent test = GameObject.FindObjectOfType<BlueprintComponent>();
+        //if (test != null)
+        //    test.SetUp();
+        //else
+        //    Debug.Log("Component test is null");
+        //
+        //if (info != null)
+        //{
+        //    Debug.Log(info.Name);
+        //
+        //}
+        //else
+        //{
+        //    Debug.Log("Keyword is null");
+        //}
 
     }
 
