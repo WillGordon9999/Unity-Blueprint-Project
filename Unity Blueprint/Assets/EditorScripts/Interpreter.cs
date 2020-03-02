@@ -100,8 +100,11 @@ public class Interpreter
     public static Interpreter Instance
     {   get
         {
-            if (mInstance == null)            
-                mInstance = new Interpreter();                
+            if (mInstance == null)
+            {
+                Debug.Log("Instantiating new interpreter");
+                mInstance = new Interpreter();
+            }
             
             return mInstance;
         }
@@ -184,20 +187,87 @@ public class Interpreter
         //newTest = method.Bind();             
     }
 
-    public void CompileNode(Node node)
+    public void CompileNode(Node node, object target = null)
     {
         Debug.Log("In compile node");
-        node.currentMethod.Bind();
+        if (node.isEntryPoint)
+        {
+            Debug.Log("Node is entry point returning");
+            return;
+        }
+           
+        if (node.currentMethod == null)
+        {
+            Debug.Log("Attempting to construct methodinfo");
+            node.currentMethod = LoadMethod(node.input, node.type, node.assemblyPath, node.index);
 
+            if (node.currentMethod == null)
+            {
+                Debug.Log("Node has no method or is entry point");
+                return;
+            }
+        }
+             
         if (node.paramList.Count > 0)
         {
             node.passArgs = new object[node.paramList.Count];
 
             for (int i = 0; i < node.paramList.Count; i++)
-            {                
+            {
+                //Because I'm lazy, we can just use the parameter data type
+                //ParameterData data = new ParameterData(node.paramList[i]);
+                //node.passArgs[i] = data.GetValue();
                 node.passArgs[i] = node.paramList[i].arg;
             }
         }
+
+        if (target != null)
+        {
+            Debug.Log("passed in target is not null");
+            node.actualTarget = target;
+        }
+
+        node.function = node.currentMethod.Bind();
+    }
+
+    public MethodInfo LoadMethod(string input, string type, string path, int index)
+    {
+        Debug.Log($"location test {path}");
+        
+        Assembly TestASM = Assembly.LoadFile(path);
+
+        string[] args = input.Split(' ');
+        string name = "";
+
+        if (args.Length > 1)
+            name = args[1];
+        else
+        {
+            Debug.Log("No function name found returning null");
+            return null;
+        }
+
+        if (TestASM != null)
+        {
+            Type typeTest = TestASM.GetType(type.ToString());
+            Debug.Log($"Type test from assembly load test {typeTest.ToString()}");
+            MethodInfo[] allMethods = typeTest.GetMethods();
+            List<MethodInfo> methods = new List<MethodInfo>();
+
+            MethodInfo final = null;
+
+            foreach (MethodInfo m in allMethods)
+            {
+                if (m.Name == name)
+                    methods.Add(m);
+            }
+
+            final = methods[index];
+            return final;
+
+        }
+
+        return null;
     }
 
     public void ParseKeywords(string text, Node node)
@@ -206,42 +276,18 @@ public class Interpreter
         MethodInfo info = typeof(BlueprintComponent).GetMethod(text);
         if (info != null)
         {
-            Debug.Log($"Method found for {text}");
-
-            if (node.blueprint.entryPoints == null)
-            {
-                Debug.Log("creating new entry points");
-                node.blueprint.entryPoints = new Dictionary<string, Node>();
-            }
-                        
-            node.blueprint.entryPoints[text] = node;
+            Debug.Log($"Method found for {text}");          
             Debug.Log($"keyword {text}");
             Debug.Log($"node: {node.ToString()}");
 
-            if (node.blueprint.activeFunctions == null)
-                node.blueprint.activeFunctions = new List<string>();
+            //if (node.blueprint.activeFunctions == null)
+            //    node.blueprint.activeFunctions = new List<string>();
 
-            node.blueprint.activeFunctions.Add(text);
+            //node.blueprint.activeFunctions.Add(text);
 
             node.isDefined = true;
-        }
-
-        //BlueprintComponent test = GameObject.FindObjectOfType<BlueprintComponent>();
-        //if (test != null)
-        //    test.SetUp();
-        //else
-        //    Debug.Log("Component test is null");
-        //
-        //if (info != null)
-        //{
-        //    Debug.Log(info.Name);
-        //
-        //}
-        //else
-        //{
-        //    Debug.Log("Keyword is null");
-        //}
-
+            node.isEntryPoint = true;
+        }        
     }
 
     public T CreateInstance<T>(Type type)
@@ -256,31 +302,66 @@ public class Interpreter
         return obj;
     }
         
-    public MethodInfo[] GetFunctionDefinitions(string text)
+    public MethodInfo[] GetFunctionDefinitions(string text, out string typeStr, out string asmPath)
     {
         string proc = text;
         string[] raw = proc.Split(' ');
         
         if (raw.Length <= 1)
-        {            
+        {
+            typeStr = "";
+            asmPath = "";            
             return null;
         }
 
         string name = raw[1];        
         
         Type type = null;
-       
+        Assembly ASM = null;
         //Source: https://stackoverflow.com/questions/8499593/c-sharp-how-to-check-if-namespace-class-or-method-exists-in-c
-        type = (from assembly in AppDomain.CurrentDomain.GetAssemblies() from type2 in assembly.GetTypes() where type2.Name == raw[0] select type2).FirstOrDefault();
+        //type = (from assembly in AppDomain.CurrentDomain.GetAssemblies() from type2 in assembly.GetTypes() where type2.Name == raw[0] select type2).FirstOrDefault();
+
+        foreach(Assembly asm in AppDomain.CurrentDomain.GetAssemblies())
+        {
+            Type[] types = asm.GetTypes();
+
+            foreach(Type t in types)
+            {
+                if (t.Name == raw[0])
+                {
+                    type = t;
+                    ASM = asm;
+                }
+            }
+        }
+
+        //string location = ASM.Location;
+        //Debug.Log($"location test {location}");
+        //Assembly TestASM = Assembly.LoadFile(location);
+        //
+        //if (TestASM != null)
+        //{
+        //    Type typeTest = TestASM.GetType(type.ToString());
+        //    Debug.Log($"Type test from assembly load test {typeTest.ToString()}");            
+        //}
 
         if (type == null)
         {
             Debug.Log("Interpreter Error: No Component or Class defintion Found");
+            typeStr = "";
+            asmPath = "";            
             return null;
         }
-                      
+
+        typeStr = type.ToString();
+        asmPath = ASM.Location;
+                              
         List<MethodInfo> target = new List<MethodInfo>();
-        MethodInfo[] methods = type.GetMethods(); 
+        MethodInfo[] methods = type.GetMethods();
+
+        //Assembly asm = type.Assembly;        
+        string test = type.ToString();
+        
 
         foreach (MethodInfo m in methods)
         {

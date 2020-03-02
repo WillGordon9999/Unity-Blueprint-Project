@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using System;
 
 public class BlueprintComponent : MonoBehaviour
 {
@@ -10,20 +11,50 @@ public class BlueprintComponent : MonoBehaviour
     [HideInInspector] public object returnObj;
     bool isDefined = false;
     public BlueprintData data;
+    public Node entry;
+    public Func<object, object[], object> func;
+    public object test;
+    public Action actionTest;
+    public ConnectionPointType type;
+    bool added;
+
+    [ExecuteInEditMode]
+    public Component GetTargetComponent(Type type)
+    {
+        return GetComponent(type);
+    }
 
     [ExecuteInEditMode]
     public void SetUp()
     {
-        print("Set up is being called!");
+        //print("Set up is being called!");
+        //
+        //if (ComponentName == "Test")
+        //{
+        //    print("got name");
+        //}
+        //if (BlueprintData.RuntimeTest == null)
+        //{
+        //    print("Instantiating runtime test at edit mode");
+        //
+        //    BlueprintData.RuntimeTest = new Dictionary<string, Vector3>();
+        //
+        //    print("Adding a value to it");
+        //
+        //    BlueprintData.RuntimeTest["Test"] = Vector3.one * 2.0f;
+        //    BlueprintData.added = true;
+        //}        
 
-        if (ComponentName == "Test")
-        {
-            print("got name");
-        }
+        //if (BlueprintManager.blueprints == null)
+        //{
+        //    print("Instantiating new blueprint dictionary for manager");
+        //    BlueprintManager.blueprints = new Dictionary<string, Blueprint>();
+        //}
     }
 
     public void OnValidate()
     {
+        SetUp();
         //BlueprintData newData = Interpreter.Instance.LoadBlueprint(ComponentName);
         //
         //if (newData != null && data == null)
@@ -32,7 +63,7 @@ public class BlueprintComponent : MonoBehaviour
         //    Debug.Log("Found blueprint on component side");
         //    isDefined = true;
         //}
-
+       
     }
 
     //Initialization/Destroy
@@ -49,52 +80,137 @@ public class BlueprintComponent : MonoBehaviour
     //Start is called on the frame when a script is enabled just before any of the Update methods are called the first time.
     public void Start()
     {
-        if (data != null)
+        if (BlueprintManager.blueprints != null)
         {
-            if (data.entryPoints == null)
-            {
-                Debug.Log("entry points is null");
-                return;
-            }
+            Node current = BlueprintManager.blueprints[ComponentName].entryPoints["Start"];
 
-            Node current = data.entryPoints["Start"];
-
-            if (current != null)
+            if (current.function != null)
             {
-                if (current.function != null)
+                print($"current node function in Start is not null");
+
+                if (current.currentMethod.DeclaringType.BaseType == typeof(UnityEngine.Component))
                 {
-                    returnObj = current.function.Invoke(this, current.passArgs);
-
-                    if (returnObj != null)
-                    {
-                        Debug.Log($"Return object: {returnObj.ToString()}");
-                        Debug.Log($"Return object type: {returnObj.GetType()}");
-                    }
+                    print("current method is from a component");
+                    current.actualTarget = (object)GetComponent(current.currentMethod.DeclaringType);
                 }
+
+                returnObj = current.function.Invoke(current.actualTarget, current.passArgs);
+
+                //if (returnObj != null)
+                //{
+                //
+                //}
             }
 
-            while (current.outPoint.node != null)
+            while (current.nextNode != null)
             {
-                current = current.outPoint.node;
-
-                if (current != null)
+                if (current.nextNode != current)
                 {
-                    if (current.function != null)
-                    {
-                        returnObj = current.function.Invoke(this, current.passArgs);
+                    current = current.nextNode;
 
-                        if (returnObj != null)
+                    if (!current.isEntryPoint)
+                    {
+                        if (current.currentMethod == null)
                         {
-                            Debug.Log($"Return object: {returnObj.ToString()}");
-                            Debug.Log($"Return object type: {returnObj.GetType()}");
+                            current.currentMethod = Interpreter.Instance.LoadMethod(current.input, current.type, current.assemblyPath, current.index);
+
+                            if (current.currentMethod.DeclaringType.BaseType == typeof(UnityEngine.Component))
+                            {
+                                print("current method is from a component");
+                                Interpreter.Instance.CompileNode(current, (object)GetComponent(current.currentMethod.DeclaringType));
+                            }
                         }
                     }
+
+                    if (current.function != null)
+                    {
+                        print("Current function is not null");
+                        returnObj = current.function.Invoke(current.actualTarget, current.passArgs);
+                    }
+
                 }
+                else
+                {
+                    print("current node equals out point");
+                }
+
+
             }
         }
 
         else
-            Debug.Log("blueprint data is null in component");
+            print("Blueprint manager is null");
+
+        //if (data != null)
+        //{
+        //    //if (data.nodes == null)
+        //    //{
+        //    //    print("nodes is null adjusting");
+        //    //    JsonUtility.FromJsonOverwrite(data.json, data);                
+        //    //}
+        //    //if (data.nodes != null)
+        //    //{
+        //    //    foreach(Node node in data.nodes)
+        //    //    {
+        //    //        print($"Node: {node.input}");
+        //    //        if (node.currentMethod != null)
+        //    //            print($"Node method {node.currentMethod.Name}");
+        //    //        if (node.function != null)
+        //    //        {
+        //    //            print("calling function");
+        //    //            object result = node.function.Invoke(null, node.passArgs);
+        //    //            print($"result is type {result.GetType()}");
+        //    //        }
+        //    //    }
+        //    //}
+        //
+        //    
+        //    //if (data.entryPoints == null)
+        //    //{
+        //    //    Debug.Log("entry points is null");                
+        //    //    //test.Find((x) => x.tex)
+        //    //                    
+        //    //    return;
+        //    //}
+        //    //
+        //    //Node current = data.entryPoints["Start"];
+        //
+        //    //if (current != null)
+        //    //{
+        //    //    if (current.function != null)
+        //    //    {
+        //    //        returnObj = current.function.Invoke(this, current.passArgs);
+        //    //
+        //    //        if (returnObj != null)
+        //    //        {
+        //    //            Debug.Log($"Return object: {returnObj.ToString()}");
+        //    //            Debug.Log($"Return object type: {returnObj.GetType()}");
+        //    //        }
+        //    //    }
+        //    //}
+        //    //
+        //    //while (current.outPoint.node != null)
+        //    //{
+        //    //    current = current.outPoint.node;
+        //    //
+        //    //    if (current != null)
+        //    //    {
+        //    //        if (current.function != null)
+        //    //        {
+        //    //            returnObj = current.function.Invoke(this, current.passArgs);
+        //    //
+        //    //            if (returnObj != null)
+        //    //            {
+        //    //                Debug.Log($"Return object: {returnObj.ToString()}");
+        //    //                Debug.Log($"Return object type: {returnObj.GetType()}");
+        //    //            }
+        //    //        }
+        //    //    }
+        //    //}
+        //}
+        //
+        //else
+        //    Debug.Log("blueprint data is null in component");
 
         
 
@@ -130,6 +246,46 @@ public class BlueprintComponent : MonoBehaviour
         //            current.function.Invoke(this, current.passArgs);
         //    }
         //}
+
+
+
+        //if (data != null)
+        //{
+        //    if (BlueprintData.RuntimeTest == null)
+        //    {
+        //        Debug.Log("Instantiating new runtime test");
+        //        BlueprintData.RuntimeTest = new Dictionary<string, Vector3>();
+        //    }
+        //
+        //    else
+        //    {
+        //        if (!BlueprintData.added)
+        //        {
+        //            print("Adding to runtime test");
+        //            BlueprintData.RuntimeTest["Test"] = new Vector3(2, 2, 2);
+        //            added = true;
+        //        }
+        //
+        //        else
+        //        {
+        //            print($"Data runtime test: {BlueprintData.RuntimeTest["Test"].ToString()}");
+        //        }
+        //    }
+        //}
+        //Debug.Log(Interpreter.Instance.GetType());
+
+        //if (BlueprintManager.blueprints == null)
+        //{
+        //    print("Instantiating new Blueprint manager at runtime");
+        //    BlueprintManager.blueprints = new Dictionary<string, Blueprint>();
+        //}
+        //
+        //else
+        //{
+        //    print("Blueprint manager dictionary is not null");
+        //}
+
+
     }                                                
     public void FixedUpdate() { }	                                        //Frame-rate independent MonoBehaviour.FixedUpdate message for physics calculations.
     public void LateUpdate() { }	                                        //LateUpdate is called every frame, if the Behaviour is enabled.

@@ -4,6 +4,19 @@ using UnityEngine;
 using UnityEditor;
 using System;
 
+[Serializable]
+public class ConnectionData
+{
+    public ConnectionPointData inPoint;
+    public ConnectionPointData outPoint;
+
+    public ConnectionData(ConnectionPointData inData, ConnectionPointData outData)
+    {
+        inPoint = inData;
+        outPoint = outData;
+    }
+}
+
 public class Connection 
 {
     public ConnectionPoint inPoint;

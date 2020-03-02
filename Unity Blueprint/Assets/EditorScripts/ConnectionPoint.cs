@@ -5,6 +5,31 @@ using System;
 
 public enum ConnectionPointType { In, Out }
 
+[Serializable]
+public class ConnectionPointData
+{
+    public Rect rect;
+    public ConnectionPointType type;
+    public int enumVal; //backup
+    public NodeData node;
+
+    public ConnectionPointData(Rect rectangle, ConnectionPointType pointType, NodeData data)
+    {
+        rect = rectangle;
+        type = pointType;
+        enumVal = (int)pointType;
+        node = data;
+    }
+
+    public ConnectionPointData(ConnectionPoint point, NodeData data)
+    {
+        rect = point.rect;
+        type = point.type;
+        node = data;
+    }
+}
+
+
 public class ConnectionPoint 
 {
     public Rect rect;
@@ -21,6 +46,15 @@ public class ConnectionPoint
         this.OnClickConnectionPoint = OnClickConnectionPoint;
         rect = new Rect(0.0f, 0.0f, 10.0f, 20.0f);
     }
+
+    public ConnectionPoint(ConnectionPointData data, GUIStyle connectStyle, Action<ConnectionPoint> clickConnection)
+    {
+        rect = data.rect;        
+        type = data.type;
+        style = connectStyle;
+        OnClickConnectionPoint = clickConnection;
+    }
+
 
     public void Draw()
     {
