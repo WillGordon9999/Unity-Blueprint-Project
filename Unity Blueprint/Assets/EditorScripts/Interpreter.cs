@@ -102,7 +102,7 @@ public class Interpreter
         {
             if (mInstance == null)
             {
-                Debug.Log("Instantiating new interpreter");
+                //Debug.Log("Instantiating new interpreter");
                 mInstance = new Interpreter();
             }
             
@@ -189,21 +189,21 @@ public class Interpreter
 
     public void CompileNode(Node node, object target = null)
     {
-        Debug.Log("In compile node");
+        //Debug.Log("In compile node");
         if (node.isEntryPoint)
         {
-            Debug.Log("Node is entry point returning");
+            //Debug.Log("Node is entry point returning");
             return;
         }
            
         if (node.currentMethod == null)
         {
-            Debug.Log("Attempting to construct methodinfo");
+            //Debug.Log("Attempting to construct methodinfo");
             node.currentMethod = LoadMethod(node.input, node.type, node.assemblyPath, node.index);
 
             if (node.currentMethod == null)
             {
-                Debug.Log("Node has no method or is entry point");
+                //Debug.Log("Node has no method or is entry point");
                 return;
             }
         }
@@ -213,17 +213,14 @@ public class Interpreter
             node.passArgs = new object[node.paramList.Count];
 
             for (int i = 0; i < node.paramList.Count; i++)
-            {
-                //Because I'm lazy, we can just use the parameter data type
-                //ParameterData data = new ParameterData(node.paramList[i]);
-                //node.passArgs[i] = data.GetValue();
+            {               
                 node.passArgs[i] = node.paramList[i].arg;
             }
         }
 
         if (target != null)
         {
-            Debug.Log("passed in target is not null");
+            //Debug.Log("passed in target is not null");
             node.actualTarget = target;
         }
 
@@ -232,8 +229,10 @@ public class Interpreter
 
     public MethodInfo LoadMethod(string input, string type, string path, int index)
     {
-        Debug.Log($"location test {path}");
-        
+        //Debug.Log($"location test {path}");
+        if (path == "")
+            return null;
+
         Assembly TestASM = Assembly.LoadFile(path);
 
         string[] args = input.Split(' ');
@@ -250,7 +249,7 @@ public class Interpreter
         if (TestASM != null)
         {
             Type typeTest = TestASM.GetType(type.ToString());
-            Debug.Log($"Type test from assembly load test {typeTest.ToString()}");
+            //Debug.Log($"Type test from assembly load test {typeTest.ToString()}");
             MethodInfo[] allMethods = typeTest.GetMethods();
             List<MethodInfo> methods = new List<MethodInfo>();
 

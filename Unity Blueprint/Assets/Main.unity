@@ -233,7 +233,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8695f6e0fb34c2a4783e3b98ebee4d4c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  data: {fileID: 11400000, guid: 057c1bd3e076928489e238c916b6c66d, type: 2}
 --- !u!4 &608965217
 Transform:
   m_ObjectHideFlags: 0
@@ -375,8 +374,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   ComponentName: Test
-  data: {fileID: 0}
-  type: 0
+  data: {fileID: 11400000, guid: 057c1bd3e076928489e238c916b6c66d, type: 2}
 --- !u!54 &1859602760
 Rigidbody:
   m_ObjectHideFlags: 0

@@ -32,8 +32,7 @@ public class NodeEditor : EditorWindow
 
     //FILE I/O
 
-    public string filePath = "Assets/BlueprintCollection.asset";
-    //public static BlueprintCollection collection;
+    public string filePath = "Assets/BlueprintCollection.asset";    
     BlueprintData current;
 
     string text;
@@ -99,22 +98,7 @@ public class NodeEditor : EditorWindow
 
     private void OnDisable()
     {
-        //Re-enable for saving after
-        Debug.Log("In Node Editor OnDisable");
-        //if (current == null)
-        //    return;
-        //if (current.json == "")
-        //    current.json = JsonUtility.ToJson(current);
-        //EditorUtility.SetDirty(current);
-        //AssetDatabase.Refresh();
-        
-        //current = null;
-        //connections = null;
-        //nodes = null;
-        //text = "";
-        //loadData = null;
-        //isLoading = false;
-        //createNew = false;
+       
     }
 
     private void Update()
@@ -411,29 +395,51 @@ public class NodeEditor : EditorWindow
         
         if (connections != null)
             connections.Clear();
-        
+
         //Do stuff
-    }
 
-    /*
-        //BlueprintData original = Interpreter.Instance.LoadBlueprint(current.ComponentName);
-        //
-        //if (current == original)
-        //    Debug.Log("Current equals original");
-        //       
-        //original.nodes = nodes;
-        //original.connections = connections;
-
-        //if (current.activeFunctions == null)
-        //    current.activeFunctions = new List<string>();
-        //
-        //foreach(Node node in current.nodes)
+        //Blueprint test;
+        ////if (Application.isPlaying)
+        //if (blueprints != null && !blueprints.TryGetValue(compName, out test))
         //{
-        //    current.activeFunctions.Add(node.input);
+        //    print("In construction of blueprint");
+        //    Blueprint bp = new Blueprint();
+        //    bp.name = data.ComponentName;
+        //
+        //    foreach(NodeData node in data.nodes)
+        //    {
+        //        Node newNode = new Node(node, null, null, null);
+        //        
+        //        if (node.isEntryPoint)
+        //        {
+        //            //Debug.Log("Entry point confirmed");
+        //            bp.entryPoints[node.input] = newNode;
+        //        }
+        //
+        //        bp.nodes.Add(newNode);
+        //    }
+        //   
+        //    foreach(Node node in bp.nodes)
+        //    {
+        //        //Interpreter.Instance.CompileNode(node);
+        //        
+        //        foreach(Node node2 in bp.nodes)
+        //        {
+        //            if (node.nextID == node2.ID)
+        //            {
+        //                node.nextNode = node2;
+        //                break;
+        //            }
+        //        }
+        //    }
+        //    
+        //
+        //    BlueprintManager.blueprints[bp.name] = bp;
+        //    //bpTest.Add(bp);
         //}
-
-        //current.json = JsonUtility.ToJson(current); 
-    */
+    }
+   
+    //Not sure if this is really needed
     void CompileBlueprint()
     {
         Debug.Log("Compiling blueprint");
@@ -441,31 +447,31 @@ public class NodeEditor : EditorWindow
         if (BlueprintManager.blueprints == null)
         {
             Debug.Log("Instantiating blueprint dictionary");
-            BlueprintManager.blueprints = new Dictionary<string, Blueprint>();
+            //BlueprintManager.blueprints = new Dictionary<string, Blueprint>();
+            BlueprintManager.blueprints = new Dictionary<BlueprintData, Blueprint>();
         }
         
-        Blueprint bp = new Blueprint();
-        bp.name = blueprintName;
-        
-        foreach(Node node in nodes)
-        {
-            Interpreter.Instance.CompileNode(node);
-            if (node.isEntryPoint)
-            {
-                Debug.Log("Entry point confirmed");
-                bp.entryPoints[node.input] = node;
-            }
+        //Blueprint bp = new Blueprint();
+        //bp.name = blueprintName;
+        //
+        //foreach(Node node in nodes)
+        //{
+        //    Interpreter.Instance.CompileNode(node);
+        //    if (node.isEntryPoint)
+        //    {
+        //        Debug.Log("Entry point confirmed");
+        //        bp.entryPoints[node.input] = node;
+        //    }
+        //
+        //    bp.nodes.Add(node);
+        //}
+        //
+        //foreach(Connection con in connections)
+        //{
+        //    bp.connections.Add(con);
+        //}
 
-            bp.nodes.Add(node);
-        }
-
-        foreach(Connection con in connections)
-        {
-            bp.connections.Add(con);
-        }
-
-
-        BlueprintManager.blueprints[blueprintName] = bp;        
+        //BlueprintManager.blueprints[blueprintName] = bp;        
     }
 
     void ToggleNewBlueprintUI(Vector2 mousePos)

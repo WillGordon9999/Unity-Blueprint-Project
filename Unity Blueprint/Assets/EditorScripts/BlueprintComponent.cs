@@ -8,73 +8,81 @@ public class BlueprintComponent : MonoBehaviour
     public string ComponentName;
     public Dictionary<string, RealTimeVar> variables = new Dictionary<string, RealTimeVar>();
     public Dictionary<string, Node> entryPoints = new Dictionary<string, Node>();
-    [HideInInspector] public object returnObj;
-    bool isDefined = false;
+    [HideInInspector] public object returnObj;    
+    Blueprint bp;
     public BlueprintData data;
-    public Node entry;
-    public Func<object, object[], object> func;
-    public object test;
-    public Action actionTest;
-    public ConnectionPointType type;
-    bool added;
-
+   
     [ExecuteInEditMode]
     public Component GetTargetComponent(Type type)
     {
         return GetComponent(type);
     }
-
-    [ExecuteInEditMode]
-    public void SetUp()
-    {
-        //print("Set up is being called!");
-        //
-        //if (ComponentName == "Test")
-        //{
-        //    print("got name");
-        //}
-        //if (BlueprintData.RuntimeTest == null)
-        //{
-        //    print("Instantiating runtime test at edit mode");
-        //
-        //    BlueprintData.RuntimeTest = new Dictionary<string, Vector3>();
-        //
-        //    print("Adding a value to it");
-        //
-        //    BlueprintData.RuntimeTest["Test"] = Vector3.one * 2.0f;
-        //    BlueprintData.added = true;
-        //}        
-
-        //if (BlueprintManager.blueprints == null)
-        //{
-        //    print("Instantiating new blueprint dictionary for manager");
-        //    BlueprintManager.blueprints = new Dictionary<string, Blueprint>();
-        //}
-    }
-
+    
+    [ExecuteAlways]
+    //This function is called when the script is loaded or a value is changed in the Inspector (Called in the editor only).
     public void OnValidate()
     {
-        SetUp();
-        //BlueprintData newData = Interpreter.Instance.LoadBlueprint(ComponentName);
-        //
-        //if (newData != null && data == null)
-        //{
-        //    data = newData;
-        //    Debug.Log("Found blueprint on component side");
-        //    isDefined = true;
-        //}
-       
+        //if (Application.isPlaying)
+        if (BlueprintManager.blueprints != null && !BlueprintManager.blueprints.TryGetValue(data, out bp))
+        {
+            print("In construction of blueprint component side");
+            Blueprint bp = new Blueprint();
+            bp.name = ComponentName;
+
+            foreach (NodeData node in data.nodes)
+            {
+                Node newNode = new Node(node, null, null, null);
+
+                if (node.isEntryPoint)
+                {
+                    //Debug.Log("Entry point confirmed");
+                    bp.entryPoints[node.input] = newNode;
+                }
+
+                bp.nodes.Add(newNode);
+            }
+
+            foreach (Node node in bp.nodes)
+            {
+                //Interpreter.Instance.CompileNode(node);
+                if (node.currentMethod == null && !node.isEntryPoint)
+                {
+                    node.currentMethod = Interpreter.Instance.LoadMethod(node.input, node.type, node.assemblyPath, node.index);
+
+                    if (node.currentMethod.DeclaringType.BaseType == typeof(UnityEngine.Component))
+                    {                        
+                        Interpreter.Instance.CompileNode(node, (object)GetComponent(node.currentMethod.DeclaringType));
+                    }
+
+                    else
+                        Interpreter.Instance.CompileNode(node);
+
+                    if (node.actualTarget == null)
+                        print("Node's target is null!");
+                }
+
+
+                foreach (Node node2 in bp.nodes)
+                {
+                    if (node.nextID == node2.ID)
+                    {
+                        node.nextNode = node2;
+                        break;
+                    }
+                }
+            }
+
+            //BlueprintManager.blueprints[bp.name] = bp;            
+            BlueprintManager.blueprints[data] = bp;
+        }
+        else
+            print("blueprint already constructed");
     }
 
     //Initialization/Destroy
     //Awake is called when the script instance is being loaded.
     public void Awake()
-    {
-        //if (variables == null)
-        //    print("Variables is null");
-        //
-        //if (entryPoints == null)
-        //    print("entry Points is null");
+    {       
     }
 
     //Start is called on the frame when a script is enabled just before any of the Update methods are called the first time.
@@ -82,210 +90,35 @@ public class BlueprintComponent : MonoBehaviour
     {
         if (BlueprintManager.blueprints != null)
         {
-            Node current = BlueprintManager.blueprints[ComponentName].entryPoints["Start"];
+            //Node current = BlueprintManager.blueprints[ComponentName].entryPoints["Start"];
+            Node current = BlueprintManager.blueprints[data].entryPoints["Start"];
 
-            if (current.function != null)
+            while (current != null)
             {
-                print($"current node function in Start is not null");
-
-                if (current.currentMethod.DeclaringType.BaseType == typeof(UnityEngine.Component))
+                if (current.function != null && !current.isEntryPoint)
                 {
-                    print("current method is from a component");
-                    current.actualTarget = (object)GetComponent(current.currentMethod.DeclaringType);
+                    //print($"current node function in Start is not null");                                                   
+                    returnObj = current.function.Invoke(current.actualTarget, current.passArgs);                                    
                 }
 
-                returnObj = current.function.Invoke(current.actualTarget, current.passArgs);
-
-                //if (returnObj != null)
-                //{
-                //
-                //}
+                current = current.nextNode;
             }
 
-            while (current.nextNode != null)
-            {
-                if (current.nextNode != current)
-                {
-                    current = current.nextNode;
-
-                    if (!current.isEntryPoint)
-                    {
-                        if (current.currentMethod == null)
-                        {
-                            current.currentMethod = Interpreter.Instance.LoadMethod(current.input, current.type, current.assemblyPath, current.index);
-
-                            if (current.currentMethod.DeclaringType.BaseType == typeof(UnityEngine.Component))
-                            {
-                                print("current method is from a component");
-                                Interpreter.Instance.CompileNode(current, (object)GetComponent(current.currentMethod.DeclaringType));
-                            }
-                        }
-                    }
-
-                    if (current.function != null)
-                    {
-                        print("Current function is not null");
-                        returnObj = current.function.Invoke(current.actualTarget, current.passArgs);
-                    }
-
-                }
-                else
-                {
-                    print("current node equals out point");
-                }
-
-
-            }
         }
-
-        else
-            print("Blueprint manager is null");
-
-        //if (data != null)
-        //{
-        //    //if (data.nodes == null)
-        //    //{
-        //    //    print("nodes is null adjusting");
-        //    //    JsonUtility.FromJsonOverwrite(data.json, data);                
-        //    //}
-        //    //if (data.nodes != null)
-        //    //{
-        //    //    foreach(Node node in data.nodes)
-        //    //    {
-        //    //        print($"Node: {node.input}");
-        //    //        if (node.currentMethod != null)
-        //    //            print($"Node method {node.currentMethod.Name}");
-        //    //        if (node.function != null)
-        //    //        {
-        //    //            print("calling function");
-        //    //            object result = node.function.Invoke(null, node.passArgs);
-        //    //            print($"result is type {result.GetType()}");
-        //    //        }
-        //    //    }
-        //    //}
-        //
-        //    
-        //    //if (data.entryPoints == null)
-        //    //{
-        //    //    Debug.Log("entry points is null");                
-        //    //    //test.Find((x) => x.tex)
-        //    //                    
-        //    //    return;
-        //    //}
-        //    //
-        //    //Node current = data.entryPoints["Start"];
-        //
-        //    //if (current != null)
-        //    //{
-        //    //    if (current.function != null)
-        //    //    {
-        //    //        returnObj = current.function.Invoke(this, current.passArgs);
-        //    //
-        //    //        if (returnObj != null)
-        //    //        {
-        //    //            Debug.Log($"Return object: {returnObj.ToString()}");
-        //    //            Debug.Log($"Return object type: {returnObj.GetType()}");
-        //    //        }
-        //    //    }
-        //    //}
-        //    //
-        //    //while (current.outPoint.node != null)
-        //    //{
-        //    //    current = current.outPoint.node;
-        //    //
-        //    //    if (current != null)
-        //    //    {
-        //    //        if (current.function != null)
-        //    //        {
-        //    //            returnObj = current.function.Invoke(this, current.passArgs);
-        //    //
-        //    //            if (returnObj != null)
-        //    //            {
-        //    //                Debug.Log($"Return object: {returnObj.ToString()}");
-        //    //                Debug.Log($"Return object type: {returnObj.GetType()}");
-        //    //            }
-        //    //        }
-        //    //    }
-        //    //}
-        //}
-        //
-        //else
-        //    Debug.Log("blueprint data is null in component");
-
-        
-
+      
     }                                                 
     public void OnEnable() { }	                                            //This function is called when the object becomes enabled and active.
     public void OnDisable() { }                                             //This function is called when the behaviour becomes disabled.
     public void OnDestroy() { }                                             //Destroying the attached Behaviour will result in the game or Scene receiving OnDestroy.
     public void Reset() { }                                                 //Reset to default values.
 
-    //This function is called when the script is loaded or a value is changed in the Inspector (Called in the editor only).
-    
-
+       
     //Updates
 
     //Update is called every frame, if the MonoBehaviour is enabled.
     public void Update()
     {
-        //Node current = data.entryPoints["Update"];
-        //
-        //if (current != null)
-        //{
-        //    if (current.function != null)
-        //        current.function.Invoke(this, current.passArgs);
-        //}
-        //
-        //while (current.outPoint.node != null)
-        //{
-        //    current = current.outPoint.node;
-        //
-        //    if (current != null)
-        //    {
-        //        if (current.function != null)
-        //            current.function.Invoke(this, current.passArgs);
-        //    }
-        //}
-
-
-
-        //if (data != null)
-        //{
-        //    if (BlueprintData.RuntimeTest == null)
-        //    {
-        //        Debug.Log("Instantiating new runtime test");
-        //        BlueprintData.RuntimeTest = new Dictionary<string, Vector3>();
-        //    }
-        //
-        //    else
-        //    {
-        //        if (!BlueprintData.added)
-        //        {
-        //            print("Adding to runtime test");
-        //            BlueprintData.RuntimeTest["Test"] = new Vector3(2, 2, 2);
-        //            added = true;
-        //        }
-        //
-        //        else
-        //        {
-        //            print($"Data runtime test: {BlueprintData.RuntimeTest["Test"].ToString()}");
-        //        }
-        //    }
-        //}
-        //Debug.Log(Interpreter.Instance.GetType());
-
-        //if (BlueprintManager.blueprints == null)
-        //{
-        //    print("Instantiating new Blueprint manager at runtime");
-        //    BlueprintManager.blueprints = new Dictionary<string, Blueprint>();
-        //}
-        //
-        //else
-        //{
-        //    print("Blueprint manager dictionary is not null");
-        //}
-
-
+       
     }                                                
     public void FixedUpdate() { }	                                        //Frame-rate independent MonoBehaviour.FixedUpdate message for physics calculations.
     public void LateUpdate() { }	                                        //LateUpdate is called every frame, if the Behaviour is enabled.

@@ -2,73 +2,36 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-//As static class and static dictionary it does work when called in onvalidate 
-//public static class BlueprintManager 
-//{
-//    public static Dictionary<string, Blueprint> blueprints;      
-//}
 
 public class BlueprintManager : MonoBehaviour
 {
-    public static Dictionary<string, Blueprint> blueprints;
-    public BlueprintData data; //Test
-    //public static Dictionary<BlueprintData, Blueprint> blueprints;
+    //public static Dictionary<string, Blueprint> blueprints;        
+    public static Dictionary<BlueprintData, Blueprint> blueprints;
 
+    //As it stands right now, the dictionary can instantiate at editor time, however after closing down
+    //that session and opening a new one, that will destroy the dictionary and I believe cause it construct on playmode 
+    //when OnValidate is next called.
     private void OnValidate()
     {
+        print("In OnValidate");
         if (blueprints == null)
         {
             print("Instantiating new blueprint dictionary");
-            blueprints = new Dictionary<string, Blueprint>();
-            //blueprints = new Dictionary<BlueprintData, Blueprint>();
+            //blueprints = new Dictionary<string, Blueprint>();
+            blueprints = new Dictionary<BlueprintData, Blueprint>();
         }
 
-        if (Application.isPlaying)
-        {
-            print("In construction of blueprint");
-            Blueprint bp = new Blueprint();
-            bp.name = data.ComponentName;
-
-            foreach(NodeData node in data.nodes)
-            {
-                Node newNode = new Node(node, null, null, null);
-                
-                if (node.isEntryPoint)
-                {
-                    Debug.Log("Entry point confirmed");
-                    bp.entryPoints[node.input] = newNode;
-                }
-
-                bp.nodes.Add(newNode);
-            }
-           
-            foreach(Node node in bp.nodes)
-            {
-                //Interpreter.Instance.CompileNode(node);
-                
-                foreach(Node node2 in bp.nodes)
-                {
-                    if (node.nextID == node2.ID)
-                    {
-                        node.nextNode = node2;
-                        break;
-                    }
-                }
-            }
-            
-
-            BlueprintManager.blueprints[bp.name] = bp;
-
-        }
+        else
+            print("Dictionary instantiated");              
     }
-
+   
     private void Update()
     {
         if (blueprints == null)
         {
             print("Instantiating new blueprint dictionary at runtime");
-            blueprints = new Dictionary<string, Blueprint>();
-            //blueprints = new Dictionary<BlueprintData, Blueprint>();
+            //blueprints = new Dictionary<string, Blueprint>();
+            blueprints = new Dictionary<BlueprintData, Blueprint>();
         }
     }
 }
