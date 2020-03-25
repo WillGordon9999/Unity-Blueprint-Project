@@ -25,7 +25,10 @@ public class BlueprintComponent : MonoBehaviour
         //if (Application.isPlaying)
         if (BlueprintManager.blueprints != null && !BlueprintManager.blueprints.TryGetValue(data, out bp))
         {
-            print("In construction of blueprint component side");
+            if (!Application.isPlaying)
+                print("In construction of blueprint component play");
+            else
+                print("In construction of blueprint component edit");
             Blueprint bp = new Blueprint();
             bp.name = ComponentName;
 

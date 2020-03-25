@@ -54,8 +54,9 @@ public class NodeEditor : EditorWindow
     private void OnDestroy()
     {
         Debug.Log("On destroy editor");
-        nodes.Clear();
-        connections.Clear();
+        //Automatically does a null check
+        nodes?.Clear();
+        connections?.Clear();
         EditorUtility.SetDirty(current);
         AssetDatabase.Refresh();
     }
@@ -64,15 +65,13 @@ public class NodeEditor : EditorWindow
     {
         Debug.Log("Editor enable");     
         
-        if (nodes != null)
-        {
-            Debug.Log("nodes is not null in editor");
-        }
+        if (nodes == null)        
+            Debug.Log("nodes is null in editor");
+        
 
-        if (connections != null)
-        {
-            Debug.Log("connections is not null in editor");
-        }
+        if (connections == null)        
+            Debug.Log("connections is null in editor");
+        
 
         resize = new GUIStyle();
         resize.normal.background = EditorGUIUtility.Load("icons/d_AvatarBlendBackground.png") as Texture2D;
@@ -392,51 +391,43 @@ public class NodeEditor : EditorWindow
     {
         if (nodes != null)
             nodes.Clear();
-        
+        else
+            nodes = new List<Node>();
+
         if (connections != null)
             connections.Clear();
+        else
+            connections = new List<Connection>();
 
         //Do stuff
 
-        //Blueprint test;
-        ////if (Application.isPlaying)
-        //if (blueprints != null && !blueprints.TryGetValue(compName, out test))
-        //{
-        //    print("In construction of blueprint");
-        //    Blueprint bp = new Blueprint();
-        //    bp.name = data.ComponentName;
-        //
-        //    foreach(NodeData node in data.nodes)
-        //    {
-        //        Node newNode = new Node(node, null, null, null);
-        //        
-        //        if (node.isEntryPoint)
-        //        {
-        //            //Debug.Log("Entry point confirmed");
-        //            bp.entryPoints[node.input] = newNode;
-        //        }
-        //
-        //        bp.nodes.Add(newNode);
-        //    }
-        //   
-        //    foreach(Node node in bp.nodes)
-        //    {
-        //        //Interpreter.Instance.CompileNode(node);
-        //        
-        //        foreach(Node node2 in bp.nodes)
-        //        {
-        //            if (node.nextID == node2.ID)
-        //            {
-        //                node.nextNode = node2;
-        //                break;
-        //            }
-        //        }
-        //    }
-        //    
-        //
-        //    BlueprintManager.blueprints[bp.name] = bp;
-        //    //bpTest.Add(bp);
-        //}
+        //Construct nodes
+        foreach(NodeData data in current.nodes)
+        {
+            Node newNode = new Node(data, OnClickInPoint, OnClickOutPoint, OnClickRemoveNode);
+            newNode.style = nodeStyle;
+            newNode.defaultNodeStyle = nodeStyle;
+            newNode.selectedNodeStyle = selectedNodeStyle;
+            nodes.Add(newNode);
+            //nodes.Add(new Node(data, OnClickInPoint, OnClickOutPoint, OnClickRemoveNode));            
+        }
+
+        //Construct Connections
+
+        //Unfortunately I don't think we can assume the next node will be after the node in question
+        foreach(Node node in nodes)
+        {
+            if (node.nextID != -1)
+            {
+                foreach(Node node2 in nodes)
+                {
+                    if (node2.ID == node.nextID)
+                    {
+                        connections.Add(new Connection(node2.inPoint, node.outPoint, OnClickRemoveConnection));                        
+                    }
+                }
+            }
+        }            
     }
    
     //Not sure if this is really needed

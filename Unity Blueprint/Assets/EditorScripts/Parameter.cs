@@ -10,10 +10,12 @@ public class Parameter
 {
     public string name;
     public object arg;
+    float[] numFields; //For managing vectors, I hope this approach will allow for value editing during play mode
     public Type type;
     public Rect rect;
     public Action draw;
     public ParameterData.ParamType paramType;
+
 
     public Parameter() { }
 
@@ -29,6 +31,7 @@ public class Parameter
         type = objType;
         name = label;
         paramType = parType;
+        GetFieldType();
     }
 
     T GetType<T>() where T : new()
@@ -100,8 +103,25 @@ public class Parameter
             if (type == typeof(Vector2))
             {
                 //draw = delegate { arg = EditorGUI.Vector2Field(rect, name, GetType<Vector2>()); };                    
-                arg = new float[] { 0.0f, 0.0f };
-                draw = delegate { EditorGUI.MultiFloatField(rect, new GUIContent[] { new GUIContent("X"), new GUIContent("Y") }, (float[])arg); };
+                //I'm hoping this approach might allow for live value editing during play later
+                if (arg != null)
+                {
+                    Vector2 v = (Vector2)arg;
+                    numFields = new float[] { v.x, v.y };
+                }
+                else
+                {
+                    //arg = new float[] { 0.0f, 0.0f };
+                    numFields = new float[] { 0.0f, 0.0f };
+                    arg = new Vector2(0.0f, 0.0f);
+                }
+
+                draw = delegate 
+                {
+                    EditorGUI.MultiFloatField(rect, new GUIContent[] { new GUIContent("X"), new GUIContent("Y") }, numFields);
+                    arg = new Vector2(numFields[0], numFields[1]);
+                };                
+                
                 paramType = ParameterData.ParamType.Vec2;
                 return;
             }
@@ -109,17 +129,52 @@ public class Parameter
             if (type == typeof(Vector3))
             {
                 //draw = delegate { arg = EditorGUI.Vector3Field(rect, name, GetType<Vector3>()); }; 
-                arg = new float[] { 0.0f, 0.0f, 0.0f };
-                draw = delegate { EditorGUI.MultiFloatField(rect, new GUIContent[] { new GUIContent("X"), new GUIContent("Y"), new GUIContent("Z") }, (float[])arg); };
+
+                if (arg != null)
+                {
+                    Vector3 v = (Vector3)arg;
+                    numFields = new float[] { v.x, v.y, v.z };
+                }
+
+                else
+                {
+                    //arg = new float[] { 0.0f, 0.0f, 0.0f };
+                    numFields = new float[] { 0.0f, 0.0f, 0.0f };
+                    arg = new Vector3(0.0f, 0.0f, 0.0f);
+                }
+
+                draw = delegate 
+                {
+                    EditorGUI.MultiFloatField(rect, new GUIContent[] { new GUIContent("X"), new GUIContent("Y"), new GUIContent("Z") }, numFields);
+                    arg = new Vector3(numFields[0], numFields[1], numFields[2]);
+                };
+                
                 paramType = ParameterData.ParamType.Vec3;
                 return;
             }
 
             if (type == typeof(Vector4))
             {
-                //draw = delegate { arg = EditorGUI.Vector4Field(rect, name, GetType<Vector4>()); };                                        
-                arg = new float[] { 0.0f, 0.0f, 0.0f, 0.0f };
-                draw = delegate { EditorGUI.MultiFloatField(rect, new GUIContent[] { new GUIContent("X"), new GUIContent("Y"), new GUIContent("Z"), new GUIContent("W") }, (float[])arg); };
+                //draw = delegate { arg = EditorGUI.Vector4Field(rect, name, GetType<Vector4>()); };
+
+                if (arg != null)
+                {
+                    Vector4 v = (Vector4)arg;
+                    numFields = new float[] { v.x, v.y, v.z, v.w };
+                }
+                else
+                {
+                    //arg = new float[] { 0.0f, 0.0f, 0.0f, 0.0f };
+                    numFields = new float[] { 0.0f, 0.0f, 0.0f, 0.0f };
+                    arg = new Vector4(0.0f, 0.0f, 0.0f, 0.0f);
+                }
+
+                draw = delegate 
+                {
+                    EditorGUI.MultiFloatField(rect, new GUIContent[] { new GUIContent("X"), new GUIContent("Y"), new GUIContent("Z"), new GUIContent("W") }, numFields);
+                    arg = new Vector4(numFields[0], numFields[1], numFields[2], numFields[3]);
+                };
+
                 paramType = ParameterData.ParamType.Vec4;
                 return;
             }
@@ -127,8 +182,24 @@ public class Parameter
             if (type == typeof(Rect))
             {
                 //draw = delegate { arg = EditorGUI.RectField(rect, GetType<Rect>()); };
-                arg = new float[] { 0.0f, 0.0f, 0.0f, 0.0f };
-                draw = delegate { EditorGUI.MultiFloatField(rect, new GUIContent[] { new GUIContent("X"), new GUIContent("Y"), new GUIContent("W"), new GUIContent("H") }, (float[])arg); };
+
+                if (arg != null)
+                {
+                    Rect r = (Rect)arg;
+                    numFields = new float[] { r.x, r.y, r.width, r.height };
+                }
+                else
+                {
+                    //arg = new float[] { 0.0f, 0.0f, 0.0f, 0.0f };                        
+                    numFields = new float[] { 0.0f, 0.0f, 0.0f, 0.0f };
+                    arg = new Rect(0.0f, 0.0f, 0.0f, 0.0f);
+                }
+
+                draw = delegate 
+                {
+                    EditorGUI.MultiFloatField(rect, new GUIContent[] { new GUIContent("X"), new GUIContent("Y"), new GUIContent("W"), new GUIContent("H") }, numFields);
+                    arg = new Rect(numFields[0], numFields[1], numFields[2], numFields[3]);
+                };
                 paramType = ParameterData.ParamType.Rect;
                 return;
             }

@@ -89,10 +89,10 @@ public class Node
         index = data.index;
         OnRemoveNode = removeNode;
         assemblyPath = data.assemblyPath;
-        inPoint = new ConnectionPoint(data.inPoint, data.inStyle, inAction);
-        outPoint = new ConnectionPoint(data.outPoint, data.outStyle, outAction);
+        inPoint = new ConnectionPoint(data.inPoint, this, data.inStyle, inAction);
+        outPoint = new ConnectionPoint(data.outPoint, this, data.outStyle, outAction);
         ID = data.ID;
-        nextID = data.nextID;
+        nextID = data.nextID;        
 
         isDefined = data.isDefined;
         isEntryPoint = data.isEntryPoint;
@@ -123,7 +123,7 @@ public class Node
         inPoint.Draw();
         outPoint.Draw();
               
-        GUI.Box(rect, title, style);
+        GUI.Box(rect, "", style);
 
         if (!isDefined)
             input = EditorGUI.TextField(new Rect(rect.position + initPos, initDimensions), input);
@@ -138,8 +138,9 @@ public class Node
                 pos.y += (initDimensions.y * (i + 1));                
                 Rect entry = new Rect(pos, initDimensions);
                 paramList[i].rect = entry;
-                if (paramList[i].draw != null)
-                    paramList[i].draw();                          
+
+                //Equivalent to: if draw != null                
+                paramList[i].draw?.Invoke();
             }
         }
 

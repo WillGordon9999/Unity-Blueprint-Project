@@ -47,14 +47,14 @@ public class ConnectionPoint
         rect = new Rect(0.0f, 0.0f, 10.0f, 20.0f);
     }
 
-    public ConnectionPoint(ConnectionPointData data, GUIStyle connectStyle, Action<ConnectionPoint> clickConnection)
+    public ConnectionPoint(ConnectionPointData data, Node target, GUIStyle connectStyle, Action<ConnectionPoint> clickConnection)
     {
+        node = target;
         rect = data.rect;        
         type = data.type;
         style = connectStyle;
         OnClickConnectionPoint = clickConnection;
     }
-
 
     public void Draw()
     {

@@ -79,8 +79,9 @@ public class ParameterData
                 }
             case ParamType.Rect:
                 {
-                    float[] val = (float[])par.arg;
-                    rectVal = new Rect(val[0], val[1], val[2], val[3]);
+                    //float[] val = (float[])par.arg;
+                    //rectVal = new Rect(val[0], val[1], val[2], val[3]);
+                    rectVal = (Rect)par.arg;
                     break;
                 }
             case ParamType.Color:
@@ -90,21 +91,23 @@ public class ParameterData
                 }
             case ParamType.Vec2:
                 {
-                    float[] val = (float[])par.arg;
-                    vec2Val = new Vector2(val[0], val[1]);
+                    //float[] val = (float[])par.arg;
+                    //vec2Val = new Vector2(val[0], val[1]);
+                    vec2Val = (Vector2)par.arg;
                     break;
                 }
             case ParamType.Vec3:
                 {
-                    float[] val = (float[])par.arg;
-                    //Vector3 test = (Vector3)par.arg;
-                    vec3Val = new Vector3(val[0], val[1], val[2]);
+                    //float[] val = (float[])par.arg;                    
+                    //vec3Val = new Vector3(val[0], val[1], val[2]);
+                    vec3Val = (Vector3)par.arg;
                     break;
                 }
             case ParamType.Vec4:
                 {
-                    float[] val = (float[])par.arg;
-                    vec4Val = new Vector4(val[0], val[1], val[2], val[3]);
+                    //float[] val = (float[])par.arg;
+                    //vec4Val = new Vector4(val[0], val[1], val[2], val[3]);
+                    vec4Val = (Vector4)par.arg;
                     break;
                 }
             case ParamType.Object:
