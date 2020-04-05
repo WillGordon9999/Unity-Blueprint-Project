@@ -28,7 +28,7 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <NoWarn>0169</NoWarn>
-    <AllowUnsafeBlocks>False</AllowUnsafeBlocks>
+    <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -37,7 +37,7 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <NoWarn>0169</NoWarn>
-    <AllowUnsafeBlocks>False</AllowUnsafeBlocks>
+    <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
   </PropertyGroup>
   <PropertyGroup>
     <NoConfig>true</NoConfig>
@@ -62,11 +62,16 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Assets\Editor\Blueprint.cs" />
+    <Compile Include="Assets\Editor\BlueprintComponent.cs" />
+    <Compile Include="Assets\Editor\BlueprintManager.cs" />
     <Compile Include="Assets\Editor\Connection.cs" />
     <Compile Include="Assets\Editor\ConnectionPoint.cs" />
     <Compile Include="Assets\Editor\Interpreter.cs" />
     <Compile Include="Assets\Editor\Node.cs" />
     <Compile Include="Assets\Editor\NodeEditor.cs" />
+    <Compile Include="Assets\Editor\Parameter.cs" />
+    <Compile Include="Assets\Editor\VariableDisplay.cs" />
     <Reference Include="UnityEditor.TestRunner">
       <HintPath>C:/Users/Will/Desktop/Unity Blueprint Repo/Unity-Blueprint-Project/Unity Blueprint/Library/ScriptAssemblies/UnityEditor.TestRunner.dll</HintPath>
     </Reference>
@@ -676,6 +681,12 @@
     <Reference Include="Boo.Lang">
       <HintPath>C:/Program Files/Unity/Hub/Editor/2019.3.0f6/Editor/Data/MonoBleedingEdge/lib/mono/unityscript/Boo.Lang.dll</HintPath>
     </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="Assembly-CSharp.csproj">
+      <Project>{7D42B744-B37A-28AB-C944-00A82BA4D419}</Project>
+      <Name>Assembly-CSharp</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Target Name="GenerateTargetFrameworkMonikerAttribute" />

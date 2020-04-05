@@ -6,6 +6,7 @@ public class Blueprint
 {
     public string name;
     public Dictionary<string, Node> entryPoints;
+    public Dictionary<string, Var> variables;
 
     //Editor side stuff
     public List<Node> nodes;

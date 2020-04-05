@@ -6,23 +6,42 @@ using System;
 public class BlueprintComponent : MonoBehaviour
 {
     public string ComponentName;
-    public Dictionary<string, RealTimeVar> variables = new Dictionary<string, RealTimeVar>();
-    public Dictionary<string, Node> entryPoints = new Dictionary<string, Node>();
+    public Dictionary<string, Var> variables = new Dictionary<string, Var>();
+    //public Dictionary<string, Node> entryPoints = new Dictionary<string, Node>();
     [HideInInspector] public object returnObj;    
     Blueprint bp;
-    public BlueprintData data;
+    public BlueprintData data;    
    
     [ExecuteInEditMode]
     public Component GetTargetComponent(Type type)
     {
-        return GetComponent(type);
+        return GetComponent(type);        
     }
     
+    //public static Component GetComponent(string varName, string input, Dictionary<string, Var> dict)
+    //{
+    //    Component comp = (Component)dict[varName].obj;
+    //    return comp.GetComponent(input);
+    //}
+
+    public Component GetComponent(string type, string other)
+    {
+        if (other != "")
+        {
+            return (variables[other].obj as Component).GetComponent(type);
+        }
+        return GetComponent(type);
+    }
+
     [ExecuteAlways]
     //This function is called when the script is loaded or a value is changed in the Inspector (Called in the editor only).
     public void OnValidate()
     {
-        //if (Application.isPlaying)
+        if (BlueprintManager.blueprints == null)
+        {
+            BlueprintManager.blueprints = new Dictionary<BlueprintData, Blueprint>();
+        }
+
         if (BlueprintManager.blueprints != null && !BlueprintManager.blueprints.TryGetValue(data, out bp))
         {
             if (!Application.isPlaying)
@@ -31,6 +50,7 @@ public class BlueprintComponent : MonoBehaviour
                 print("In construction of blueprint component edit");
             Blueprint bp = new Blueprint();
             bp.name = ComponentName;
+            BlueprintManager.blueprints[data] = bp;
 
             foreach (NodeData node in data.nodes)
             {
@@ -45,25 +65,57 @@ public class BlueprintComponent : MonoBehaviour
                 bp.nodes.Add(newNode);
             }
 
+            //Prepare variables
+            foreach (Var v in data.variables)
+            {
+                v.type = Interpreter.Instance.LoadVarType(v.strType, v.asmPath);
+                variables[v.name] = v;
+            }
+
             foreach (Node node in bp.nodes)
             {
                 //Interpreter.Instance.CompileNode(node);
-                if (node.currentMethod == null && !node.isEntryPoint)
+                //if (node.currentMethod == null && !node.isEntryPoint)
+                //{
+                //    node.currentMethod = Interpreter.Instance.LoadMethod(node.input, node.type, node.assemblyPath, node.index);
+                //
+                //    if (node.currentMethod.DeclaringType.BaseType == typeof(UnityEngine.Component))
+                //    {                        
+                //        Interpreter.Instance.CompileNode(node, (object)GetComponent(node.currentMethod.DeclaringType));
+                //    }
+                //
+                //    else
+                //        Interpreter.Instance.CompileNode(node);
+                //
+                //    if (node.actualTarget == null)
+                //        print("Node's target is null!");
+                //}
+
+                if (node.nodeType == NodeType.Function)
                 {
-                    node.currentMethod = Interpreter.Instance.LoadMethod(node.input, node.type, node.assemblyPath, node.index);
-
-                    if (node.currentMethod.DeclaringType.BaseType == typeof(UnityEngine.Component))
-                    {                        
-                        Interpreter.Instance.CompileNode(node, (object)GetComponent(node.currentMethod.DeclaringType));
-                    }
-
-                    else
+                    if (node.isSpecial)
+                    {
+                        node.currentMethod = Interpreter.Instance.GetSpecialFunction(node.input);
+                        node.actualTarget = (object)this;
                         Interpreter.Instance.CompileNode(node);
-
-                    if (node.actualTarget == null)
-                        print("Node's target is null!");
+                    }
+                    else
+                    {
+                        node.currentMethod = Interpreter.Instance.LoadMethod(node.input, node.type, node.assemblyPath, node.index);
+                        Interpreter.Instance.CompileNode(node);
+                        node.actualTarget = variables[node.varName].obj;
+                    }
                 }
 
+                if (node.nodeType == NodeType.Field_Set)
+                {
+                    node.fieldVar = Interpreter.Instance.LoadField(node.input, node.type, node.assemblyPath);
+                }
+
+                if (node.nodeType == NodeType.Property_Set)
+                {
+                    node.propertyVar = Interpreter.Instance.LoadProperty(node.input, node.type, node.assemblyPath);
+                }
 
                 foreach (Node node2 in bp.nodes)
                 {
@@ -76,10 +128,19 @@ public class BlueprintComponent : MonoBehaviour
             }
 
             //BlueprintManager.blueprints[bp.name] = bp;            
-            BlueprintManager.blueprints[data] = bp;
+            
         }
         else
+        {
             print("blueprint already constructed");
+
+            //Prepare variables
+            foreach (Var v in data.variables)
+            {
+                v.type = Interpreter.Instance.LoadVarType(v.strType, v.asmPath);
+                variables[v.name] = v;
+            }
+        }
     }
 
     //Initialization/Destroy
@@ -98,10 +159,67 @@ public class BlueprintComponent : MonoBehaviour
 
             while (current != null)
             {
-                if (current.function != null && !current.isEntryPoint)
+                if (current.nodeType == NodeType.Function && current.function != null)
                 {
-                    //print($"current node function in Start is not null");                                                   
-                    returnObj = current.function.Invoke(current.actualTarget, current.passArgs);                                    
+                    if (current.isSpecial)
+                    {
+                        current.actualTarget = this;
+                        returnObj = current.function.Invoke(current.actualTarget, current.passArgs);
+                    }
+
+                    else
+                        returnObj = current.function.Invoke(variables[current.varName].obj, current.passArgs);                    
+
+                    if (current.isReturning)
+                    {
+                        if (current.retType == Node.ReturnVarType.Var)
+                        {
+                            variables[current.returnInput].obj = returnObj;
+                        }
+
+                        if (current.retType == Node.ReturnVarType.Field)
+                        {
+                            if (current.returnType == current.returnField.FieldType)
+                                current.returnField.SetValue(variables[current.returnInput], returnObj);
+                        }
+
+                        if (current.retType == Node.ReturnVarType.Property)
+                        {
+                            if (current.returnType == current.returnProperty.PropertyType)
+                                current.returnProperty.SetValue(variables[current.returnInput], returnObj);
+                        }                    
+                    }
+
+                }
+
+                if (current.nodeType == NodeType.Field_Set)
+                {
+                    Var v = variables[current.varName];
+                    if (current.isVar)
+                    {
+                        Var other = BlueprintManager.blueprints[data].variables[(string)current.varField.arg];
+                        current.fieldVar.SetValue(v.obj, other.name);
+                    }
+
+                    else
+                    {
+                        current.fieldVar.SetValue(v.obj, current.literalField.arg);
+                    }
+                }
+
+                if (current.nodeType == NodeType.Property_Set)
+                {
+                    Var v = variables[current.varName];
+                    if (current.isVar)
+                    {
+                        Var other = BlueprintManager.blueprints[data].variables[(string)current.varField.arg];
+                        current.propertyVar.SetValue(v.obj, other.name);
+                    }
+
+                    else
+                    {
+                        current.propertyVar.SetValue(v.obj, current.literalField.arg);
+                    }
                 }
 
                 current = current.nextNode;

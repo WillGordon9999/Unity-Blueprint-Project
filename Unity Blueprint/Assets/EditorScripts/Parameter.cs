@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEditor;
-using UnityEditor.UIElements;
 using System;
 using System.Reflection;
 
@@ -15,7 +14,9 @@ public class Parameter
     public Rect rect;
     public Action draw;
     public ParameterData.ParamType paramType;
-
+    public UnityEngine.Object obj;
+    public string objType;
+    public bool noType;
 
     public Parameter() { }
 
@@ -23,9 +24,10 @@ public class Parameter
     public Parameter(Type objType)
     {
         type = objType;
+        GetFieldType();
     }
 
-    public Parameter(object obj, Type objType, ParameterData.ParamType parType, string label)
+    public Parameter(object obj, Type objType, ParameterData.ParamType parType, string label = "")
     {
         arg = obj;
         type = objType;
@@ -225,12 +227,19 @@ public class Parameter
 
             if (type == typeof(UnityEngine.Object))
             {
-                draw = delegate { arg = EditorGUI.ObjectField(rect, GetType<UnityEngine.Object>(), type, true); };
+                draw = delegate 
+                {
+                    obj = EditorGUI.ObjectField(rect, GetType<UnityEngine.Object>(), type, true);                    
+                    arg = obj;
+                    objType = obj.GetType().ToString();
+                };
+                
                 paramType = ParameterData.ParamType.Object;
                 return;
             }
 
             Debug.Log("Type not found");
+            noType = true;
 
         }
     }

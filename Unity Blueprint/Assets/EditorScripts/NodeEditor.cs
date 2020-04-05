@@ -21,8 +21,9 @@ public class NodeEditor : EditorWindow
     Vector2 offset;
     Vector2 drag;
 
-    static List<Node> nodes;
-    static List<Connection> connections;
+    public static List<Node> nodes;
+    public static List<Connection> connections;
+    public static List<Var> vars;
 
     //General sizing variables - no more hard-coding
     float nodeWidth = 300.0f;
@@ -31,9 +32,8 @@ public class NodeEditor : EditorWindow
     float connectionLineWidth = 2.0f;
 
     //FILE I/O
-
-    public string filePath = "Assets/BlueprintCollection.asset";    
-    BlueprintData current;
+    
+    public static BlueprintData current;
 
     string text;
     BlueprintData loadData;
@@ -42,7 +42,8 @@ public class NodeEditor : EditorWindow
     bool enterPressed = false;
     Rect createLoadRect;
     string blueprintName;
-
+    VariableDisplay varDisplay;
+    Vector2 scrollPos;
 
     [MenuItem("Window/NodeEditor")]
     static void OpenWindow()
@@ -62,17 +63,7 @@ public class NodeEditor : EditorWindow
     }
 
     private void OnEnable()
-    {
-        Debug.Log("Editor enable");     
-        
-        if (nodes == null)        
-            Debug.Log("nodes is null in editor");
-        
-
-        if (connections == null)        
-            Debug.Log("connections is null in editor");
-        
-
+    {        
         resize = new GUIStyle();
         resize.normal.background = EditorGUIUtility.Load("icons/d_AvatarBlendBackground.png") as Texture2D;
 
@@ -93,6 +84,9 @@ public class NodeEditor : EditorWindow
         outStyle.normal.background = EditorGUIUtility.Load("builtin skins/darkskin/images/btn right.png") as Texture2D;
         outStyle.active.background = EditorGUIUtility.Load("builtin skins/darkskin/images/btn right on.png") as Texture2D;
         outStyle.border = new RectOffset(4, 4, 12, 12);
+
+        varDisplay = new VariableDisplay();
+        varDisplay.style = nodeStyle;
     }
 
     private void OnDisable()
@@ -110,6 +104,8 @@ public class NodeEditor : EditorWindow
        
         DrawGrid(20.0f, 0.2f, Color.gray);
         DrawGrid(100.0f, 0.4f, Color.gray);
+        
+        scrollPos = varDisplay.Update(scrollPos);
 
         DrawNodes();
         DrawConnections();
@@ -117,7 +113,7 @@ public class NodeEditor : EditorWindow
         
         ProcessNodeEvents(Event.current);
         ProcessEvents(Event.current);
-
+        
         if (createNew)
         {
             text = GUI.TextField(createLoadRect, text);
@@ -128,16 +124,23 @@ public class NodeEditor : EditorWindow
 
                 if (current == null)
                 {
-                    current = Interpreter.Instance.CreateAsset<BlueprintData>("Assets/" + text + ".asset");
+                    //current = Interpreter.Instance.CreateAsset<BlueprintData>("Assets/" + text + ".asset");
+                    loadData = Interpreter.Instance.CreateAsset<BlueprintData>("Assets/" + text + ".asset");
+
+                    current = ScriptableObject.CreateInstance<BlueprintData>();
+
                     current.ComponentName = text;
                     blueprintName = text;
-                    current.ID_Count = 0; //just to be sure
+                    current.ID_Count = 0; //just to be sure                    
                     createNew = false;
                     enterPressed = false;
+                    //varDisplay.current = current;
                 }
 
                 else
-                    Debug.Log("A file with that name already exists");
+                {
+                    Debug.Log("A file with that name exists");
+                }
 
             }
 
@@ -149,10 +152,10 @@ public class NodeEditor : EditorWindow
 
             if (loadData != null)
             {
-                Debug.Log("Found blueprint");               
-                current = loadData;
+                Debug.Log("Found blueprint");                               
                 LoadBlueprint();
                 isLoading = false;
+                //varDisplay.current = current;
             }
         }
 
@@ -200,17 +203,7 @@ public class NodeEditor : EditorWindow
             {
                 node.Draw();
             }
-        }
-
-        //if (current == null)
-        //    return;
-
-        //if (current.nodes != null)
-        //{
-        //    foreach (Node node in current.nodes)
-        //        node.Draw();
-        //}
-
+        }        
     }
 
     void DrawConnections()
@@ -221,17 +214,7 @@ public class NodeEditor : EditorWindow
             {
                 connection.Draw();
             }
-        }
-
-        //if (current == null)
-        //    return;
-
-        //if (current.connections != null)
-        //{
-        //    foreach (Connection connection in current.connections)
-        //        connection.Draw();
-        //}
-
+        }      
     }
 
     void DrawConnectionLine(Event e)
@@ -274,12 +257,13 @@ public class NodeEditor : EditorWindow
                 if (e.button == 2)
                     OnDrag(e.delta);
                 break;
+
             case EventType.KeyDown:
                 if (e.keyCode == KeyCode.Return)
                 {                   
                     enterPressed = true;
                 }
-                break;
+                break;                           
         }
 
         Resize(e);
@@ -296,19 +280,7 @@ public class NodeEditor : EditorWindow
                 node.Drag(delta);
             }
         }
-
-        //if (current == null)
-        //{
-        //    //Debug.Log("Current is null in OnDrag");
-        //    return;
-        //}
-
-        //if (current.nodes != null)
-        //{
-        //    foreach (Node node in current.nodes)
-        //        node.Drag(delta);
-        //}
-
+      
         GUI.changed = true;
     }
 
@@ -324,24 +296,6 @@ public class NodeEditor : EditorWindow
                     GUI.changed = true;
             }
         }
-
-        //if (current == null)
-        //{
-        //    //Debug.Log("Current is null in process node events");
-        //    return;
-        //}
-
-        //if (current.nodes != null)
-        //{
-        //    for (int i = current.nodes.Count - 1; i >= 0; i--)
-        //    {
-        //        bool guiChanged = current.nodes[i].ProcessEvents(e);
-        //
-        //        if (guiChanged)
-        //            GUI.changed = true;
-        //    }
-        //}
-
     }
 
     void ProcessContextMenu(Vector2 mousePos)
@@ -351,7 +305,7 @@ public class NodeEditor : EditorWindow
         {            
             menu.AddItem(new GUIContent("Add node"), false, () => OnClickAddNode(mousePos));
             menu.AddItem(new GUIContent("Save Blueprint"), false, () => SaveBlueprint());
-            menu.AddItem(new GUIContent("Compile Blueprint"), false, () => CompileBlueprint());
+            menu.AddItem(new GUIContent("Load Blueprint"), false, () => ToggleLoadBlueprintUI(mousePos));
             menu.ShowAsContext();
         }
 
@@ -364,26 +318,55 @@ public class NodeEditor : EditorWindow
     }
 
     void SaveBlueprint()
-    {
+    {                
         //Save nodes
         if (current.nodes == null)
             current.nodes = new List<NodeData>();
+       
+        //Nodes
+        current.ID_Count = 0;
 
-        foreach(Node node in nodes)
+        foreach (Node node in nodes)
+        {                                
+            node.ID = current.ID_Count;
+            current.ID_Count++;                                
+        }
+
+        foreach (Node node in nodes)
         {
+            if (node.nextNode != null)
+                node.nextID = node.nextNode.ID;
+
             current.nodes.Add(new NodeData(node));
         }
 
+        //Connections
         if (current.connections == null)
             current.connections = new List<ConnectionData>();
 
-        for (int i = 0; i < current.nodes.Count; i++)
-        {
-            current.connections.Add(new ConnectionData(current.nodes[i].inPoint, current.nodes[i].outPoint));            
-        }
+        for (int i = 0; i < current.nodes.Count; i++)        
+            current.connections.Add(new ConnectionData(current.nodes[i].inPoint, current.nodes[i].outPoint));
         
-        EditorUtility.SetDirty(current);
-        AssetDatabase.Refresh();
+        //Variables
+
+
+        loadData.ComponentName = current.ComponentName;
+        loadData.ID_Count = current.ID_Count;
+        loadData.nodes = new List<NodeData>();
+        loadData.connections = new List<ConnectionData>();
+        loadData.variables = new List<Var>();
+
+        foreach (NodeData node in current.nodes)
+            loadData.nodes.Add(node);
+
+        foreach (ConnectionData con in current.connections)
+            loadData.connections.Add(con);
+
+        foreach (Var v in current.variables)            
+            loadData.variables.Add(v);
+        
+        EditorUtility.SetDirty(loadData);
+        AssetDatabase.Refresh();               
     }
 
     //TO-DO: Gotta finish this, but for now we need to focus on making sure code can in fact execute
@@ -398,6 +381,29 @@ public class NodeEditor : EditorWindow
             connections.Clear();
         else
             connections = new List<Connection>();
+
+        //Need to make a copy of the loaded blueprintData, current will serve as this copy
+        if (current == null)        
+            current = ScriptableObject.CreateInstance<BlueprintData>();
+        
+        current.ComponentName = loadData.ComponentName;
+        current.ID_Count = loadData.ID_Count;
+        current.nodes = new List<NodeData>();
+        current.connections = new List<ConnectionData>();
+        current.variables = new List<Var>();
+
+        foreach (NodeData node in loadData.nodes)
+            current.nodes.Add(node);
+
+        foreach (ConnectionData con in loadData.connections)
+            current.connections.Add(con);
+        
+        foreach(Var v in loadData.variables)
+        {           
+            v.type = Interpreter.Instance.LoadVarType(v.strType, v.asmPath);
+
+            current.variables.Add(v);
+        }
 
         //Do stuff
 
@@ -440,29 +446,7 @@ public class NodeEditor : EditorWindow
             Debug.Log("Instantiating blueprint dictionary");
             //BlueprintManager.blueprints = new Dictionary<string, Blueprint>();
             BlueprintManager.blueprints = new Dictionary<BlueprintData, Blueprint>();
-        }
-        
-        //Blueprint bp = new Blueprint();
-        //bp.name = blueprintName;
-        //
-        //foreach(Node node in nodes)
-        //{
-        //    Interpreter.Instance.CompileNode(node);
-        //    if (node.isEntryPoint)
-        //    {
-        //        Debug.Log("Entry point confirmed");
-        //        bp.entryPoints[node.input] = node;
-        //    }
-        //
-        //    bp.nodes.Add(node);
-        //}
-        //
-        //foreach(Connection con in connections)
-        //{
-        //    bp.connections.Add(con);
-        //}
-
-        //BlueprintManager.blueprints[blueprintName] = bp;        
+        }                   
     }
 
     void ToggleNewBlueprintUI(Vector2 mousePos)
@@ -475,6 +459,7 @@ public class NodeEditor : EditorWindow
     void ToggleLoadBlueprintUI(Vector2 mousePos)
     {
         createLoadRect = new Rect(mousePos.x, mousePos.y, nodeWidth, nodeHeight);
+        loadData = null;
         isLoading = true;
         createNew = false;
     }
@@ -490,22 +475,6 @@ public class NodeEditor : EditorWindow
         newNode.nextID = -1;
         current.ID_Count++;
         nodes.Add(newNode);
-
-        //if (current == null)
-        //{
-        //    Debug.Log("Current is null add node");
-        //    return;
-        //}
-
-        //if (current.nodes == null)
-        //{
-        //    current.nodes = new List<Node>();
-        //}
-        //
-        //Node node = new Node(mousePos, nodeWidth, nodeHeight, nodeStyle, selectedNodeStyle, inStyle, outStyle, OnClickInPoint, OnClickOutPoint, OnClickRemoveNode);
-        //node.blueprint = current;
-        //
-        //current.nodes.Add(node);
     }
 
     void OnClickRemoveNode(Node node)
@@ -529,28 +498,6 @@ public class NodeEditor : EditorWindow
         }
         
         nodes.Remove(node);
-
-        //if (current == null)
-        //{
-        //    //Debug.Log("Current is null remove node");
-        //    return;
-        //}
-
-        //if (current.connections != null)
-        //{
-        //    List<Connection> old = new List<Connection>();
-        //
-        //    foreach(Connection connection in current.connections)
-        //    {
-        //        if (connection.inPoint == node.inPoint || connection.outPoint == node.outPoint)
-        //            old.Add(connection);
-        //    }
-        //
-        //    foreach (Connection connection in old)
-        //        current.connections.Remove(connection);
-        //}
-
-        //current.nodes.Remove(node);
     }
 
     void OnClickInPoint(ConnectionPoint inPoint)
@@ -590,15 +537,8 @@ public class NodeEditor : EditorWindow
     }
 
     void OnClickRemoveConnection(Connection connection)
-    {
-        //if (current == null)
-        //{
-        //    //Debug.Log("Current is null remove connection");
-        //    return;
-        //}
-
-        connections.Remove(connection);
-        //current.connections.Remove(connection);
+    {      
+        connections.Remove(connection);        
     }
 
     void CreateConnection()
@@ -608,19 +548,7 @@ public class NodeEditor : EditorWindow
 
         Connection con = new Connection(selectedInPoint, selectedOutPoint, OnClickRemoveConnection);
         selectedOutPoint.node.nextID = selectedInPoint.node.ID;
-        connections.Add(con);
-
-        //if (current == null)
-        //{
-        //    Debug.Log("Current is null create connection");
-        //    return;
-        //}
-
-        //if (current.connections == null)
-        //    current.connections = new List<Connection>();
-        //
-        //current.connections.Add(new Connection(selectedInPoint, selectedOutPoint, OnClickRemoveConnection));
-
+        connections.Add(con);       
     }
 
     void ClearConnectionSelection()

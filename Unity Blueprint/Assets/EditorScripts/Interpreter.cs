@@ -7,10 +7,39 @@ using System.Linq;
 using System.Linq.Expressions;
 using System;
 using System.IO;
-public class RealTimeVar
+
+[Serializable]
+public class Var
 {
-    object obj;
-    Type type;
+    public string name;
+    public ParameterData data; //This will be primarily for initial values, I don't think I should worry about this now
+    public string input;
+    public string strType;
+    public string asmPath;
+
+    public enum VarType { Field, Property };
+    public VarType varType;
+
+    //To be set up during runtime
+    public object obj; //For safety this should probably be the containing object of the property/field
+    public Type type; //Type of class     
+    //public FieldInfo field;
+    //public PropertyInfo property;
+   
+    public Var(object o, Type t)
+    {
+        obj = o;
+        type = t;        
+    }
+    
+    public Var(Type t, string theName)
+    {
+        obj = null;
+        name = theName;
+        type = t;
+        strType = type.ToString();
+        asmPath = type.Assembly.Location;
+    }
 }
 
 public class CodeNode
@@ -19,6 +48,48 @@ public class CodeNode
     CodeNode nextPath;
     CodeNode falsePath;
     string returnVarName;
+}
+
+public class InterpreterData
+{
+    public Type[] types;
+    public MethodInfo[] methods;
+    public PropertyInfo[] properties;
+    public FieldInfo[] fields;
+    public Assembly[] asms;
+
+    public bool isKeyWord;
+    public bool isStatic; //If class name is called directly and var is not used    
+    public string varName; //The target
+    public Var varRef;
+
+    public string input;
+    public Type selectedType;
+    public Assembly selectedAsm;
+    public AccessType access;    
+
+    public enum AccessType { Get, Set, Both };
+    
+    /*
+     Should there be some kind of InterpreterParameter struct which are args afterwards
+     
+     I think there needs to be
+     baseType of the object, which in this case is just selectedType
+     but then we need an index in a split string array to know which possible function/field/property to evaluate
+
+    This probably isn't the wisest to tackle now
+    */
+    public InterpreterData() { }
+
+    public InterpreterData(Type[] t, MethodInfo[] m, PropertyInfo[] p, FieldInfo[] f, Assembly[] a)
+    {
+        types = t;
+        methods = m;
+        properties = p;
+        fields = f;
+        asms = a;
+    }
+
 }
 
 public class Interpreter
@@ -142,89 +213,256 @@ public class Interpreter
         BlueprintData asset = AssetDatabase.LoadAssetAtPath<BlueprintData>("Assets/" + name + ".asset");
         return asset;
     }
-       
-    public void Compile()
+    
+    //This is only for processing code nodes, defining variables should be handled by CreateVariable
+    public void Compile(string input, BlueprintData blueprint, ref InterpreterData data, Node node = null)
     {
-        string text = "";        
-        object target;
-        object[] passArgs;
+        if (input == null)
+            return;
 
-        string proc = text;
-        string[] raw = proc.Split(' ');
-        string[] args = new string[raw.Length - 2];
+        string[] args = input.Split(' ');
 
-        Component comp = null;
-        //var comp = GameObject.GetComponent(raw[0]);        
-        Type type = null;
-        
-        if (comp == null)
+        if (args.Length < 1)
+            return;
+
+        if (data != null)
         {
-            //Source: https://stackoverflow.com/questions/8499593/c-sharp-how-to-check-if-namespace-class-or-method-exists-in-c
-            type = (from assembly in AppDomain.CurrentDomain.GetAssemblies() from type2 in assembly.GetTypes() where type2.Name == raw[0] select type2).FirstOrDefault();
-        
-            if (type == null)
+            if (input != data.input)
             {
-                Debug.Log("Interpreter Error: No Component or Class defintion Found");
+                data = null;
+                Debug.Log($"Resetting interpreter data input is {input}");                
+            }
+        }
+
+        if (data == null)
+        {            
+            data = new InterpreterData();
+            data.input = input;
+
+            if (ParseKeywords(args[0], node))
+            {                
                 return;
+            }
+
+            Type varType = null;
+
+            //Check for variables - again not a dictionary right now since I don't where it would be stored        
+
+            if (blueprint.variables != null)
+            {
+                foreach (Var v in blueprint.variables)
+                {
+                    //if (node != null)
+                    //{
+                    //    if (v.name == args[0] && node.isReturning)
+                    //    {
+                    //        varType = v.type;
+                    //        data.selectedType = varType;
+                    //        data.isStatic = false;
+                    //        data.varName 
+                    //    }
+                    //}
+
+                    if (v.name == args[0])
+                    {
+                        //Methods, Fields, and Properties are found below
+                        varType = v.type;
+                        data.selectedType = varType;
+                        data.isStatic = false;
+                        data.varName = args[0];
+                        data.varRef = v;
+                        break;
+                    }
+                }
+            }
+           
+            //If no variable is found, find the type if it exists
+            if (varType == null)
+            {
+                Type[] types;
+                Assembly[] asms;
+
+                //If multiple definitions found
+                if (FindType(args[0], out types, out asms))
+                {
+                    data.types = types;
+                    data.asms = asms;
+                    data.isStatic = true;
+
+                    if (data.types.Length > 1)
+                        return;
+
+                    if (data.types.Length == 1)
+                    {
+                        data.selectedType = data.types[0];
+                        data.selectedAsm = data.selectedType.Assembly;                        
+                    }                    
+                }
             }
         }
         
-        else
-        {
-            type = comp.GetType();
-            target = comp;
-        }
+
+        //If type selected
+        //TypeSelected:
         
-        Debug.Log("Type is " + type.ToString());
-        
-        Array.Copy(raw, 2, args, 0, raw.Length - 2);
-        object[] finalArgs = ParseArgumentTypes(args);
-        passArgs = finalArgs;
-        
-        MethodInfo method = GetMethodMatch(type, raw[1], finalArgs);
-        
-        Debug.Log(method.Name);                              
-        //newTest = method.Bind();             
+        if (data.selectedType != null)
+        {           
+            MethodInfo[] methods = data.selectedType.GetMethods();
+            List<MethodInfo> methodInfo = new List<MethodInfo>();
+
+            foreach (MethodInfo m in methods)
+            {
+                 if (data.isStatic)
+                 {
+                     if (m.Name == args[1] && m.IsStatic)
+                         methodInfo.Add(m);
+                 }
+                 else
+                 {
+                     if (m.Name == args[1] && !m.IsStatic)
+                         methodInfo.Add(m);
+                 }                              
+            }
+
+            data.methods = methodInfo.ToArray();
+            
+            if (data.isStatic)
+            {
+                data.fields = new FieldInfo[1];
+                FieldInfo result = data.selectedType.GetField(args[1], BindingFlags.Static);
+                if (result != null && result.IsPublic)
+                {
+                    data.fields[0] = result;
+                    data.access = InterpreterData.AccessType.Both;
+                }
+
+                data.properties = new PropertyInfo[1];
+                PropertyInfo prop = data.selectedType.GetProperty(args[1], BindingFlags.Static);
+
+                if (prop != null && (prop.CanRead || prop.CanWrite))
+                {
+                    if (prop.CanRead && prop.CanWrite)
+                        data.access = InterpreterData.AccessType.Both;
+
+                    else if (prop.CanRead)
+                        data.access = InterpreterData.AccessType.Get;
+
+                    else if (prop.CanWrite)
+                        data.access = InterpreterData.AccessType.Set;
+
+                    data.properties[0] = prop;
+                }
+            }
+
+            else
+            {
+                data.fields = new FieldInfo[1];
+                FieldInfo result = data.selectedType.GetField(args[1]);
+
+                if (result != null && result.IsPublic)
+                {
+                    data.fields[0] = result;
+                    data.access = InterpreterData.AccessType.Both;
+                }
+
+                data.properties = new PropertyInfo[1];
+                PropertyInfo prop = data.selectedType.GetProperty(args[1]);
+
+                if (prop != null && (prop.CanRead || prop.CanWrite))
+                {
+                    if (prop.CanRead && prop.CanWrite)
+                        data.access = InterpreterData.AccessType.Both;
+
+                    else if (prop.CanRead)
+                        data.access = InterpreterData.AccessType.Get;
+
+                    else if (prop.CanWrite)
+                        data.access = InterpreterData.AccessType.Set;
+
+                    data.properties[0] = prop;
+                }
+            }  
+        }                
     }
 
-    public void CompileNode(Node node, object target = null)
-    {
-        //Debug.Log("In compile node");
+    public void CompileNode(Node node, object target = null, Blueprint blueprint = null)
+    {        
+        //This might need to be changed later in the event of unity messages with params such as OnCollisionEnter
         if (node.isEntryPoint)
-        {
-            //Debug.Log("Node is entry point returning");
+        {            
             return;
         }
-           
-        if (node.currentMethod == null)
-        {
-            //Debug.Log("Attempting to construct methodinfo");
-            node.currentMethod = LoadMethod(node.input, node.type, node.assemblyPath, node.index);
 
+        if (blueprint != null)
+            node.blueprint = blueprint;
+
+        if (node.nodeType == NodeType.Function)
+        {            
             if (node.currentMethod == null)
             {
-                //Debug.Log("Node has no method or is entry point");
-                return;
+                //Debug.Log("Attempting to construct methodinfo");
+                node.currentMethod = LoadMethod(node.input, node.type, node.assemblyPath, node.index);
+
+                if (node.currentMethod == null)
+                {
+                    Debug.Log("Node has no method or is entry point");
+                    return;
+                }
+            }
+
+            if (node.paramList.Count > 0)
+            {
+                node.passArgs = new object[node.paramList.Count];
+
+                for (int i = 0; i < node.paramList.Count; i++)
+                {
+                    if (node.isSpecial && node.paramList[i].noType)
+                    {
+                        node.passArgs[i] = node.actualTarget;
+                        node.actualTarget = null;
+                        continue;
+                    }
+
+                    node.passArgs[i] = node.paramList[i].arg;
+                }
+            }
+            
+            if (target != null)
+            {
+                //Debug.Log("passed in target is not null");
+                node.actualTarget = target;
+            }
+
+            node.function = node.currentMethod.Bind();
+            return;
+        }
+
+        if (node.nodeType == NodeType.Field_Set)
+        {
+            //Find the base type
+            node.fieldVar = LoadField(node.input, node.type, node.assemblyPath);
+
+            if (node.literalField != null && node.varField == null)
+            {
+                node.isVar = false;
+                //node.targetVar = blueprint.variables[node.varName];
+                //node.SetVariable = delegate { node.fieldVar.SetValue(node.targetVar.obj, node.literalField.arg); };
+            }
+
+            if (node.varField != null && node.literalField == null)
+            {
+                if ((string)node.varField.arg != "")
+                {
+                    node.isVar = true;
+                }
+            }
+
+            if (node.literalField != null && node.varField != null)
+            {
+                if ((string)node.varField.arg != "")
+                    Debug.LogError("ERROR: Both types assigned");
             }
         }
-             
-        if (node.paramList.Count > 0)
-        {
-            node.passArgs = new object[node.paramList.Count];
-
-            for (int i = 0; i < node.paramList.Count; i++)
-            {               
-                node.passArgs[i] = node.paramList[i].arg;
-            }
-        }
-
-        if (target != null)
-        {
-            //Debug.Log("passed in target is not null");
-            node.actualTarget = target;
-        }
-
-        node.function = node.currentMethod.Bind();
     }
 
     public MethodInfo LoadMethod(string input, string type, string path, int index)
@@ -269,42 +507,292 @@ public class Interpreter
         return null;
     }
 
-    public void ParseKeywords(string text, Node node)
+    public Type LoadVarType(string type, string asmPath)
     {
-        //MethodInfo info = typeof(MonoBehaviour).GetMethod(text);
-        MethodInfo info = typeof(BlueprintComponent).GetMethod(text);
-        if (info != null)
+        if (asmPath == "")
+            return null;
+
+        Assembly TestASM = Assembly.LoadFile(asmPath);
+        
+        if (TestASM != null)
         {
-            Debug.Log($"Method found for {text}");          
-            Debug.Log($"keyword {text}");
-            Debug.Log($"node: {node.ToString()}");
+            return TestASM.GetType(type);
+        }
 
-            //if (node.blueprint.activeFunctions == null)
-            //    node.blueprint.activeFunctions = new List<string>();
+        return null;
+    }
 
-            //node.blueprint.activeFunctions.Add(text);
+    public FieldInfo LoadField(string input, string type, string path)
+    {
+        if (path == "")
+            return null;
 
+        Assembly TestASM = Assembly.LoadFile(path);
+
+        string[] args = input.Split(' ');
+        string name = "";
+
+        if (args.Length > 1)
+            name = args[1];
+        else
+        {
+            Debug.Log("No field name found returning null");
+            return null;
+        }
+
+        if (TestASM != null)
+        {
+            Type typeTest = TestASM.GetType(type);
+            if (typeTest != null)
+            {
+                FieldInfo info = typeTest.GetField(name);
+
+                if (info != null)
+                    return info;
+            }
+        }
+
+        return null;
+    }
+
+    public PropertyInfo LoadProperty(string input, string type, string path)
+    {
+        if (path == "")
+            return null;
+
+        Assembly TestASM = Assembly.LoadFile(path);
+
+        string[] args = input.Split(' ');
+        string name = "";
+
+        if (args.Length > 1)
+            name = args[1];
+        else
+        {
+            Debug.Log("No field name found returning null");
+            return null;
+        }
+
+        if (TestASM != null)
+        {
+            Type typeTest = TestASM.GetType(type);
+            if (typeTest != null)
+            {
+                PropertyInfo info = typeTest.GetProperty(name);
+
+                if (info != null)
+                    return info;
+            }
+        }
+
+        return null;
+    }
+
+    public bool ParseKeywords(string text, Node node)
+    {
+        MethodInfo info = null;
+        //MethodInfo[] infos;
+        //List<MethodInfo> methods;
+
+        try
+        {
+            info = typeof(BlueprintComponent).GetMethod(text);
+        }
+
+        catch (AmbiguousMatchException e)
+        {
+            if (text == "GetComponent")
+            {
+                info = typeof(BlueprintComponent).GetMethod(text, new Type[] { typeof(string), typeof(string) });
+            }
+        }        
+        if (info != null /*&& !info.IsStatic*/)
+        {
+            if (info.Name == "GetComponent")
+            {
+                node.isSpecial = true;
+                //node.ChangeToMethod(info);
+                node.ChangeToSpecialMethod(info);
+                return true;
+            }
+        
+            Debug.Log($"Method found for {text}");
+            
             node.isDefined = true;
             node.isEntryPoint = true;
-        }        
+            return true;
+        }
+
+        return false;
+
+        //string[] args = text.Split(' ');
+        //
+        //if (info != null && info.IsStatic)
+        //{
+        //    if (args.Length > 1)
+        //        node.ChangeToSpecialMethod(info, args[1], text);            
+        //}
     }
 
-    public T CreateInstance<T>(Type type)
+    public MethodInfo GetSpecialFunction(string input)
     {
-        //This feels like it might be useful to store these Func<> types in a dictionary of <Type, Func>
-        //Source: https://stackoverflow.com/questions/752/how-to-create-a-new-object-instance-from-a-type
+        MethodInfo info = null;
 
-        Func<T> creator = Expression.Lambda<Func<T>>(Expression.New(type.GetConstructor(Type.EmptyTypes))).Compile();
-        T obj = creator();
+        if (input == "GetComponent")
+        {
+            info = typeof(BlueprintComponent).GetMethod(input, new Type[] { typeof(string), typeof(string) });
+        }
+
+        //try
+        //{
+        //    info = typeof(BlueprintComponent).GetMethod(input);
+        //}
+        //
+        //catch (AmbiguousMatchException e)
+        //{
+        //    
+        //}
+
+
+        if (info != null)        
+            return info;
         
-        if (obj == null) Debug.Log("obj in create instance is NULL");
-        return obj;
+        return null;
     }
+
+    public bool ParseKeywords(string input)
+    {
+        MethodInfo info = typeof(BlueprintComponent).GetMethod(input);
+        if (info != null)        
+            return true;
+    
+        return false;
+    }
+
+    //Return true if multiple types are found
+    bool FindType(string input, out Type[] type, out Assembly[] ASM)
+    {
+        //Source: https://stackoverflow.com/questions/8499593/c-sharp-how-to-check-if-namespace-class-or-method-exists-in-c
+        //type = (from assembly in AppDomain.CurrentDomain.GetAssemblies() from type2 in assembly.GetTypes() where type2.Name == raw[0] select type2).FirstOrDefault();
+
+        //To account for multiple namespaces
+        int matchCount = 0;
+        List<Type> typeList = new List<Type>();
+        List<Assembly> asms = new List<Assembly>();
+
+        foreach (Assembly asm in AppDomain.CurrentDomain.GetAssemblies())
+        {
+            Type[] types = asm.GetTypes();
+
+            foreach (Type t in types)
+            {
+                if (t.Name == input)
+                {
+                    typeList.Add(t);
+                    asms.Add(asm);
+                    matchCount++;
+                }
+            }
+        }
+
+        if (matchCount == 0)
+        {
+            type = null;
+            ASM = null;
+            return false;
+        }
+
+        else
+        {
+            type = typeList.ToArray();
+            ASM = asms.ToArray();
+            return true;
+        }
+    }
+
+    public void CreateVariable(BlueprintData data, ref InterpreterData meta, string input)
+    {
+        //General Input Validation
+        string[] raw = input.Split(' ');
+
+        if (raw.Length <= 1)
+        {            
+            Debug.Log("Invalid, cannot create variable");
+            return;
+        }
+
+        if (meta != null)
+        {
+            if (input != meta.input)
+            {
+                meta = null;
+                Debug.Log($"Resetting interpreter data input is {input}");
+            }
+        }
         
+        if (data.variables == null)
+            data.variables = new List<Var>();
+
+        foreach(Var v in data.variables)
+        {
+            if (v.name == raw[1])
+            {
+                Debug.Log("A variable with that name already exists");
+                return;
+            }
+        }
+
+        if (meta == null)
+        {           
+            meta = new InterpreterData();
+
+            Type[] type;
+            Assembly[] ASM;
+
+            FindType(raw[0], out type, out ASM);
+
+            if (type == null)
+            {
+                Debug.Log("Type not found in variable creation");
+                return;
+            }
+
+            if (type.Length == 1)
+            {
+                Debug.Log("One type found, successfully created variable");
+                meta.selectedType = type[0];
+                meta.selectedAsm = meta.selectedType.Assembly;
+
+                meta.input = input;
+                Var newVar = new Var(type[0], raw[1]);                
+                data.variables.Add(newVar);
+                return;
+            }
+
+            else
+            {
+                Debug.Log("Multiple types found");
+                meta.input = input;
+                meta.types = type;
+                meta.asms = ASM;
+                return;
+            }
+        }
+        
+        if (meta.selectedType != null)
+        {
+            Debug.Log("type selected and var successfully created");
+            Var newVar = new Var(meta.selectedType, raw[1]);
+            newVar.input = input;
+            data.variables.Add(newVar);
+        }
+        
+    }
+  
+    //WARNING THIS CANNOT FIND A FUNCTION IF IT IS FROM A BASE CLASS, ONLY IF THE CLASS DIRECTLY CONTAINS IT
     public MethodInfo[] GetFunctionDefinitions(string text, out string typeStr, out string asmPath)
-    {
-        string proc = text;
-        string[] raw = proc.Split(' ');
+    {        
+        string[] raw = text.Split(' ');
         
         if (raw.Length <= 1)
         {
@@ -317,33 +805,26 @@ public class Interpreter
         
         Type type = null;
         Assembly ASM = null;
-        //Source: https://stackoverflow.com/questions/8499593/c-sharp-how-to-check-if-namespace-class-or-method-exists-in-c
-        //type = (from assembly in AppDomain.CurrentDomain.GetAssemblies() from type2 in assembly.GetTypes() where type2.Name == raw[0] select type2).FirstOrDefault();
+        int matchCount = 0;
 
-        foreach(Assembly asm in AppDomain.CurrentDomain.GetAssemblies())
+        //FindType(raw[0], out type, out ASM);
+
+        //WARNING, The only reason this finds the UnityEngine version is because it happens to be second and is overwriting System.Object
+        foreach (Assembly asm in AppDomain.CurrentDomain.GetAssemblies())
         {
             Type[] types = asm.GetTypes();
-
-            foreach(Type t in types)
+        
+            foreach (Type t in types)
             {
                 if (t.Name == raw[0])
                 {
                     type = t;
                     ASM = asm;
+                    matchCount++;
                 }
             }
         }
-
-        //string location = ASM.Location;
-        //Debug.Log($"location test {location}");
-        //Assembly TestASM = Assembly.LoadFile(location);
-        //
-        //if (TestASM != null)
-        //{
-        //    Type typeTest = TestASM.GetType(type.ToString());
-        //    Debug.Log($"Type test from assembly load test {typeTest.ToString()}");            
-        //}
-
+        
         if (type == null)
         {
             Debug.Log("Interpreter Error: No Component or Class defintion Found");
@@ -352,6 +833,8 @@ public class Interpreter
             return null;
         }
 
+        Debug.Log($"Match count for this node is {matchCount}");
+        
         typeStr = type.ToString();
         asmPath = ASM.Location;
                               
@@ -359,17 +842,71 @@ public class Interpreter
         MethodInfo[] methods = type.GetMethods();
 
         //Assembly asm = type.Assembly;        
-        string test = type.ToString();
-        
+        //string test = type.ToString();
+
+        //Sample testing: DOES WORK, JUST REMEMBER THIS WAS TESTING WHATEVER IS FIRST IN METHODS
+        //if (methods.Length > 0)
+        //{
+        //    int token = methods[0].MetadataToken;
+        //    Module mod = methods[0].Module;
+        //    MethodBase getBack = mod.ResolveMethod(token);            
+        //    Debug.Log($"Sample Test: {getBack.Name} + {getBack.ReflectedType} ");
+        //}        
+
+        //End testing
 
         foreach (MethodInfo m in methods)
         {
             if (m.Name == name)
                 target.Add(m);
+
+            if (name == "DebugList")
+            {
+                Debug.Log($"{type} {m.Name}");
+            }            
+        }
+      
+        if (target.Count == 0)
+        {
+            Debug.Log("Interpreter Warning: No definition found, the function may be in a base class");
         }
         
         return target.ToArray();
       
+    }
+
+    public object FindFields(string text, BlueprintData data)
+    {        
+        string[] raw = text.Split(' ');
+
+        string member = raw[1];
+
+        Type type = null;
+        Assembly ASM = null;
+
+        //FindType(raw[0], out type, out ASM);
+
+        if (type == null)
+        {
+            Debug.Log("Interpreter Error: No Component or Class defintion Found");
+            return null;
+        }
+                  
+        FieldInfo[] members = type.GetFields();
+
+        foreach(FieldInfo info in members)
+        {
+            if (info.Name == raw[1])
+            {
+                //return info.GetValue(variable);
+            }
+        }
+
+        //typeStr = type.ToString();
+        //asmPath = ASM.Location;
+
+
+        return null;
     }
 
     object[] ParseArgumentTypes(string[] args)

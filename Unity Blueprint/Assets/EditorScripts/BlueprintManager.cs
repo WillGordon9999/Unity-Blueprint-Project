@@ -11,6 +11,7 @@ public class BlueprintManager : MonoBehaviour
     //As it stands right now, the dictionary can instantiate at editor time, however after closing down
     //that session and opening a new one, that will destroy the dictionary and I believe cause it construct on playmode 
     //when OnValidate is next called.
+    [ExecuteAlways]
     private void OnValidate()
     {
         print("In OnValidate");
@@ -18,7 +19,7 @@ public class BlueprintManager : MonoBehaviour
         {
             print("Instantiating new blueprint dictionary");
             //blueprints = new Dictionary<string, Blueprint>();
-            blueprints = new Dictionary<BlueprintData, Blueprint>();
+            blueprints = new Dictionary<BlueprintData, Blueprint>();            
         }
 
         else

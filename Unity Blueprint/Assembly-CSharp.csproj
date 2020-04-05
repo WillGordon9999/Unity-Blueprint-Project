@@ -62,16 +62,21 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Assets\Core\BlueprintData.cs" />
+    <Compile Include="Assets\Core\FastDelegate.cs" />
+    <Compile Include="Assets\Core\NodeData.cs" />
+    <Compile Include="Assets\Core\ParameterData.cs" />
+    <Compile Include="Assets\Core\TestComponent.cs" />
     <Compile Include="Assets\EditorScripts\Blueprint.cs" />
     <Compile Include="Assets\EditorScripts\BlueprintComponent.cs" />
-    <Compile Include="Assets\EditorScripts\BlueprintData.cs" />
     <Compile Include="Assets\EditorScripts\BlueprintManager.cs" />
     <Compile Include="Assets\EditorScripts\Connection.cs" />
     <Compile Include="Assets\EditorScripts\ConnectionPoint.cs" />
-    <Compile Include="Assets\EditorScripts\FastDelegate.cs" />
     <Compile Include="Assets\EditorScripts\Interpreter.cs" />
     <Compile Include="Assets\EditorScripts\Node.cs" />
     <Compile Include="Assets\EditorScripts\NodeEditor.cs" />
+    <Compile Include="Assets\EditorScripts\Parameter.cs" />
+    <Compile Include="Assets\EditorScripts\VariableDisplay.cs" />
     <Reference Include="Unity.Timeline.Editor">
       <HintPath>C:/Users/Will/Desktop/Unity Blueprint Repo/Unity-Blueprint-Project/Unity Blueprint/Library/ScriptAssemblies/Unity.Timeline.Editor.dll</HintPath>
     </Reference>

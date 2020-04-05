@@ -1,8 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEditor;
-using UnityEditor.UIElements;
 using System;
 using System.Reflection;
 
@@ -11,8 +9,8 @@ public class ParameterData
 {
     //I wonder if I can make a type as a string along with the assembly path, and just a byte array to store any variable
     public string name;
-    public Rect rect; //display rect
-    //public string type; //to be later converted to full type
+    public Rect rect; //display rect  
+    
     public bool boolVal;
     public int intVal;
     public int enumVal;
@@ -27,11 +25,13 @@ public class ParameterData
     public Vector3 vec3Val;
     public Vector4 vec4Val;
     public UnityEngine.Object obj; //if applicable    
+    public string objType; //More specific object type for proper casting
 
     public enum ParamType { Bool, Int, Enum, Float, Char, Long, Double, String, Rect, Color, Vec2, Vec3, Vec4, Object }
 
     public ParamType type;
-
+    
+    //This constructor here poses issues for the separation, recommend making a 'constructor' of ParameterData in Parameter
     public ParameterData(Parameter par)
     {
         type = par.paramType;
@@ -78,9 +78,7 @@ public class ParameterData
                     break;
                 }
             case ParamType.Rect:
-                {
-                    //float[] val = (float[])par.arg;
-                    //rectVal = new Rect(val[0], val[1], val[2], val[3]);
+                {                    
                     rectVal = (Rect)par.arg;
                     break;
                 }
@@ -90,39 +88,30 @@ public class ParameterData
                     break;
                 }
             case ParamType.Vec2:
-                {
-                    //float[] val = (float[])par.arg;
-                    //vec2Val = new Vector2(val[0], val[1]);
+                {                                        
                     vec2Val = (Vector2)par.arg;
                     break;
                 }
             case ParamType.Vec3:
-                {
-                    //float[] val = (float[])par.arg;                    
-                    //vec3Val = new Vector3(val[0], val[1], val[2]);
+                {                    
                     vec3Val = (Vector3)par.arg;
                     break;
                 }
             case ParamType.Vec4:
-                {
-                    //float[] val = (float[])par.arg;
-                    //vec4Val = new Vector4(val[0], val[1], val[2], val[3]);
+                {                    
                     vec4Val = (Vector4)par.arg;
                     break;
                 }
             case ParamType.Object:
                 {
-                    intVal = (int)par.arg;
+                    //obj = (UnityEngine.Object)par.arg;                    
+                    obj = par.obj;
+                    objType = par.objType;
                     break;
                 }
-        }
-
-        //DOES NOT WORK
-        //float[] test = new float[2] { 0.0f, 0.0f };
-        //Vector2 vec = (Vector2)test;
-
+        }        
     }
-
+    
     public Type GetSystemType()
     {
         switch (type)
