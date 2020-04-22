@@ -6,9 +6,7 @@ using System;
 public class BlueprintComponent : MonoBehaviour
 {
     public string ComponentName;
-    public Dictionary<string, Var> variables = new Dictionary<string, Var>();
-    //public Dictionary<string, Node> entryPoints = new Dictionary<string, Node>();
-    [HideInInspector] public object returnObj;    
+    public Dictionary<string, Var> variables = new Dictionary<string, Var>();        
     Blueprint bp;
     public BlueprintData data;    
    
@@ -45,9 +43,10 @@ public class BlueprintComponent : MonoBehaviour
         if (BlueprintManager.blueprints != null && !BlueprintManager.blueprints.TryGetValue(data, out bp))
         {
             if (!Application.isPlaying)
-                print("In construction of blueprint component play");
-            else
                 print("In construction of blueprint component edit");
+            else
+                print("In construction of blueprint component play");
+
             Blueprint bp = new Blueprint();
             bp.name = ComponentName;
             BlueprintManager.blueprints[data] = bp;
@@ -71,7 +70,7 @@ public class BlueprintComponent : MonoBehaviour
                 v.type = Interpreter.Instance.LoadVarType(v.strType, v.asmPath);
                 variables[v.name] = v;
             }
-
+           
             foreach (Node node in bp.nodes)
             {
                 //Interpreter.Instance.CompileNode(node);
@@ -100,29 +99,51 @@ public class BlueprintComponent : MonoBehaviour
                         Interpreter.Instance.CompileNode(node);
                     }
                     else
-                    {
-                        node.currentMethod = Interpreter.Instance.LoadMethod(node.input, node.type, node.assemblyPath, node.index);
+                    {                        
+                        node.currentMethod = Interpreter.Instance.LoadMethod(node.input, node.type, node.assemblyPath, node.index, node.isContextual);
                         Interpreter.Instance.CompileNode(node);
-                        node.actualTarget = variables[node.varName].obj;
+
+                        //if (node.isContextual)
+                        //{
+                        //    node.actualTarget = node.prevNode.returnObj;
+                        //}
+                        
+                        if (node.varName != "" && !node.isStatic)
+                            node.actualTarget = variables[node.varName].obj;                                                    
                     }
                 }
 
-                if (node.nodeType == NodeType.Field_Set)
+                if (node.nodeType == NodeType.Field_Set || node.nodeType == NodeType.Field_Get)
                 {
                     node.fieldVar = Interpreter.Instance.LoadField(node.input, node.type, node.assemblyPath);
                 }
 
-                if (node.nodeType == NodeType.Property_Set)
+                if (node.nodeType == NodeType.Property_Set || node.nodeType == NodeType.Property_Get)
                 {
                     node.propertyVar = Interpreter.Instance.LoadProperty(node.input, node.type, node.assemblyPath);
                 }
-
-                foreach (Node node2 in bp.nodes)
+               
+                foreach (Node node1 in bp.nodes)
                 {
-                    if (node.nextID == node2.ID)
+                    if (node.nextID == node1.ID)
                     {
-                        node.nextNode = node2;
-                        break;
+                        node.nextNode = node1;
+                        node1.prevNode = node;
+
+                        if (node.nodeType != NodeType.Conditional)
+                            break;
+                    }
+
+                    if (node.nodeType ==  NodeType.Conditional)
+                    {
+                        if (node.falseID == node1.ID)
+                        {
+                            node.falseNode = node1;
+                            node1.prevNode = node;
+
+                            if (node.nextNode != null)
+                                break;
+                        }
                     }
                 }
             }
@@ -140,6 +161,14 @@ public class BlueprintComponent : MonoBehaviour
                 v.type = Interpreter.Instance.LoadVarType(v.strType, v.asmPath);
                 variables[v.name] = v;
             }
+
+            foreach(Node node in bp.nodes)
+            {
+                if (node.varName != "")
+                {
+                    node.actualTarget = variables[node.varName].obj;
+                }
+            }
         }
     }
 
@@ -153,43 +182,107 @@ public class BlueprintComponent : MonoBehaviour
     public void Start()
     {
         if (BlueprintManager.blueprints != null)
-        {
+        {                        
             //Node current = BlueprintManager.blueprints[ComponentName].entryPoints["Start"];
             Node current = BlueprintManager.blueprints[data].entryPoints["Start"];
 
             while (current != null)
             {
+                if (current.isContextual)
+                {
+                    current.actualTarget = current.prevNode.returnObj;
+                }
+
                 if (current.nodeType == NodeType.Function && current.function != null)
                 {
                     if (current.isSpecial)
                     {
                         current.actualTarget = this;
-                        returnObj = current.function.Invoke(current.actualTarget, current.passArgs);
+                        current.returnObj = current.function.Invoke(current.actualTarget, current.passArgs);
                     }
 
                     else
-                        returnObj = current.function.Invoke(variables[current.varName].obj, current.passArgs);                    
+                    {
+                        if (!current.isStatic)
+                        {
+                            if (current.varName != "")
+                                current.returnObj = current.function.Invoke(variables[current.varName].obj, current.passArgs);
+                            else
+                                current.returnObj = current.function.Invoke(current.actualTarget, current.passArgs);
+                        }
+                        else
+                            current.returnObj = current.function.Invoke(current.actualTarget, current.passArgs);
+                    }
 
                     if (current.isReturning)
                     {
                         if (current.retType == Node.ReturnVarType.Var)
                         {
-                            variables[current.returnInput].obj = returnObj;
-                        }
+                            if (current.returnInput != null)
+                            {
+                                if (current.returnInput != "")
+                                {
+                                    Var test;
 
-                        if (current.retType == Node.ReturnVarType.Field)
-                        {
-                            if (current.returnType == current.returnField.FieldType)
-                                current.returnField.SetValue(variables[current.returnInput], returnObj);
-                        }
+                                    if (!variables.TryGetValue(current.returnInput, out test))
+                                        variables[current.returnInput] = new Var(current.returnObj, current.returnType);
 
-                        if (current.retType == Node.ReturnVarType.Property)
+                                    else
+                                    {
+                                        variables[current.returnInput].obj = current.returnObj;
+                                        //variables[current.returnInput].type = current.returnObj;
+                                    }
+                                }
+                            }
+                        }                     
+                    }
+                }
+
+                    /*
+                    Get Rigidbody
+                    Get prev node on next
+                    Get object 
+                    Then call.  
+                    */
+
+                /*
+                 Need to be able to determine whether you are:
+                    - setting to a variable
+                    - getting a variable
+                    - Or getting something contextually from the previous node
+
+                 */
+                if (current.nodeType == NodeType.Field_Get)
+                {                    
+                    current.returnObj = current.fieldVar.GetValue(current.actualTarget);
+                }
+
+                
+                if (current.nodeType == NodeType.Property_Get)
+                {
+                    if (current.varName != "")
+                    {
+                        current.returnObj = current.propertyVar.GetValue(variables[current.varName].obj);
+
+                        if (current.returnInput != "")
                         {
-                            if (current.returnType == current.returnProperty.PropertyType)
-                                current.returnProperty.SetValue(variables[current.returnInput], returnObj);
-                        }                    
+                            Var test;
+                            //need try get value
+                            if (!variables.TryGetValue(current.returnInput, out test))
+                                variables[current.returnInput] = new Var(current.returnObj, current.propertyVar.PropertyType);
+
+                            else
+                            {
+                                variables[current.returnInput].obj = current.returnObj;
+                                variables[current.returnInput].type = current.propertyVar.PropertyType;
+                            }
+                        }                        
                     }
 
+                    else
+                    {
+                        current.returnObj = current.propertyVar.GetValue(current.actualTarget);
+                    }
                 }
 
                 if (current.nodeType == NodeType.Field_Set)
@@ -197,7 +290,8 @@ public class BlueprintComponent : MonoBehaviour
                     Var v = variables[current.varName];
                     if (current.isVar)
                     {
-                        Var other = BlueprintManager.blueprints[data].variables[(string)current.varField.arg];
+                        //Var other = BlueprintManager.blueprints[data].variables[(string)current.varField.arg];
+                        Var other = variables[(string)current.varField.arg];
                         current.fieldVar.SetValue(v.obj, other.name);
                     }
 
@@ -212,7 +306,8 @@ public class BlueprintComponent : MonoBehaviour
                     Var v = variables[current.varName];
                     if (current.isVar)
                     {
-                        Var other = BlueprintManager.blueprints[data].variables[(string)current.varField.arg];
+                        //Var other = BlueprintManager.blueprints[data].variables[(string)current.varField.arg];
+                        Var other = variables[(string)current.varField.arg];
                         current.propertyVar.SetValue(v.obj, other.name);
                     }
 
@@ -220,6 +315,27 @@ public class BlueprintComponent : MonoBehaviour
                     {
                         current.propertyVar.SetValue(v.obj, current.literalField.arg);
                     }
+                }
+
+                if (current.nodeType == NodeType.Conditional)
+                {
+                    Var v = variables[(string)current.paramList[0].arg];
+
+                    if (v.type == typeof(bool))
+                    {
+                        bool val = (bool)v.obj;
+
+                        if (val)
+                            current = current.nextNode;
+                        else
+                            current = current.falseNode;
+
+                        continue;
+                    }
+
+                    else
+                        Debug.Log("WARNING: variable passed in is not a bool");
+                    
                 }
 
                 current = current.nextNode;

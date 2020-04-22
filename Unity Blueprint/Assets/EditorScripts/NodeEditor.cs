@@ -87,6 +87,8 @@ public class NodeEditor : EditorWindow
 
         varDisplay = new VariableDisplay();
         varDisplay.style = nodeStyle;
+        //varDisplay.style.alignment = TextAnchor.UpperLeft;
+        //varDisplay.style.contentOffset = Vector2.one * 30.0f;
     }
 
     private void OnDisable()
@@ -104,13 +106,13 @@ public class NodeEditor : EditorWindow
        
         DrawGrid(20.0f, 0.2f, Color.gray);
         DrawGrid(100.0f, 0.4f, Color.gray);
-        
+
+        DrawConnections();
+        DrawNodes();        
+        DrawConnectionLine(Event.current);
+
         scrollPos = varDisplay.Update(scrollPos);
 
-        DrawNodes();
-        DrawConnections();
-        DrawConnectionLine(Event.current);
-        
         ProcessNodeEvents(Event.current);
         ProcessEvents(Event.current);
         
@@ -304,8 +306,10 @@ public class NodeEditor : EditorWindow
         if (current != null)
         {            
             menu.AddItem(new GUIContent("Add node"), false, () => OnClickAddNode(mousePos));
+            menu.AddItem(new GUIContent("Add Member node"), false, () => OnClickAddNode(mousePos, true));
             menu.AddItem(new GUIContent("Save Blueprint"), false, () => SaveBlueprint());
             menu.AddItem(new GUIContent("Load Blueprint"), false, () => ToggleLoadBlueprintUI(mousePos));
+            menu.AddItem(new GUIContent("New Blueprint"), false, () => ToggleNewBlueprintUI(mousePos));
             menu.ShowAsContext();
         }
 
@@ -337,6 +341,12 @@ public class NodeEditor : EditorWindow
             if (node.nextNode != null)
                 node.nextID = node.nextNode.ID;
 
+            if (node.prevNode != null)
+                node.prevID = node.prevNode.ID;
+
+            if (node.falseNode != null)
+                node.falseID = node.falseNode.ID;
+
             current.nodes.Add(new NodeData(node));
         }
 
@@ -347,9 +357,7 @@ public class NodeEditor : EditorWindow
         for (int i = 0; i < current.nodes.Count; i++)        
             current.connections.Add(new ConnectionData(current.nodes[i].inPoint, current.nodes[i].outPoint));
         
-        //Variables
-
-
+        //Actually pass it onto the real scriptable object
         loadData.ComponentName = current.ComponentName;
         loadData.ID_Count = current.ID_Count;
         loadData.nodes = new List<NodeData>();
@@ -362,6 +370,7 @@ public class NodeEditor : EditorWindow
         foreach (ConnectionData con in current.connections)
             loadData.connections.Add(con);
 
+        //Variables
         foreach (Var v in current.variables)            
             loadData.variables.Add(v);
         
@@ -429,7 +438,22 @@ public class NodeEditor : EditorWindow
                 {
                     if (node2.ID == node.nextID)
                     {
-                        connections.Add(new Connection(node2.inPoint, node.outPoint, OnClickRemoveConnection));                        
+                        connections.Add(new Connection(node2.inPoint, node.outPoint, OnClickRemoveConnection));
+                        node2.prevNode = node;
+                        node.nextNode = node2;
+                    }
+                }
+            }
+
+            if (node.falseID != -1)
+            {
+                foreach(Node node2 in nodes)
+                {
+                    if (node2.ID == node.falseID)
+                    {
+                        connections.Add(new Connection(node2.inPoint, node.falsePoint, OnClickRemoveConnection));
+                        node2.prevNode = node;
+                        node.falseNode = node2;
                     }
                 }
             }
@@ -464,7 +488,7 @@ public class NodeEditor : EditorWindow
         createNew = false;
     }
 
-    void OnClickAddNode(Vector2 mousePos)
+    void OnClickAddNode(Vector2 mousePos, bool context = false)
     {
         if (nodes == null)
         {
@@ -473,6 +497,8 @@ public class NodeEditor : EditorWindow
         Node newNode = new Node(mousePos, nodeWidth, nodeHeight, nodeStyle, selectedNodeStyle, inStyle, outStyle, OnClickInPoint, OnClickOutPoint, OnClickRemoveNode);
         newNode.ID = current.ID_Count;
         newNode.nextID = -1;
+        newNode.falseID = -1;
+        newNode.isContextual = context;
         current.ID_Count++;
         nodes.Add(newNode);
     }
@@ -521,7 +547,7 @@ public class NodeEditor : EditorWindow
     void OnClickOutPoint(ConnectionPoint outPoint)
     {
         selectedOutPoint = outPoint;
-
+        
         if (selectedInPoint != null)
         {
             if (selectedOutPoint.node != selectedInPoint.node)
@@ -536,6 +562,11 @@ public class NodeEditor : EditorWindow
         }
     }
 
+    void OnClickFalsePoint(ConnectionPoint falsePoint)
+    {
+        
+    }
+
     void OnClickRemoveConnection(Connection connection)
     {      
         connections.Remove(connection);        
@@ -547,7 +578,15 @@ public class NodeEditor : EditorWindow
             connections = new List<Connection>();
 
         Connection con = new Connection(selectedInPoint, selectedOutPoint, OnClickRemoveConnection);
-        selectedOutPoint.node.nextID = selectedInPoint.node.ID;
+        
+        if (selectedOutPoint.type == ConnectionPointType.False)        
+            selectedOutPoint.node.falseNode = selectedInPoint.node;
+        
+        else
+            selectedOutPoint.node.nextNode = selectedInPoint.node;
+
+        selectedInPoint.node.prevNode = selectedOutPoint.node;
+
         connections.Add(con);       
     }
 

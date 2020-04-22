@@ -5,7 +5,7 @@ using UnityEditor;
 using System;
 using System.Reflection;
 
-public enum NodeType { Entry_Point, Function, Field_Get, Field_Set, Property_Get, Property_Set };
+public enum NodeType { Entry_Point, Function, Field_Get, Field_Set, Property_Get, Property_Set, Conditional };
 
 public class Node
 {
@@ -25,6 +25,7 @@ public class Node
 
     public ConnectionPoint inPoint;
     public ConnectionPoint outPoint;
+    public ConnectionPoint falsePoint;
 
     //Reflection Specific Stuff
     public string input;
@@ -42,41 +43,35 @@ public class Node
 
     public NodeType nodeType;
 
-    //Operations Core
-    //public UnityEngine.Object target { get; set; }
-    public object actualTarget;
-    //public Var targetVar { get; set; } //Possibly the new target
+    //Operations Core    
+    public object actualTarget;        
     public string varName;
-    //public Type memberType { get; set; } //Actual type of member or property
+    public bool isStatic;
 
     //Function Specific
     public Func<object, object[], object> function;
     public object[] passArgs;
     public bool isReturning;
     public Type returnType;
-    //public object returnObj { get; set; } //The object which ideally will be accessible by next nodes    
+    public object returnObj; //The object which ideally will be accessible by next nodes    
 
     public enum ReturnVarType { None, Var, Field, Property };
     public ReturnVarType retType;
     public bool isSpecial = false; //Basically the target to call on is the BlueprintComponent
 
     //public string returnVarName { get; set; }
-    public string returnInput;
     //public string returnAsmPath { get; set; }
+    public string returnInput;
 
     public Parameter returnEntry;
 
     public FieldInfo returnField;
     public PropertyInfo returnProperty;
 
-    //Property/Field Specific
+    //Property/Field Specific - The ones that are used for setting
     public FieldInfo fieldVar;
     public PropertyInfo propertyVar;
-
-    //References to the target to get or set from
-    //public object actualField { get; set; }
-    //public object actualProperty { get; set; }
-
+  
     //For setting fields or properties
     public Parameter literalField; //Use a literal value
     public Parameter varField; //Access a variable
@@ -86,10 +81,17 @@ public class Node
 
     public Blueprint blueprint; //With the primary idea being this is used for variable access
 
+    public bool isContextual = false;
+
+    //Should these have default values?
     public int ID; //The way to find the correct node to reference at runtime because serialization
     public int nextID;
+    public int prevID;
+    public int falseID;
 
     public Node nextNode; //When all nodes are instantiated and the initial find is complete we can use this
+    public Node prevNode;
+    public Node falseNode; //For conditionals
 
     string initField = "Init Field";
            
@@ -97,8 +99,11 @@ public class Node
     {
         rect = new Rect(position.x, position.y, width, height);
         style = nodeStyle;
+
         inPoint = new ConnectionPoint(this, ConnectionPointType.In, inStyle, inAction);
         outPoint = new ConnectionPoint(this, ConnectionPointType.Out, outStyle, outAction);
+        falsePoint = new ConnectionPoint(this, ConnectionPointType.False, outStyle, outAction);
+
         defaultNodeStyle = nodeStyle;
         selectedNodeStyle = selectStyle;
         OnRemoveNode = onRemove;
@@ -125,11 +130,19 @@ public class Node
         index = data.index;
         OnRemoveNode = removeNode;
         assemblyPath = data.assemblyPath;
+
         inPoint = new ConnectionPoint(data.inPoint, this, data.inStyle, inAction);
         outPoint = new ConnectionPoint(data.outPoint, this, data.outStyle, outAction);
-        ID = data.ID;
-        nextID = data.nextID;        
+        falsePoint = new ConnectionPoint(data.falsePoint, this, data.outStyle, outAction);
 
+        ID = data.ID;
+        nextID = data.nextID;
+        prevID = data.prevID;
+        falseID = data.falseID;
+        isContextual = data.isContextual;
+
+        nodeType = data.nodeType;
+        isStatic = data.isStatic;
         isDefined = data.isDefined;
         isEntryPoint = data.isEntryPoint;
         isVar = data.isVar;
@@ -138,11 +151,11 @@ public class Node
         returnInput = data.returnInput;
         //returnVarName = data.returnVarName;
         //returnAsmPath = data.returnAsmPath;
+
         isSpecial = data.isSpecial;
         varName = data.varName;
         retType = data.retType;
-
-        nodeType = data.nodeType;
+        
         if (data.literalField != null)
             literalField = new Parameter(data.literalField.GetValue(), data.literalField.GetSystemType(), data.literalField.type);
 
@@ -174,6 +187,9 @@ public class Node
     {      
         inPoint.Draw();
         outPoint.Draw();
+
+        if (nodeType == NodeType.Conditional)
+            falsePoint.Draw();
               
         GUI.Box(rect, "", style);
 
@@ -206,9 +222,16 @@ public class Node
                         returnInput = GUI.TextField(entry, returnInput);
                     }
                 }
-
-               
             }
+        }
+
+        //Get
+        if (nodeType == NodeType.Field_Get || nodeType == NodeType.Property_Get)
+        {
+            Vector2 pos = rect.position + initPos;
+            pos.y += initDimensions.y;
+            Rect entry = new Rect(pos, initDimensions);
+            returnInput = GUI.TextField(entry, returnInput);
         }
 
         //Set        
@@ -226,6 +249,20 @@ public class Node
 
             varField.rect = entry;
             varField.draw?.Invoke();
+        }
+
+        if (nodeType == NodeType.Conditional)
+        {
+            if (paramList.Count > 0)
+            {                
+                Vector2 pos = rect.position + initPos;
+                pos.y += (initDimensions.y * 2);
+                Rect entry = new Rect(pos, initDimensions);
+                paramList[0].rect = entry;
+
+                //Equivalent to: if draw != null                
+                paramList[0].draw?.Invoke();                              
+            }
         }
        
     }
@@ -367,11 +404,11 @@ public class Node
                                 if (!isDefined && !isReturning)
                                     menu.AddItem(new GUIContent(final), false, ChangeToField, "Set");
 
-                                if (isDefined && isReturning)
-                                {
-                                    retType = ReturnVarType.Field;
-                                    menu.AddItem(new GUIContent(final), false, SetReturnTarget, f);
-                                }
+                                //if (isDefined && isReturning)
+                                //{
+                                //    retType = ReturnVarType.Field;
+                                //    menu.AddItem(new GUIContent(final), false, SetReturnTarget, f);
+                                //}
                             }
                         }
                     }
@@ -396,11 +433,11 @@ public class Node
                                 if (!isDefined && !isReturning)
                                     menu.AddItem(new GUIContent(final), false, ChangeToProperty, "Set");
 
-                                if (isDefined && isReturning)
-                                {
-                                    retType = ReturnVarType.Property;
-                                    menu.AddItem(new GUIContent(final), false, SetReturnTarget, p);
-                                }
+                                //if (isDefined && isReturning)
+                                //{
+                                //    retType = ReturnVarType.Property;
+                                //    menu.AddItem(new GUIContent(final), false, SetReturnTarget, p);
+                                //}
 
                             }
 
@@ -419,11 +456,11 @@ public class Node
                                 if (!isDefined && !isReturning)
                                     menu.AddItem(new GUIContent(final), false, ChangeToProperty, "Set");
 
-                                if (isDefined && isReturning)
-                                {
-                                    retType = ReturnVarType.Property;
-                                    menu.AddItem(new GUIContent(final), false, SetReturnTarget, p);
-                                }
+                                //if (isDefined && isReturning)
+                                //{
+                                //    retType = ReturnVarType.Property;
+                                //    menu.AddItem(new GUIContent(final), false, SetReturnTarget, p);
+                                //}
                             }
                         }
                     }
@@ -471,6 +508,7 @@ public class Node
             {
                 nodeType = NodeType.Field_Get;
                 fieldVar = metaData.fields[0];
+                isStatic = fieldVar.IsStatic;
                 isDefined = true;
             }
 
@@ -479,6 +517,7 @@ public class Node
                 nodeType = NodeType.Field_Set;
 
                 fieldVar = metaData.fields[0];
+                isStatic = fieldVar.IsStatic;
 
                 literalField = new Parameter(fieldVar.FieldType);
                 literalField.GetFieldType();
@@ -508,7 +547,7 @@ public class Node
             if (result == "Get")
             {
                 nodeType = NodeType.Property_Get;
-                propertyVar = metaData.properties[0];
+                propertyVar = metaData.properties[0];                
                 isDefined = true;
             }
 
@@ -533,7 +572,7 @@ public class Node
 
     void SelectObjectType(object index)
     {
-        metaData.selectedType = metaData.types[(int)index];
+        metaData.selectedType = metaData.types[(int)index];        
         metaData.selectedAsm = metaData.selectedType.Assembly;       
         Interpreter.Instance.Compile(input, NodeEditor.current, ref metaData);
     }
@@ -597,6 +636,14 @@ public class Node
 
     }
 
+    public void ChangeToConditional()
+    {
+        nodeType = NodeType.Conditional;
+        rect = new Rect(rect.x, rect.y, rect.width, rect.height * 2.0f);
+        paramList.Add(new Parameter(typeof(string))); //should be a variable
+        
+    }
+
     public void ChangeToMethod(object method)
     {
         nodeType = NodeType.Function;
@@ -609,12 +656,14 @@ public class Node
             varName = metaData.varName;
             input = metaData.input;
             type = metaData.selectedType.ToString();
+            isStatic = info.IsStatic;
             assemblyPath = metaData.selectedType.Assembly.Location;
         }
 
         else
         {
             type = info.ReflectedType.ToString();
+            isStatic = info.IsStatic;
             assemblyPath = info.ReflectedType.Assembly.Location;            
         }
 
@@ -656,7 +705,7 @@ public class Node
 
         if (returnType != typeof(void))
         {
-            isReturning = true;
+            isReturning = true;            
             rect = new Rect(rect.x, rect.y, rect.width, initHeight * (paramList.Count + 1));
             returnEntry = new Parameter(typeof(string));
             retType = ReturnVarType.Var;

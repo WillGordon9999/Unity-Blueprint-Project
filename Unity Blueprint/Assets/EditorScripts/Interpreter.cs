@@ -235,68 +235,70 @@ public class Interpreter
         }
 
         if (data == null)
-        {            
+        {
             data = new InterpreterData();
             data.input = input;
 
-            if (ParseKeywords(args[0], node))
-            {                
-                return;
-            }
-
-            Type varType = null;
-
-            //Check for variables - again not a dictionary right now since I don't where it would be stored        
-
-            if (blueprint.variables != null)
+            if (node.isContextual)
             {
-                foreach (Var v in blueprint.variables)
+                if (node.prevNode != null && node.prevNode.isReturning)
                 {
-                    //if (node != null)
-                    //{
-                    //    if (v.name == args[0] && node.isReturning)
-                    //    {
-                    //        varType = v.type;
-                    //        data.selectedType = varType;
-                    //        data.isStatic = false;
-                    //        data.varName 
-                    //    }
-                    //}
-
-                    if (v.name == args[0])
-                    {
-                        //Methods, Fields, and Properties are found below
-                        varType = v.type;
-                        data.selectedType = varType;
-                        data.isStatic = false;
-                        data.varName = args[0];
-                        data.varRef = v;
-                        break;
-                    }
+                    data.selectedType = node.prevNode.returnType;
+                    data.selectedAsm = data.selectedType.Assembly;                    
                 }
             }
-           
-            //If no variable is found, find the type if it exists
-            if (varType == null)
-            {
-                Type[] types;
-                Assembly[] asms;
 
-                //If multiple definitions found
-                if (FindType(args[0], out types, out asms))
+            else
+            { 
+                if (ParseKeywords(args[0], node))
                 {
-                    data.types = types;
-                    data.asms = asms;
-                    data.isStatic = true;
+                    return;
+                }
 
-                    if (data.types.Length > 1)
-                        return;
+                Type varType = null;
 
-                    if (data.types.Length == 1)
+                //Check for variables - again not a dictionary right now since I don't where it would be stored        
+
+                if (blueprint.variables != null)
+                {
+                    foreach (Var v in blueprint.variables)
                     {
-                        data.selectedType = data.types[0];
-                        data.selectedAsm = data.selectedType.Assembly;                        
-                    }                    
+                        if (v.name == args[0])
+                        {
+                            //Methods, Fields, and Properties are found below
+                            varType = v.type;
+                            data.selectedType = varType;
+                            data.isStatic = false;
+                            data.varName = args[0];
+                            data.varRef = v;
+                            break;
+                        }
+                    }
+                }
+
+                //If no variable is found, find the type if it exists
+                if (varType == null)
+                {
+                    Type[] types;
+                    Assembly[] asms;
+
+                    //If multiple definitions found
+                    if (FindType(args[0], out types, out asms))
+                    {
+                        data.types = types;
+                        data.asms = asms;
+                        data.isStatic = true;                        
+
+                        if (data.types.Length > 1)
+                            return;
+
+                        if (data.types.Length == 1)
+                        {
+                            data.selectedType = data.types[0];
+                            data.selectedAsm = data.selectedType.Assembly;
+                            node.isStatic = true;
+                        }
+                    }
                 }
             }
         }
@@ -310,16 +312,23 @@ public class Interpreter
             MethodInfo[] methods = data.selectedType.GetMethods();
             List<MethodInfo> methodInfo = new List<MethodInfo>();
 
+            string name = "";
+
+            if (node.isContextual)
+                name = args[0];
+            else
+                name = args[1];
+
             foreach (MethodInfo m in methods)
             {
                  if (data.isStatic)
                  {
-                     if (m.Name == args[1] && m.IsStatic)
+                     if (m.Name == name && m.IsStatic)
                          methodInfo.Add(m);
                  }
                  else
                  {
-                     if (m.Name == args[1] && !m.IsStatic)
+                     if (m.Name == name && !m.IsStatic)
                          methodInfo.Add(m);
                  }                              
             }
@@ -328,16 +337,33 @@ public class Interpreter
             
             if (data.isStatic)
             {
-                data.fields = new FieldInfo[1];
-                FieldInfo result = data.selectedType.GetField(args[1], BindingFlags.Static);
+                if (name == "methodDebug")
+                {
+                    data.methods = data.selectedType.GetMethods();
+                }
+
+                if (name == "propDebug")
+                {
+                    data.properties = data.selectedType.GetProperties();
+                    return;
+                }
+
+                if (name == "fieldDebug")
+                {
+                    data.fields = data.selectedType.GetFields();
+                    return;
+                }
+
+                data.fields = new FieldInfo[1];                
+                FieldInfo result = data.selectedType.GetField(name);
                 if (result != null && result.IsPublic)
                 {
                     data.fields[0] = result;
                     data.access = InterpreterData.AccessType.Both;
                 }
 
-                data.properties = new PropertyInfo[1];
-                PropertyInfo prop = data.selectedType.GetProperty(args[1], BindingFlags.Static);
+                data.properties = new PropertyInfo[1];                
+                PropertyInfo prop = data.selectedType.GetProperty(name);
 
                 if (prop != null && (prop.CanRead || prop.CanWrite))
                 {
@@ -357,7 +383,7 @@ public class Interpreter
             else
             {
                 data.fields = new FieldInfo[1];
-                FieldInfo result = data.selectedType.GetField(args[1]);
+                FieldInfo result = data.selectedType.GetField(name);
 
                 if (result != null && result.IsPublic)
                 {
@@ -366,7 +392,7 @@ public class Interpreter
                 }
 
                 data.properties = new PropertyInfo[1];
-                PropertyInfo prop = data.selectedType.GetProperty(args[1]);
+                PropertyInfo prop = data.selectedType.GetProperty(name);
 
                 if (prop != null && (prop.CanRead || prop.CanWrite))
                 {
@@ -465,7 +491,7 @@ public class Interpreter
         }
     }
 
-    public MethodInfo LoadMethod(string input, string type, string path, int index)
+    public MethodInfo LoadMethod(string input, string type, string path, int index, bool isContextual = false)
     {
         //Debug.Log($"location test {path}");
         if (path == "")
@@ -476,7 +502,10 @@ public class Interpreter
         string[] args = input.Split(' ');
         string name = "";
 
-        if (args.Length > 1)
+        if (isContextual && args.Length == 1)
+            name = args[0];
+
+        else if (args.Length > 1 && !isContextual)
             name = args[1];
         else
         {
@@ -486,7 +515,7 @@ public class Interpreter
 
         if (TestASM != null)
         {
-            Type typeTest = TestASM.GetType(type.ToString());
+            Type typeTest = TestASM.GetType(type);
             //Debug.Log($"Type test from assembly load test {typeTest.ToString()}");
             MethodInfo[] allMethods = typeTest.GetMethods();
             List<MethodInfo> methods = new List<MethodInfo>();
@@ -600,13 +629,14 @@ public class Interpreter
         }
 
         catch (AmbiguousMatchException e)
-        {
+        {            
             if (text == "GetComponent")
-            {
+            {                
                 info = typeof(BlueprintComponent).GetMethod(text, new Type[] { typeof(string), typeof(string) });
             }
-        }        
-        if (info != null /*&& !info.IsStatic*/)
+        }
+        
+        if (info != null)
         {
             if (info.Name == "GetComponent")
             {
@@ -620,6 +650,13 @@ public class Interpreter
             
             node.isDefined = true;
             node.isEntryPoint = true;
+            return true;
+        }
+
+        if (text == "Branch")
+        {
+            node.ChangeToConditional();
+            node.isDefined = true;
             return true;
         }
 

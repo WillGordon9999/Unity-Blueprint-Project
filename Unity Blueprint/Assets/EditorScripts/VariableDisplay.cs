@@ -26,9 +26,8 @@ public class VariableDisplay
         initFieldPos = lerp - rect.position;
         initFieldDim = new Vector2(rect.width * 0.75f, rect.height * 0.0275f);
 
-        inputs = new List<string>();
-                
-        maxHeight = Screen.width;
+        inputs = new List<string>();        
+        maxHeight = Screen.height;       
     }
 
     public Vector2 Update(Vector2 scrollPos)

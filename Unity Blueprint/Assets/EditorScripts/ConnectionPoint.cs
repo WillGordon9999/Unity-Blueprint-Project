@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using System;
 
-public enum ConnectionPointType { In, Out }
+public enum ConnectionPointType { In, Out, False }
 
 [Serializable]
 public class ConnectionPointData
@@ -68,6 +68,11 @@ public class ConnectionPoint
 
             case ConnectionPointType.Out:
                 rect.x = node.rect.x + node.rect.width - 8.0f;
+                break;
+
+            case ConnectionPointType.False:
+                rect.x = node.rect.x + node.rect.width - 8.0f;
+                rect.y = node.rect.y + 70.0f;
                 break;
         }
 

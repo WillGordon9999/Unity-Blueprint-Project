@@ -15,6 +15,7 @@ public class NodeData
     public string entryPointName; //Name for built in monobehaviour functions
     public ConnectionPointData inPoint;
     public ConnectionPointData outPoint;
+    public ConnectionPointData falsePoint;
 
     public NodeType nodeType;
 
@@ -35,8 +36,13 @@ public class NodeData
     public string returnVarName;
     public Node.ReturnVarType retType;
 
+    public bool isStatic;
+    public bool isContextual;
     public int ID; //The way to find the correct node to reference at runtime because serialization
     public int nextID;
+    public int prevID;
+    public int falseID;
+
     public ParameterData literalField; //For Setting applicable serializable types to a literal
     public ParameterData varField; //For referencing variables in the blueprint
     public Var varRef;
@@ -105,11 +111,17 @@ public class NodeData
             }
         }
 
+        //IDS
         ID = node.ID;
         nextID = node.nextID;
+        prevID = node.prevID;
+        falseID = node.falseID;
+        isContextual = node.isContextual;
+        isStatic = node.isStatic;
 
         inPoint = new ConnectionPointData(node.inPoint, this);
         outPoint = new ConnectionPointData(node.outPoint, this);
+        falsePoint = new ConnectionPointData(node.falsePoint, this);
     }
 
 }
