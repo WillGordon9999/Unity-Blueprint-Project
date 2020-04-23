@@ -40,6 +40,7 @@ public class NodeEditor : EditorWindow
     bool isLoading = false;
     bool createNew = false;
     bool enterPressed = false;
+    bool connectionRemoved = false;
     Rect createLoadRect;
     string blueprintName;
     VariableDisplay varDisplay;
@@ -56,6 +57,8 @@ public class NodeEditor : EditorWindow
     {
         Debug.Log("On destroy editor");
         //Automatically does a null check
+        current = null;
+        text = "";
         nodes?.Clear();
         connections?.Clear();
         EditorUtility.SetDirty(current);
@@ -107,15 +110,19 @@ public class NodeEditor : EditorWindow
         DrawGrid(20.0f, 0.2f, Color.gray);
         DrawGrid(100.0f, 0.4f, Color.gray);
 
-        DrawConnections();
-        DrawNodes();        
-        DrawConnectionLine(Event.current);
-
-        scrollPos = varDisplay.Update(scrollPos);
-
+        if (current != null)
+        {
+            DrawConnections();
+            DrawNodes();
+            DrawConnectionLine(Event.current);
+            scrollPos = varDisplay.Update(scrollPos);
+        }
+            
         ProcessNodeEvents(Event.current);
         ProcessEvents(Event.current);
-        
+
+        connectionRemoved = false;
+
         if (createNew)
         {
             text = GUI.TextField(createLoadRect, text);
@@ -136,7 +143,7 @@ public class NodeEditor : EditorWindow
                     current.ID_Count = 0; //just to be sure                    
                     createNew = false;
                     enterPressed = false;
-                    //varDisplay.current = current;
+                    text = "";
                 }
 
                 else
@@ -210,7 +217,7 @@ public class NodeEditor : EditorWindow
 
     void DrawConnections()
     {
-        if (connections != null)
+        if (connections != null && !connectionRemoved)
         {
             foreach(Connection connection in connections)
             {
@@ -322,11 +329,12 @@ public class NodeEditor : EditorWindow
     }
 
     void SaveBlueprint()
-    {                
+    {
         //Save nodes
         if (current.nodes == null)
             current.nodes = new List<NodeData>();
-       
+        else
+            current.nodes.Clear();
         //Nodes
         current.ID_Count = 0;
 
@@ -358,17 +366,26 @@ public class NodeEditor : EditorWindow
             current.connections.Add(new ConnectionData(current.nodes[i].inPoint, current.nodes[i].outPoint));
         
         //Actually pass it onto the real scriptable object
-        loadData.ComponentName = current.ComponentName;
+        
         loadData.ID_Count = current.ID_Count;
-        loadData.nodes = new List<NodeData>();
-        loadData.connections = new List<ConnectionData>();
-        loadData.variables = new List<Var>();
+
+        if (loadData.nodes == null)
+            loadData.nodes = new List<NodeData>();
+        else
+            loadData.nodes.Clear();
+
+        //loadData.connections = new List<ConnectionData>();
+
+        if (loadData.variables == null)
+            loadData.variables = new List<Var>();
+        else
+            loadData.variables.Clear();
 
         foreach (NodeData node in current.nodes)
             loadData.nodes.Add(node);
 
-        foreach (ConnectionData con in current.connections)
-            loadData.connections.Add(con);
+        //foreach (ConnectionData con in current.connections)
+        //    loadData.connections.Add(con);
 
         //Variables
         foreach (Var v in current.variables)            
@@ -406,10 +423,19 @@ public class NodeEditor : EditorWindow
 
         foreach (ConnectionData con in loadData.connections)
             current.connections.Add(con);
-        
-        foreach(Var v in loadData.variables)
+
+        //Ready variable display
+        if (varDisplay.inputs == null)
+            varDisplay.inputs = new List<string>();
+
+        foreach (Var v in loadData.variables)
         {           
             v.type = Interpreter.Instance.LoadVarType(v.strType, v.asmPath);
+
+            //Add to VarDisplay
+            if (v.name != null)
+                if (v.name != "")
+                    varDisplay.inputs.Add(v.input);
 
             current.variables.Add(v);
         }
@@ -569,7 +595,8 @@ public class NodeEditor : EditorWindow
 
     void OnClickRemoveConnection(Connection connection)
     {      
-        connections.Remove(connection);        
+        connections.Remove(connection);
+        connectionRemoved = true;
     }
 
     void CreateConnection()

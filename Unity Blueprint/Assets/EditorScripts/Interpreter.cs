@@ -22,9 +22,7 @@ public class Var
 
     //To be set up during runtime
     public object obj; //For safety this should probably be the containing object of the property/field
-    public Type type; //Type of class     
-    //public FieldInfo field;
-    //public PropertyInfo property;
+    public Type type; //Type of class         
    
     public Var(object o, Type t)
     {
@@ -57,6 +55,7 @@ public class InterpreterData
     public PropertyInfo[] properties;
     public FieldInfo[] fields;
     public Assembly[] asms;
+    public ConstructorInfo[] constructors;
 
     public bool isKeyWord;
     public bool isStatic; //If class name is called directly and var is not used    
@@ -241,10 +240,13 @@ public class Interpreter
 
             if (node.isContextual)
             {
-                if (node.prevNode != null && node.prevNode.isReturning)
+                if (node.prevNode != null)
                 {
-                    data.selectedType = node.prevNode.returnType;
-                    data.selectedAsm = data.selectedType.Assembly;                    
+                    if (node.prevNode.nodeType == NodeType.Field_Get || node.prevNode.nodeType == NodeType.Property_Get || node.isReturning)
+                    {
+                        data.selectedType = node.prevNode.returnType;
+                        data.selectedAsm = data.selectedType.Assembly;
+                    }
                 }
             }
 
@@ -308,16 +310,24 @@ public class Interpreter
         //TypeSelected:
         
         if (data.selectedType != null)
-        {           
-            MethodInfo[] methods = data.selectedType.GetMethods();
-            List<MethodInfo> methodInfo = new List<MethodInfo>();
-
+        {
             string name = "";
 
             if (node.isContextual)
                 name = args[0];
             else
                 name = args[1];
+
+            ConstructorInfo[] constructors = data.selectedType.GetConstructors();
+            
+            if (args.Length > 1)
+            {
+                if (args[0] == args[1])
+                    data.constructors = constructors;
+            }          
+
+            MethodInfo[] methods = data.selectedType.GetMethods();
+            List<MethodInfo> methodInfo = new List<MethodInfo>();
 
             foreach (MethodInfo m in methods)
             {
@@ -425,15 +435,19 @@ public class Interpreter
         if (node.nodeType == NodeType.Function)
         {            
             if (node.currentMethod == null)
-            {
-                //Debug.Log("Attempting to construct methodinfo");
-                node.currentMethod = LoadMethod(node.input, node.type, node.assemblyPath, node.index);
+            {               
+                node.currentMethod = LoadMethod(node.input, node.type, node.assemblyPath, node.index, node.isContextual);                                
+            }
 
-                if (node.currentMethod == null)
-                {
-                    Debug.Log("Node has no method or is entry point");
-                    return;
-                }
+            if (node.constructorMethod == null && node.currentMethod == null)
+            {
+                node.constructorMethod = LoadConstructor(node.input, node.type, node.assemblyPath, node.index, node.isContextual);
+            }
+
+            if (node.currentMethod == null && node.constructorMethod == null)
+            {
+                Debug.Log("Node has no method or is entry point");
+                return;
             }
 
             if (node.paramList.Count > 0)
@@ -442,6 +456,7 @@ public class Interpreter
 
                 for (int i = 0; i < node.paramList.Count; i++)
                 {
+                    //I don't remember why I added this, but there must have been a good reason I hope
                     if (node.isSpecial && node.paramList[i].noType)
                     {
                         node.passArgs[i] = node.actualTarget;
@@ -459,35 +474,47 @@ public class Interpreter
                 node.actualTarget = target;
             }
 
-            node.function = node.currentMethod.Bind();
+            if (node.currentMethod != null)
+                node.function = node.currentMethod.Bind();
+
+            if (node.constructorMethod != null)
+                node.function = CreateConstructor(node.constructorMethod);
+
             return;
+        }
+
+        if (node.nodeType == NodeType.Field_Get)
+        {
+            node.fieldVar = LoadField(node.input, node.type, node.assemblyPath);
+            node.function = CreateGetFunction(node.fieldVar);
         }
 
         if (node.nodeType == NodeType.Field_Set)
         {
             //Find the base type
             node.fieldVar = LoadField(node.input, node.type, node.assemblyPath);
-
-            if (node.literalField != null && node.varField == null)
+            node.function = CreateSetFunction(node.fieldVar);
+            
+            if ((string)node.varField.arg != "")
             {
-                node.isVar = false;
-                //node.targetVar = blueprint.variables[node.varName];
-                //node.SetVariable = delegate { node.fieldVar.SetValue(node.targetVar.obj, node.literalField.arg); };
-            }
+                  node.isVar = true;
+            }                                  
+        }
 
-            if (node.varField != null && node.literalField == null)
-            {
-                if ((string)node.varField.arg != "")
-                {
-                    node.isVar = true;
-                }
-            }
+        if (node.nodeType == NodeType.Property_Get)
+        {
+            node.propertyVar = LoadProperty(node.input, node.type, node.assemblyPath);
+            node.function = CreateGetFunction(node.propertyVar);
+        }
 
-            if (node.literalField != null && node.varField != null)
-            {
-                if ((string)node.varField.arg != "")
-                    Debug.LogError("ERROR: Both types assigned");
-            }
+        if (node.nodeType == NodeType.Property_Set)
+        {
+            node.propertyVar = LoadProperty(node.input, node.type, node.assemblyPath);
+            node.function = CreateSetFunction(node.propertyVar);
+          
+            if ((string)node.varField.arg != "")            
+                node.isVar = true;
+            
         }
     }
 
@@ -515,11 +542,10 @@ public class Interpreter
 
         if (TestASM != null)
         {
-            Type typeTest = TestASM.GetType(type);
-            //Debug.Log($"Type test from assembly load test {typeTest.ToString()}");
+            Type typeTest = TestASM.GetType(type);            
             MethodInfo[] allMethods = typeTest.GetMethods();
             List<MethodInfo> methods = new List<MethodInfo>();
-
+           
             MethodInfo final = null;
 
             foreach (MethodInfo m in allMethods)
@@ -528,8 +554,42 @@ public class Interpreter
                     methods.Add(m);
             }
 
-            final = methods[index];
-            return final;
+            if (methods != null && index < methods.Count)
+            {
+                final = methods[index];
+                return final;
+            }            
+        }
+
+        return null;
+    }
+
+    //I'm not proud of this
+    public ConstructorInfo LoadConstructor(string input, string type, string path, int index, bool isContextual = false)
+    {        
+        if (path == "")
+            return null;
+
+        Assembly TestASM = Assembly.LoadFile(path);
+
+        string[] args = input.Split(' ');
+        string name = "";
+      
+        if (args.Length > 1 && !isContextual)
+            name = args[1];
+        else
+        {
+            Debug.Log("No function name found returning null");
+            return null;
+        }
+
+        if (TestASM != null)
+        {
+            Type typeTest = TestASM.GetType(type);
+            ConstructorInfo[] allMethods = typeTest.GetConstructors();            
+           
+            if (allMethods != null && index < allMethods.Length)
+                return allMethods[index];
 
         }
 
@@ -551,7 +611,7 @@ public class Interpreter
         return null;
     }
 
-    public FieldInfo LoadField(string input, string type, string path)
+    public FieldInfo LoadField(string input, string type, string path, bool isContextual = false)
     {
         if (path == "")
             return null;
@@ -563,6 +623,10 @@ public class Interpreter
 
         if (args.Length > 1)
             name = args[1];
+
+        else if (args.Length == 1 && isContextual)
+            name = args[0];
+
         else
         {
             Debug.Log("No field name found returning null");
@@ -620,32 +684,29 @@ public class Interpreter
     public bool ParseKeywords(string text, Node node)
     {
         MethodInfo info = null;
-        //MethodInfo[] infos;
-        //List<MethodInfo> methods;
-
+        
         try
         {
             info = typeof(BlueprintComponent).GetMethod(text);
         }
 
-        catch (AmbiguousMatchException e)
+        catch
         {            
-            if (text == "GetComponent")
+            if (text == "GetComponent" || text == "AddComponent" || text == "Set")
             {                
                 info = typeof(BlueprintComponent).GetMethod(text, new Type[] { typeof(string), typeof(string) });
-            }
+            }        
         }
         
         if (info != null)
         {
-            if (info.Name == "GetComponent")
+            if (info.Name == "GetComponent" || info.Name == "AddComponent" || info.Name == "Set")
             {
-                node.isSpecial = true;
-                //node.ChangeToMethod(info);
+                node.isSpecial = true;                
                 node.ChangeToSpecialMethod(info);
                 return true;
             }
-        
+
             Debug.Log($"Method found for {text}");
             
             node.isDefined = true;
@@ -660,52 +721,86 @@ public class Interpreter
             return true;
         }
 
-        return false;
+        //Just so there doesn't have to be allocations over and over
+        Type[] argTypes = { typeof(Var), typeof(Var) };
 
-        //string[] args = text.Split(' ');
-        //
-        //if (info != null && info.IsStatic)
-        //{
-        //    if (args.Length > 1)
-        //        node.ChangeToSpecialMethod(info, args[1], text);            
-        //}
+        //Conditionals
+        switch(text)
+        {                    
+            case "==":
+                node.input = "Equals";
+                node.isSpecial = true;
+                //node.ChangeToMethod(typeof(HelperFunctions).GetMethod("Equals", argTypes));
+                node.ChangeToSpecialMethod(typeof(BlueprintComponent).GetMethod("Equals", new Type[] { typeof(string), typeof(string) }));
+                break;
+
+            case "<":
+                node.input = "LessThan";
+                node.isSpecial = true;
+                //node.ChangeToMethod(typeof(HelperFunctions).GetMethod("LessThan", argTypes));
+                node.ChangeToSpecialMethod(typeof(BlueprintComponent).GetMethod("LessThan", new Type[] { typeof(string), typeof(string) }));
+                break;
+
+            case ">":
+                node.input = "GreaterThan";
+                node.isSpecial = true;
+                //node.ChangeToMethod(typeof(HelperFunctions).GetMethod("GreaterThan", argTypes));
+                node.ChangeToSpecialMethod(typeof(BlueprintComponent).GetMethod("GreaterThan", new Type[] { typeof(string), typeof(string) }));
+                break;
+
+            case "<=":
+                node.input = "LessThanOrEqual";
+                node.isSpecial = true;
+                //node.ChangeToMethod(typeof(HelperFunctions).GetMethod("LessThanOrEqual", argTypes));
+                node.ChangeToSpecialMethod(typeof(BlueprintComponent).GetMethod("LessThanOrEqual", new Type[] { typeof(string), typeof(string) }));
+                break;
+
+            case ">=":
+                node.input = "GreaterThanOrEqual";
+                node.isSpecial = true;
+                //node.ChangeToMethod(typeof(HelperFunctions).GetMethod("GreaterThanOrEqual", argTypes));
+                node.ChangeToSpecialMethod(typeof(BlueprintComponent).GetMethod("GreaterThanOrEqual", new Type[] { typeof(string), typeof(string) }));
+                break;
+
+            case "!=":
+                node.input = "NotEquals";
+                node.isSpecial = true;
+                //node.ChangeToMethod(typeof(HelperFunctions).GetMethod("NotEquals", argTypes));
+                node.ChangeToSpecialMethod(typeof(BlueprintComponent).GetMethod("NotEquals", new Type[] { typeof(string), typeof(string) }));
+                break;
+
+            case "&&":
+                node.input = "And";
+                node.isSpecial = true;
+                //node.ChangeToMethod(typeof(HelperFunctions).GetMethod("And", argTypes));
+                node.ChangeToSpecialMethod(typeof(BlueprintComponent).GetMethod("And", new Type[] { typeof(string), typeof(string) }));
+                break;
+
+            case "||":
+                node.input = "Or";
+                node.isSpecial = true;
+                //node.ChangeToMethod(typeof(HelperFunctions).GetMethod("Or", argTypes));
+                node.ChangeToSpecialMethod(typeof(BlueprintComponent).GetMethod("Or", new Type[] { typeof(string), typeof(string) }));
+                break;
+        }
+        
+
+        return false;       
     }
 
     public MethodInfo GetSpecialFunction(string input)
     {
         MethodInfo info = null;
-
-        if (input == "GetComponent")
-        {
-            info = typeof(BlueprintComponent).GetMethod(input, new Type[] { typeof(string), typeof(string) });
-        }
-
-        //try
-        //{
-        //    info = typeof(BlueprintComponent).GetMethod(input);
-        //}
-        //
-        //catch (AmbiguousMatchException e)
-        //{
-        //    
-        //}
-
+        
+        //This will probably have to be altered later
+        info = typeof(BlueprintComponent).GetMethod(input, new Type[] { typeof(string), typeof(string) });
 
         if (info != null)        
             return info;
         
         return null;
     }
-
-    public bool ParseKeywords(string input)
-    {
-        MethodInfo info = typeof(BlueprintComponent).GetMethod(input);
-        if (info != null)        
-            return true;
     
-        return false;
-    }
-
     //Return true if multiple types are found
     bool FindType(string input, out Type[] type, out Assembly[] ASM)
     {
@@ -786,33 +881,112 @@ public class Interpreter
             Type[] type;
             Assembly[] ASM;
 
-            FindType(raw[0], out type, out ASM);
+            bool isPrimitive = false;
 
-            if (type == null)
+            //Primitive Check + string
+            switch(raw[0])
             {
-                Debug.Log("Type not found in variable creation");
-                return;
+                case "bool":
+                    meta.selectedType = typeof(bool);
+                    isPrimitive = true;
+                    break;
+
+                case "byte":
+                    meta.selectedType = typeof(byte);
+                    isPrimitive = true;
+                    break;
+
+                case "char":
+                    meta.selectedType = typeof(char);
+                    isPrimitive = true;
+                    break;
+
+                case "short":
+                    meta.selectedType = typeof(short);
+                    isPrimitive = true;
+                    break;
+
+                case "ushort":
+                    meta.selectedType = typeof(ushort);
+                    isPrimitive = true;
+                    break;
+
+                case "int":
+                    meta.selectedType = typeof(int);
+                    isPrimitive = true;
+                    break;
+
+                case "uint":
+                    meta.selectedType = typeof(uint);
+                    isPrimitive = true;
+                    break;
+
+                case "long":
+                    meta.selectedType = typeof(long);
+                    isPrimitive = true;
+                    break;
+
+                case "ulong":
+                    meta.selectedType = typeof(ulong);
+                    isPrimitive = true;
+                    break;
+
+                case "float":
+                    meta.selectedType = typeof(float);
+                    isPrimitive = true;
+                    break;
+
+                case "double":
+                    meta.selectedType = typeof(double);
+                    isPrimitive = true;
+                    break;
+
+                case "string":
+                    meta.selectedType = typeof(string);
+                    isPrimitive = true;
+                    break;
             }
 
-            if (type.Length == 1)
+            if (isPrimitive)
             {
-                Debug.Log("One type found, successfully created variable");
-                meta.selectedType = type[0];
-                meta.selectedAsm = meta.selectedType.Assembly;
-
-                meta.input = input;
-                Var newVar = new Var(type[0], raw[1]);                
+                Debug.Log("Creating Primitive");
+                Var newVar = new Var(meta.selectedType, raw[1]);
+                newVar.input = input;
                 data.variables.Add(newVar);
                 return;
             }
 
             else
             {
-                Debug.Log("Multiple types found");
-                meta.input = input;
-                meta.types = type;
-                meta.asms = ASM;
-                return;
+                FindType(raw[0], out type, out ASM);
+
+                if (type == null)
+                {
+                    Debug.Log("Type not found in variable creation");
+                    return;
+                }
+
+                if (type.Length == 1)
+                {
+                    Debug.Log("One type found, successfully created variable");
+                    meta.selectedType = type[0];
+                    meta.selectedAsm = meta.selectedType.Assembly;
+
+                    meta.input = input;
+                    Var newVar = new Var(type[0], raw[1]);
+                    newVar.input = input;
+                    data.variables.Add(newVar);
+                    return;
+                }
+
+                else
+                {
+                    Debug.Log("Multiple types found");
+                    meta.input = input;
+                    meta.types = type;
+                    meta.asms = ASM;
+                    return;
+                }
             }
         }
         
@@ -820,12 +994,218 @@ public class Interpreter
         {
             Debug.Log("type selected and var successfully created");
             Var newVar = new Var(meta.selectedType, raw[1]);
-            newVar.input = input;
+            newVar.input = meta.input;
             data.variables.Add(newVar);
         }
         
     }
-  
+
+    public object ParseArgumentType(string arg)
+    {                        
+         //TO-DO: Add Keywords or find a way to get members or possible function calls, maybe try using the LINQ thing above 
+        bool bVal;                
+        int iVal;        
+        long lVal;        
+        float fVal;
+        double dVal;
+
+        if (Boolean.TryParse(arg, out bVal))                   
+           return bVal;
+      
+        if (Int32.TryParse(arg, out iVal))                   
+           return iVal;
+
+       
+        if (Int64.TryParse(arg, out lVal))
+            return lVal;
+
+        
+        if (Single.TryParse(arg, out fVal))                   
+           return fVal;
+        
+        if (Double.TryParse(arg, out dVal))                   
+           return dVal;
+        
+        // Check the " character
+        if (arg[0] == '"')        
+           return arg;
+        
+
+        return null;
+    }
+
+    //The Black Magic with LINQ Begins Here: ---------------------------------------------
+
+    public Func<object, object[], object> CreateConstructor(ConstructorInfo info)
+    {
+        ParameterExpression instanceParameter = Expression.Parameter(typeof(object), "target");
+        ParameterExpression argumentsParameter = Expression.Parameter(typeof(object[]), "arguments");
+        
+        NewExpression call = Expression.New
+            (                
+                info,
+                CreateConstructorParameters(info, argumentsParameter)
+            );
+
+        Expression<Func<object, object[], object>> lambda = Expression.Lambda<Func<object, object[], object>>(
+            Expression.Convert(call, typeof(object)),
+            instanceParameter,
+            argumentsParameter);
+
+        return lambda.Compile();
+    }
+
+    //I'm not exactly happy about this, but this is only solution I could find to make it more readable
+    Expression[] CreateConstructorParameters(ConstructorInfo method, Expression argumentsParameter)
+    {
+        return method.GetParameters().Select
+            (
+                (parameter, index) =>
+            
+                Expression.Convert
+                (
+                    Expression.ArrayIndex(argumentsParameter, Expression.Constant(index)), parameter.ParameterType
+                )
+          
+            ).Cast<Expression>().ToArray();
+    }
+
+    Expression[] CreateMethodParameters(MethodInfo method, Expression argumentsParameter)
+    {
+        return method.GetParameters().Select
+            (
+                (parameter, index) =>
+
+                Expression.Convert
+                (
+                    Expression.ArrayIndex(argumentsParameter, Expression.Constant(index)), parameter.ParameterType
+                )
+
+            ).Cast<Expression>().ToArray();
+    }
+
+    
+    public Func<object, object[], object> CreateGetFunction(MemberInfo info)
+    {
+        ParameterExpression instanceParameter = Expression.Parameter(typeof(object), "target");
+        ParameterExpression argumentsParameter = Expression.Parameter(typeof(object[]), "arguments");
+
+        MemberExpression accessMember = null;
+
+        if (info is FieldInfo)
+        {
+            FieldInfo field = (FieldInfo)info;
+
+            var convert = Expression.Convert(instanceParameter, field.DeclaringType);
+
+            accessMember = Expression.Field(convert, field);
+
+            var convert2 = Expression.Convert(accessMember, typeof(object));
+
+            Expression<Func<object, object[], object>> lambda = Expression.Lambda<Func<object, object[], object>>
+            (
+                convert2,
+                instanceParameter,
+                argumentsParameter
+            );
+
+            return lambda.Compile();
+        }
+
+        if (info is PropertyInfo)
+        {
+            PropertyInfo property = (PropertyInfo)info;
+
+            var convert = Expression.Convert(instanceParameter, property.DeclaringType);
+
+            accessMember = Expression.Property(convert, property);
+
+            var convert2 = Expression.Convert(accessMember, typeof(object));
+
+            Expression<Func<object, object[], object>> lambda = Expression.Lambda<Func<object, object[], object>>
+            (
+                convert2,
+                instanceParameter,
+                argumentsParameter
+            );
+
+            return lambda.Compile();
+        }
+
+        return null;
+    }
+
+    public Func<object, object[], object> CreateSetFunction(MemberInfo info)
+    {
+        ParameterExpression instanceParameter = Expression.Parameter(typeof(object), "target");
+        ParameterExpression argumentsParameter = Expression.Parameter(typeof(object[]), "arguments");
+
+        MemberExpression accessMember = null;
+
+        if (info is FieldInfo)
+        {
+            FieldInfo field = (FieldInfo)info;
+
+            //Get the target object converted to assign
+            var actualField = Expression.Convert(instanceParameter, field.DeclaringType);
+
+            //Convert the other into the right type - there should only be one argument
+            var assign = Expression.Convert(Expression.ArrayIndex(argumentsParameter, Expression.Constant(0)), field.FieldType);
+           
+            //Get the field from target object
+            accessMember = Expression.Field(actualField, field);
+
+            //Perform the assignment
+            var result = Expression.Assign(accessMember, assign);
+
+            //Set the return type properly
+            var convert = Expression.Convert(result, typeof(object));
+
+            Expression<Func<object, object[], object>> lambda = Expression.Lambda<Func<object, object[], object>>
+            (
+                convert,
+                instanceParameter,
+                argumentsParameter
+            );
+
+            return lambda.Compile();
+        }
+
+        if (info is PropertyInfo)
+        {
+            PropertyInfo property = (PropertyInfo)info;
+
+            //Get the target object converted to assign
+            var actualField = Expression.Convert(instanceParameter, property.DeclaringType);
+
+            //Convert the other into the right type - there should only be one argument
+            var assign = Expression.Convert(Expression.ArrayIndex(argumentsParameter, Expression.Constant(0)), property.PropertyType);
+
+            //Get the field from target object
+            accessMember = Expression.Property(actualField, property);
+
+            //Perform the assignment
+            var result = Expression.Assign(accessMember, assign);
+
+            var convert = Expression.Convert(result, typeof(object));
+
+            Expression<Func<object, object[], object>> lambda = Expression.Lambda<Func<object, object[], object>>
+            (
+                convert,
+                instanceParameter,
+                argumentsParameter
+            );
+
+            
+
+            return lambda.Compile();
+        }
+
+        return null;
+    }
+
+    //OLD UNUSED STUFF DONE BELOW KEEPING FOR REFERENCE/POSTERITY ---------------------------------------
+
     //WARNING THIS CANNOT FIND A FUNCTION IF IT IS FROM A BASE CLASS, ONLY IF THE CLASS DIRECTLY CONTAINS IT
     public MethodInfo[] GetFunctionDefinitions(string text, out string typeStr, out string asmPath)
     {        

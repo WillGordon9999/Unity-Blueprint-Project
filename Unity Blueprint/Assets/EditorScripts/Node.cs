@@ -35,7 +35,10 @@ public class Node
 
     public Action<Node> OnRemoveNode;
 
-    public MethodInfo currentMethod;
+    public MethodInfo currentMethod;    
+    public FieldInfo fieldVar;
+    public PropertyInfo propertyVar;
+    public ConstructorInfo constructorMethod;
 
     public InterpreterData metaData = null;
 
@@ -55,29 +58,22 @@ public class Node
     public Type returnType;
     public object returnObj; //The object which ideally will be accessible by next nodes    
 
-    public enum ReturnVarType { None, Var, Field, Property };
+    //None of these are being used
+    public enum ReturnVarType { None, Var, Field, Property }; //Deprecated
     public ReturnVarType retType;
-    public bool isSpecial = false; //Basically the target to call on is the BlueprintComponent
 
-    //public string returnVarName { get; set; }
-    //public string returnAsmPath { get; set; }
+    public bool isSpecial = false; //Basically the target to call on is the BlueprintComponent
+    
     public string returnInput;
 
     public Parameter returnEntry;
-
-    public FieldInfo returnField;
-    public PropertyInfo returnProperty;
-
-    //Property/Field Specific - The ones that are used for setting
-    public FieldInfo fieldVar;
-    public PropertyInfo propertyVar;
-  
+          
     //For setting fields or properties
     public Parameter literalField; //Use a literal value
     public Parameter varField; //Access a variable
 
     //Determining if you are using a literal or var is still a work in progress
-    public bool isVar; //For when the node is a field set or property set, and the the value in question is being set to a variable
+    public bool isVar { get; set; } //For when the node is a field set or property set, and the the value in question is being set to a variable
 
     public Blueprint blueprint; //With the primary idea being this is used for variable access
 
@@ -149,9 +145,7 @@ public class Node
 
         isReturning = data.isReturning;
         returnInput = data.returnInput;
-        //returnVarName = data.returnVarName;
-        //returnAsmPath = data.returnAsmPath;
-
+        
         isSpecial = data.isSpecial;
         varName = data.varName;
         retType = data.retType;
@@ -184,15 +178,19 @@ public class Node
     }
    
     public void Draw()
-    {      
+    {
+        //Draw Connection Points
         inPoint.Draw();
         outPoint.Draw();
 
+        //Draw False Point if you're a branch
         if (nodeType == NodeType.Conditional)
             falsePoint.Draw();
-              
+
+        //Draw the box
         GUI.Box(rect, "", style);
 
+        //Draw accordingly to whether node has definition or not
         if (!isDefined)
         {
             GUI.SetNextControlName(initField);
@@ -201,6 +199,7 @@ public class Node
         else
             EditorGUI.LabelField(new Rect(rect.position + initPos, initDimensions), input);
 
+        //Function drawing
         if (nodeType == NodeType.Function)
         {
             if (paramList.Count > 0)
@@ -251,6 +250,7 @@ public class Node
             varField.draw?.Invoke();
         }
 
+        //Conditional
         if (nodeType == NodeType.Conditional)
         {
             if (paramList.Count > 0)
@@ -317,6 +317,7 @@ public class Node
                 break;            
         }
 
+        //Check for Special Functions
         if (e.keyCode == KeyCode.Return && GUI.GetNameOfFocusedControl() == initField)
         {
             //e.Use();
@@ -361,6 +362,31 @@ public class Node
 
             else
             {
+                if (metaData.constructors != null)
+                {
+                    foreach(ConstructorInfo c in metaData.constructors)
+                    {
+                        if (c != null)
+                        {
+                            ParameterInfo[] args = c.GetParameters();
+                            string final = c.Name + "(";
+
+                            for (int i = 0; i < args.Length; i++)
+                            {
+                                final += " " + args[i].ParameterType.Name + " " + args[i].Name;
+
+                                if (i < args.Length - 1)
+                                    final += ", ";
+
+                            }
+
+                            final += " )";
+
+                            menu.AddItem(new GUIContent(final), false, ChangeToConstructor, c);
+                        }
+                    }
+                }
+
                 if (metaData.methods != null)
                 {
                     foreach (MethodInfo m in metaData.methods)
@@ -385,7 +411,7 @@ public class Node
                         }
                     }                    
                 }
-               
+                
                 if (metaData.fields != null)
                 {
                     foreach (FieldInfo f in metaData.fields)
@@ -403,12 +429,7 @@ public class Node
 
                                 if (!isDefined && !isReturning)
                                     menu.AddItem(new GUIContent(final), false, ChangeToField, "Set");
-
-                                //if (isDefined && isReturning)
-                                //{
-                                //    retType = ReturnVarType.Field;
-                                //    menu.AddItem(new GUIContent(final), false, SetReturnTarget, f);
-                                //}
+                               
                             }
                         }
                     }
@@ -432,13 +453,7 @@ public class Node
 
                                 if (!isDefined && !isReturning)
                                     menu.AddItem(new GUIContent(final), false, ChangeToProperty, "Set");
-
-                                //if (isDefined && isReturning)
-                                //{
-                                //    retType = ReturnVarType.Property;
-                                //    menu.AddItem(new GUIContent(final), false, SetReturnTarget, p);
-                                //}
-
+                               
                             }
 
                             else if (metaData.access == InterpreterData.AccessType.Get)
@@ -455,12 +470,7 @@ public class Node
 
                                 if (!isDefined && !isReturning)
                                     menu.AddItem(new GUIContent(final), false, ChangeToProperty, "Set");
-
-                                //if (isDefined && isReturning)
-                                //{
-                                //    retType = ReturnVarType.Property;
-                                //    menu.AddItem(new GUIContent(final), false, SetReturnTarget, p);
-                                //}
+                              
                             }
                         }
                     }
@@ -470,28 +480,7 @@ public class Node
 
         menu.ShowAsContext();
     }
-
-    void SetReturnTarget(object input)
-    {
-        if (retType == ReturnVarType.Field)
-        {
-            Debug.Log("Return Field Chosen");
-            returnField = (FieldInfo)input;
-            returnType = returnField.FieldType;
-            //returnVarName = metaData.varName;
-            //returnAsmPath = returnField.ReflectedType.Assembly.Location;
-        }
-
-        if (retType == ReturnVarType.Property)
-        {
-            Debug.Log("Return Property Chosen");
-            returnProperty = (PropertyInfo)input;
-            returnType = returnProperty.PropertyType;
-            //returnVarName = metaData.varName;
-            //returnAsmPath = returnProperty.ReflectedType.Assembly.Location;
-        }
-    }
-
+   
     void ChangeToField(object input)
     {
         string result = (string)input;
@@ -509,6 +498,7 @@ public class Node
                 nodeType = NodeType.Field_Get;
                 fieldVar = metaData.fields[0];
                 isStatic = fieldVar.IsStatic;
+                rect = new Rect(rect.x, rect.y, rect.width, rect.height * 2.0f);
                 isDefined = true;
             }
 
@@ -547,7 +537,8 @@ public class Node
             if (result == "Get")
             {
                 nodeType = NodeType.Property_Get;
-                propertyVar = metaData.properties[0];                
+                propertyVar = metaData.properties[0];
+                rect = new Rect(rect.x, rect.y, rect.width, rect.height * 2.0f);
                 isDefined = true;
             }
 
@@ -714,6 +705,80 @@ public class Node
         else        
             isReturning = false;
         
+
+        isDefined = true;
+    }
+
+    public void ChangeToConstructor(object method)
+    {
+        nodeType = NodeType.Function;
+
+        ConstructorInfo info = (ConstructorInfo)method;
+
+        if (metaData != null && !isSpecial)
+        {
+            //targetVar = metaData.varRef;
+            varName = metaData.varName;
+            input = metaData.input;
+            type = metaData.selectedType.ToString();
+            isStatic = info.IsStatic;
+            assemblyPath = metaData.selectedType.Assembly.Location;
+        }
+
+        else
+        {
+            type = info.ReflectedType.ToString();
+            isStatic = info.IsStatic;
+            assemblyPath = info.ReflectedType.Assembly.Location;
+        }
+
+        float initHeight = rect.height;
+
+        ParameterInfo[] args = info.GetParameters();
+
+        foreach (ParameterInfo p in args)
+            paramList.Add(new Parameter(p.ParameterType));
+
+        if (paramList.Count == 1)
+            rect = new Rect(rect.x, rect.y, rect.width, initHeight * (paramList.Count + 1));
+
+
+        else if (paramList.Count > 1)
+            rect = new Rect(rect.x, rect.y, rect.width, initHeight * (paramList.Count));
+
+        foreach (Parameter p in paramList)
+        {
+            p.GetFieldType();
+        }
+
+        //for (int i = 0; i < methodDefinitions.Length; i++)
+
+        if (metaData != null && !isSpecial)
+        {
+            for (int i = 0; i < metaData.methods.Length; i++)
+            {
+                if (metaData.methods[i] == info)
+                {
+                    Debug.Log("Index found");
+                    index = i;
+                }
+            }
+        }
+
+        returnType = info.DeclaringType;
+        constructorMethod = info;
+
+        if (returnType != typeof(void))
+        {
+            isReturning = true;
+            rect = new Rect(rect.x, rect.y, rect.width, initHeight * (paramList.Count + 1));
+            returnEntry = new Parameter(typeof(string));
+            retType = ReturnVarType.Var;
+        }
+
+        else
+            isReturning = false;
+
 
         isDefined = true;
     }

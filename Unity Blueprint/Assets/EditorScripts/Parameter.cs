@@ -238,6 +238,13 @@ public class Parameter
                 return;
             }
 
+            if (type == typeof(Var))
+            {
+                draw = delegate { arg = EditorGUI.TextField(rect, (string)System.Convert.ChangeType(arg, typeof(string))); };
+                paramType = ParameterData.ParamType.String;
+                return;
+            }
+
             Debug.Log("Type not found");
             noType = true;
 

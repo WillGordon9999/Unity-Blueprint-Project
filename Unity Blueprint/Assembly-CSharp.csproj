@@ -64,6 +64,8 @@
   <ItemGroup>
     <Compile Include="Assets\Core\BlueprintData.cs" />
     <Compile Include="Assets\Core\FastDelegate.cs" />
+    <Compile Include="Assets\Core\HelperFunctions.cs" />
+    <Compile Include="Assets\Core\NewTest.cs" />
     <Compile Include="Assets\Core\NodeData.cs" />
     <Compile Include="Assets\Core\ParameterData.cs" />
     <Compile Include="Assets\Core\TestComponent.cs" />

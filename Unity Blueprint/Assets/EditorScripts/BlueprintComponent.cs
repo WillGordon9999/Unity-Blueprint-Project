@@ -15,20 +15,234 @@ public class BlueprintComponent : MonoBehaviour
     {
         return GetComponent(type);        
     }
-    
-    //public static Component GetComponent(string varName, string input, Dictionary<string, Var> dict)
-    //{
-    //    Component comp = (Component)dict[varName].obj;
-    //    return comp.GetComponent(input);
-    //}
-
+      
     public Component GetComponent(string type, string other)
     {
         if (other != "")
         {
             return (variables[other].obj as Component).GetComponent(type);
         }
-        return GetComponent(type);
+                        
+        return GetComponent(type);        
+    }
+
+    public Component AddComponent(string type, string other)
+    {
+        Type compType = GetComponent(type).GetType();
+
+        if (other != "")
+        {
+            return (variables[other].obj as GameObject).AddComponent(compType);
+        }
+
+        return gameObject.AddComponent(compType);
+    }
+    
+    //Where value can be a literal or a variable name
+    public void Set(string varName, string value)
+    {
+        if (CheckVar(varName))
+        {
+            if (CheckVar(value))
+            {
+                if (variables[varName].type == variables[value].type)
+                    variables[varName].obj = variables[value].obj;
+
+                else
+                    Debug.LogError("ERROR: Cannot assign two different types");
+            }
+
+            else
+            {
+                object result = Interpreter.Instance.ParseArgumentType(value);
+
+                if (variables[varName].type == result.GetType())
+                    variables[varName].obj = result;
+
+                else
+                    Debug.LogError("ERROR: Cannot assign two different types");
+            }
+        }
+
+        else
+            Debug.LogError("Error: No Variable Found In Set");
+    }
+
+    bool CheckVar(string name)
+    {
+        Var v;
+        return variables.TryGetValue(name, out v);        
+    }
+
+    //Must be able to except checking against another variable or a literal if applicable
+    //Can compare with literals for the common types, but otherwise must use a var for comparing classes
+    public bool Equals(string v, string v2)
+    {
+        if (CheckVar(v))
+        {
+            if (CheckVar(v2))
+                return HelperFunctions.Equals(variables[v], variables[v2]);
+            else
+            {
+                object result = Interpreter.Instance.ParseArgumentType(v2);
+
+                if (result != null)
+                    return HelperFunctions.Equals(variables[v], new Var(result, result.GetType()));
+
+                else
+                    return false;
+            }
+        }
+
+        else
+            return false;       
+    }
+    public bool NotEquals(string v, string v2)
+    {
+        if (CheckVar(v))
+        {
+            if (CheckVar(v2))
+                return HelperFunctions.NotEquals(variables[v], variables[v2]);
+            else
+            {
+                object result = Interpreter.Instance.ParseArgumentType(v2);
+
+                if (result != null)
+                    return HelperFunctions.NotEquals(variables[v], new Var(result, result.GetType()));
+
+                else
+                    return false;
+            }
+        }
+
+        else
+            return false;
+    }
+    public bool LessThan(string v, string v2)
+    {
+        if (CheckVar(v))
+        {
+            if (CheckVar(v2))
+                return HelperFunctions.LessThan(variables[v], variables[v2]);
+            else
+            {
+                object result = Interpreter.Instance.ParseArgumentType(v2);
+
+                if (result != null)
+                    return HelperFunctions.LessThan(variables[v], new Var(result, result.GetType()));
+
+                else
+                    return false;
+            }
+        }
+
+        else
+            return false;
+    }
+    public bool GreaterThan(string v, string v2)
+    {
+        if (CheckVar(v))
+        {
+            if (CheckVar(v2))
+                return HelperFunctions.GreaterThan(variables[v], variables[v2]);
+            else
+            {
+                object result = Interpreter.Instance.ParseArgumentType(v2);
+
+                if (result != null)
+                    return HelperFunctions.GreaterThan(variables[v], new Var(result, result.GetType()));
+
+                else
+                    return false;
+            }
+        }
+
+        else
+            return false;
+    }
+    public bool LessThanOrEqual(string v, string v2)
+    {
+        if (CheckVar(v))
+        {
+            if (CheckVar(v2))
+                return HelperFunctions.LessThanOrEqual(variables[v], variables[v2]);
+            else
+            {
+                object result = Interpreter.Instance.ParseArgumentType(v2);
+
+                if (result != null)
+                    return HelperFunctions.LessThanOrEqual(variables[v], new Var(result, result.GetType()));
+
+                else
+                    return false;
+            }
+        }
+
+        else
+            return false;
+    }
+    public bool GreaterThanOrEqual(string v, string v2)
+    {
+        if (CheckVar(v))
+        {
+            if (CheckVar(v2))
+                return HelperFunctions.GreaterThanOrEqual(variables[v], variables[v2]);
+            else
+            {
+                object result = Interpreter.Instance.ParseArgumentType(v2);
+
+                if (result != null)
+                    return HelperFunctions.GreaterThanOrEqual(variables[v], new Var(result, result.GetType()));
+
+                else
+                    return false;
+            }
+        }
+
+        else
+            return false;
+    }
+    public bool And(string v, string v2)
+    {
+        if (CheckVar(v))
+        {
+            if (CheckVar(v2))
+                return HelperFunctions.And(variables[v], variables[v2]);
+            else
+            {
+                object result = Interpreter.Instance.ParseArgumentType(v2);
+
+                if (result != null)
+                    return HelperFunctions.And(variables[v], new Var(result, result.GetType()));
+
+                else
+                    return false;
+            }
+        }
+
+        else
+            return false;
+    }
+    public bool Or(string v, string v2)
+    {
+        if (CheckVar(v))
+        {
+            if (CheckVar(v2))
+                return HelperFunctions.Or(variables[v], variables[v2]);
+            else
+            {
+                object result = Interpreter.Instance.ParseArgumentType(v2);
+
+                if (result != null)
+                    return HelperFunctions.Or(variables[v], new Var(result, result.GetType()));
+
+                else
+                    return false;
+            }
+        }
+
+        else
+            return false;
     }
 
     [ExecuteAlways]
@@ -72,24 +286,7 @@ public class BlueprintComponent : MonoBehaviour
             }
            
             foreach (Node node in bp.nodes)
-            {
-                //Interpreter.Instance.CompileNode(node);
-                //if (node.currentMethod == null && !node.isEntryPoint)
-                //{
-                //    node.currentMethod = Interpreter.Instance.LoadMethod(node.input, node.type, node.assemblyPath, node.index);
-                //
-                //    if (node.currentMethod.DeclaringType.BaseType == typeof(UnityEngine.Component))
-                //    {                        
-                //        Interpreter.Instance.CompileNode(node, (object)GetComponent(node.currentMethod.DeclaringType));
-                //    }
-                //
-                //    else
-                //        Interpreter.Instance.CompileNode(node);
-                //
-                //    if (node.actualTarget == null)
-                //        print("Node's target is null!");
-                //}
-
+            {                
                 if (node.nodeType == NodeType.Function)
                 {
                     if (node.isSpecial)
@@ -100,28 +297,31 @@ public class BlueprintComponent : MonoBehaviour
                     }
                     else
                     {                        
-                        node.currentMethod = Interpreter.Instance.LoadMethod(node.input, node.type, node.assemblyPath, node.index, node.isContextual);
+                        //node.currentMethod = Interpreter.Instance.LoadMethod(node.input, node.type, node.assemblyPath, node.index, node.isContextual);
                         Interpreter.Instance.CompileNode(node);
-
-                        //if (node.isContextual)
-                        //{
-                        //    node.actualTarget = node.prevNode.returnObj;
-                        //}
-                        
+                                              
                         if (node.varName != "" && !node.isStatic)
                             node.actualTarget = variables[node.varName].obj;                                                    
                     }
                 }
+                
+                //Targets have to be set during main loop
+                if (node.nodeType == NodeType.Field_Get || node.nodeType == NodeType.Field_Set)                
+                    Interpreter.Instance.CompileNode(node);
 
-                if (node.nodeType == NodeType.Field_Set || node.nodeType == NodeType.Field_Get)
-                {
-                    node.fieldVar = Interpreter.Instance.LoadField(node.input, node.type, node.assemblyPath);
-                }
+                if (node.nodeType == NodeType.Property_Get || node.nodeType == NodeType.Property_Set)
+                    Interpreter.Instance.CompileNode(node);
 
-                if (node.nodeType == NodeType.Property_Set || node.nodeType == NodeType.Property_Get)
-                {
-                    node.propertyVar = Interpreter.Instance.LoadProperty(node.input, node.type, node.assemblyPath);
-                }
+
+                //if (node.nodeType == NodeType.Field_Set || node.nodeType == NodeType.Field_Get)
+                //{
+                //    node.fieldVar = Interpreter.Instance.LoadField(node.input, node.type, node.assemblyPath);
+                //}
+                //
+                //if (node.nodeType == NodeType.Property_Set || node.nodeType == NodeType.Property_Get)
+                //{
+                //    node.propertyVar = Interpreter.Instance.LoadProperty(node.input, node.type, node.assemblyPath);
+                //}
                
                 foreach (Node node1 in bp.nodes)
                 {
@@ -175,7 +375,7 @@ public class BlueprintComponent : MonoBehaviour
     //Initialization/Destroy
     //Awake is called when the script instance is being loaded.
     public void Awake()
-    {       
+    {             
     }
 
     //Start is called on the frame when a script is enabled just before any of the Update methods are called the first time.
@@ -215,68 +415,57 @@ public class BlueprintComponent : MonoBehaviour
                     }
 
                     if (current.isReturning)
-                    {
-                        if (current.retType == Node.ReturnVarType.Var)
+                    {                                                   
+                        if (current.returnInput != null)
                         {
-                            if (current.returnInput != null)
+                            if (current.returnInput != "")
                             {
-                                if (current.returnInput != "")
-                                {
-                                    Var test;
+                                if (!CheckVar(current.returnInput))
+                                    variables[current.returnInput] = new Var(current.returnObj, current.returnType);
 
-                                    if (!variables.TryGetValue(current.returnInput, out test))
-                                        variables[current.returnInput] = new Var(current.returnObj, current.returnType);
-
-                                    else
-                                    {
-                                        variables[current.returnInput].obj = current.returnObj;
-                                        //variables[current.returnInput].type = current.returnObj;
-                                    }
-                                }
+                                else                                    
+                                    variables[current.returnInput].obj = current.returnObj;                                                                            
                             }
-                        }                     
+                        }                                             
                     }
                 }
-
-                    /*
-                    Get Rigidbody
-                    Get prev node on next
-                    Get object 
-                    Then call.  
-                    */
-
-                /*
-                 Need to be able to determine whether you are:
-                    - setting to a variable
-                    - getting a variable
-                    - Or getting something contextually from the previous node
-
-                 */
+                 
                 if (current.nodeType == NodeType.Field_Get)
-                {                    
-                    current.returnObj = current.fieldVar.GetValue(current.actualTarget);
+                {
+                    if (current.varName != "")
+                    {                      
+                        current.returnObj = current.function.Invoke(variables[current.varName], null);
+
+                        if (!CheckVar(current.returnInput))
+                            variables[current.returnInput] = new Var(current.returnObj, current.fieldVar.FieldType);
+                        else
+                        {
+                            variables[current.returnInput].obj = current.returnObj;
+                            variables[current.returnInput].type = current.fieldVar.FieldType;
+                        }
+                    }
+
+                    else
+                    {
+                        current.returnObj = current.function.Invoke(current.actualTarget, null);
+                    }
                 }
 
                 
                 if (current.nodeType == NodeType.Property_Get)
                 {
                     if (current.varName != "")
-                    {
-                        current.returnObj = current.propertyVar.GetValue(variables[current.varName].obj);
+                    {                       
+                        current.returnObj = current.function.Invoke(variables[current.varName].obj, null);
 
-                        if (current.returnInput != "")
+                        if (!CheckVar(current.returnInput))
+                            variables[current.returnInput] = new Var(current.returnObj, current.propertyVar.PropertyType);
+                        else
                         {
-                            Var test;
-                            //need try get value
-                            if (!variables.TryGetValue(current.returnInput, out test))
-                                variables[current.returnInput] = new Var(current.returnObj, current.propertyVar.PropertyType);
+                            variables[current.returnInput].obj = current.returnObj;
+                            variables[current.returnInput].type = current.propertyVar.PropertyType;
+                        }
 
-                            else
-                            {
-                                variables[current.returnInput].obj = current.returnObj;
-                                variables[current.returnInput].type = current.propertyVar.PropertyType;
-                            }
-                        }                        
                     }
 
                     else
@@ -284,20 +473,20 @@ public class BlueprintComponent : MonoBehaviour
                         current.returnObj = current.propertyVar.GetValue(current.actualTarget);
                     }
                 }
-
+                
                 if (current.nodeType == NodeType.Field_Set)
                 {
                     Var v = variables[current.varName];
                     if (current.isVar)
-                    {
-                        //Var other = BlueprintManager.blueprints[data].variables[(string)current.varField.arg];
+                    {                        
                         Var other = variables[(string)current.varField.arg];
-                        current.fieldVar.SetValue(v.obj, other.name);
+                        current.function.Invoke(v.obj, new object[] { other.obj });
                     }
 
                     else
                     {
-                        current.fieldVar.SetValue(v.obj, current.literalField.arg);
+                        //current.fieldVar.SetValue(v.obj, current.literalField.arg);
+                        current.function.Invoke(v.obj, new object[] { current.literalField.arg });
                     }
                 }
 
@@ -305,15 +494,15 @@ public class BlueprintComponent : MonoBehaviour
                 {
                     Var v = variables[current.varName];
                     if (current.isVar)
-                    {
-                        //Var other = BlueprintManager.blueprints[data].variables[(string)current.varField.arg];
-                        Var other = variables[(string)current.varField.arg];
-                        current.propertyVar.SetValue(v.obj, other.name);
+                    {                        
+                        Var other = variables[(string)current.varField.arg];                        
+                        current.function.Invoke(v.obj, new object[] { other.obj });
                     }
 
                     else
                     {
-                        current.propertyVar.SetValue(v.obj, current.literalField.arg);
+                        //current.propertyVar.SetValue(v.obj, current.literalField.arg);
+                        current.function.Invoke(v.obj, new object[] { current.literalField.arg });
                     }
                 }
 
@@ -358,10 +547,14 @@ public class BlueprintComponent : MonoBehaviour
        
     }                                                
     public void FixedUpdate() { }	                                        //Frame-rate independent MonoBehaviour.FixedUpdate message for physics calculations.
-    public void LateUpdate() { }	                                        //LateUpdate is called every frame, if the Behaviour is enabled.
-    
+    public void LateUpdate() { }                                            //LateUpdate is called every frame, if the Behaviour is enabled.
+
     //Collision
-    public void OnCollisionEnter(Collision collision) { }	                //OnCollisionEnter is called when this collider/rigidbody has begun touching another rigidbody/collider.
+    //OnCollisionEnter is called when this collider/rigidbody has begun touching another rigidbody/collider.
+    public void OnCollisionEnter(Collision collision)
+    {
+
+    }	                
     public void OnCollisionEnter2D(Collision2D collision) { }	            //Sent when an incoming collider makes contact with this object's collider (2D physics only).
     public void OnCollisionExit(Collision collision) { }	                //OnCollisionExit is called when this collider/rigidbody has stopped touching another rigidbody/collider.
     public void OnCollisionExit2D(Collision2D collision) { }	            //Sent when a collider on another object stops touching this object's collider (2D physics only).
