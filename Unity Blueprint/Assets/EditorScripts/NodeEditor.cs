@@ -131,9 +131,8 @@ public class NodeEditor : EditorWindow
             {                
                 current = Interpreter.Instance.LoadBlueprint(text);
 
-                if (current == null)
-                {
-                    //current = Interpreter.Instance.CreateAsset<BlueprintData>("Assets/" + text + ".asset");
+                if (current == null && text != "")
+                {                    
                     loadData = Interpreter.Instance.CreateAsset<BlueprintData>("Assets/" + text + ".asset");
 
                     current = ScriptableObject.CreateInstance<BlueprintData>();

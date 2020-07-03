@@ -311,18 +311,7 @@ public class BlueprintComponent : MonoBehaviour
 
                 if (node.nodeType == NodeType.Property_Get || node.nodeType == NodeType.Property_Set)
                     Interpreter.Instance.CompileNode(node);
-
-
-                //if (node.nodeType == NodeType.Field_Set || node.nodeType == NodeType.Field_Get)
-                //{
-                //    node.fieldVar = Interpreter.Instance.LoadField(node.input, node.type, node.assemblyPath);
-                //}
-                //
-                //if (node.nodeType == NodeType.Property_Set || node.nodeType == NodeType.Property_Get)
-                //{
-                //    node.propertyVar = Interpreter.Instance.LoadProperty(node.input, node.type, node.assemblyPath);
-                //}
-               
+             
                 foreach (Node node1 in bp.nodes)
                 {
                     if (node.nextID == node1.ID)
@@ -372,19 +361,15 @@ public class BlueprintComponent : MonoBehaviour
         }
     }
 
-    //Initialization/Destroy
-    //Awake is called when the script instance is being loaded.
-    public void Awake()
-    {             
-    }
-
-    //Start is called on the frame when a script is enabled just before any of the Update methods are called the first time.
-    public void Start()
+    public void ExecuteLoop(string entryPoint)
     {
         if (BlueprintManager.blueprints != null)
-        {                        
-            //Node current = BlueprintManager.blueprints[ComponentName].entryPoints["Start"];
-            Node current = BlueprintManager.blueprints[data].entryPoints["Start"];
+        {
+            //Node current = BlueprintManager.blueprints[data].entryPoints[entryPoint];
+            Blueprint blueprint;
+            Node current = null;
+            if (BlueprintManager.blueprints.TryGetValue(data, out blueprint))
+                blueprint.entryPoints.TryGetValue(entryPoint, out current);
 
             while (current != null)
             {
@@ -415,7 +400,7 @@ public class BlueprintComponent : MonoBehaviour
                     }
 
                     if (current.isReturning)
-                    {                                                   
+                    {
                         if (current.returnInput != null)
                         {
                             if (current.returnInput != "")
@@ -423,17 +408,17 @@ public class BlueprintComponent : MonoBehaviour
                                 if (!CheckVar(current.returnInput))
                                     variables[current.returnInput] = new Var(current.returnObj, current.returnType);
 
-                                else                                    
-                                    variables[current.returnInput].obj = current.returnObj;                                                                            
+                                else
+                                    variables[current.returnInput].obj = current.returnObj;
                             }
-                        }                                             
+                        }
                     }
                 }
-                 
+
                 if (current.nodeType == NodeType.Field_Get)
-                {
+                {                                        
                     if (current.varName != "")
-                    {                      
+                    {
                         current.returnObj = current.function.Invoke(variables[current.varName], null);
 
                         if (!CheckVar(current.returnInput))
@@ -448,14 +433,22 @@ public class BlueprintComponent : MonoBehaviour
                     else
                     {
                         current.returnObj = current.function.Invoke(current.actualTarget, null);
-                    }
+
+                        if (!CheckVar(current.returnInput))
+                            variables[current.returnInput] = new Var(current.returnObj, current.fieldVar.FieldType);
+                        else
+                        {
+                            variables[current.returnInput].obj = current.returnObj;
+                            variables[current.returnInput].type = current.fieldVar.FieldType;
+                        }
+                    }                    
                 }
 
-                
+
                 if (current.nodeType == NodeType.Property_Get)
                 {
                     if (current.varName != "")
-                    {                       
+                    {
                         current.returnObj = current.function.Invoke(variables[current.varName].obj, null);
 
                         if (!CheckVar(current.returnInput))
@@ -471,14 +464,24 @@ public class BlueprintComponent : MonoBehaviour
                     else
                     {
                         current.returnObj = current.propertyVar.GetValue(current.actualTarget);
+
+                        current.returnObj = current.function.Invoke(current.actualTarget, null);
+
+                        if (!CheckVar(current.returnInput))
+                            variables[current.returnInput] = new Var(current.returnObj, current.fieldVar.FieldType);
+                        else
+                        {
+                            variables[current.returnInput].obj = current.returnObj;
+                            variables[current.returnInput].type = current.fieldVar.FieldType;
+                        }
                     }
                 }
-                
+
                 if (current.nodeType == NodeType.Field_Set)
                 {
                     Var v = variables[current.varName];
                     if (current.isVar)
-                    {                        
+                    {
                         Var other = variables[(string)current.varField.arg];
                         current.function.Invoke(v.obj, new object[] { other.obj });
                     }
@@ -494,8 +497,8 @@ public class BlueprintComponent : MonoBehaviour
                 {
                     Var v = variables[current.varName];
                     if (current.isVar)
-                    {                        
-                        Var other = variables[(string)current.varField.arg];                        
+                    {
+                        Var other = variables[(string)current.varField.arg];
                         current.function.Invoke(v.obj, new object[] { other.obj });
                     }
 
@@ -524,19 +527,45 @@ public class BlueprintComponent : MonoBehaviour
 
                     else
                         Debug.Log("WARNING: variable passed in is not a bool");
-                    
+
                 }
 
                 current = current.nextNode;
             }
 
         }
-      
+    }
+
+    //Initialization/Destroy
+    //Awake is called when the script instance is being loaded.
+    public void OnEnable()
+    {
+        ExecuteLoop("OnEnable");
+    }
+
+    public void Awake()
+    {
+        ExecuteLoop("Awake");
+    }
+
+    //Start is called on the frame when a script is enabled just before any of the Update methods are called the first time.
+    public void Start()
+    {
+        ExecuteLoop("Start");      
     }                                                 
-    public void OnEnable() { }	                                            //This function is called when the object becomes enabled and active.
-    public void OnDisable() { }                                             //This function is called when the behaviour becomes disabled.
-    public void OnDestroy() { }                                             //Destroying the attached Behaviour will result in the game or Scene receiving OnDestroy.
-    public void Reset() { }                                                 //Reset to default values.
+                                             //This function is called when the object becomes enabled and active.
+    public void OnDisable()
+    {
+        ExecuteLoop("OnDisable");
+    }                                             //This function is called when the behaviour becomes disabled.
+    public void OnDestroy()
+    {
+        ExecuteLoop("OnDestroy");
+    }                                             //Destroying the attached Behaviour will result in the game or Scene receiving OnDestroy.
+    public void Reset()
+    {
+        ExecuteLoop("Reset");
+    }                                                 //Reset to default values.
 
        
     //Updates
@@ -544,34 +573,113 @@ public class BlueprintComponent : MonoBehaviour
     //Update is called every frame, if the MonoBehaviour is enabled.
     public void Update()
     {
-       
+        ExecuteLoop("Update");
     }                                                
-    public void FixedUpdate() { }	                                        //Frame-rate independent MonoBehaviour.FixedUpdate message for physics calculations.
-    public void LateUpdate() { }                                            //LateUpdate is called every frame, if the Behaviour is enabled.
+    public void FixedUpdate()
+    {
+        ExecuteLoop("FixedUpdate");
+    }	                                        //Frame-rate independent MonoBehaviour.FixedUpdate message for physics calculations.
+    public void LateUpdate()
+    {
+        ExecuteLoop("LateUpdate");
+    }                                            //LateUpdate is called every frame, if the Behaviour is enabled.
 
     //Collision
     //OnCollisionEnter is called when this collider/rigidbody has begun touching another rigidbody/collider.
     public void OnCollisionEnter(Collision collision)
     {
+        if (CheckVar("collision"))
+        {
+            variables["collision"].obj = collision;
+            variables["collision"].type = collision.GetType();
+        }
 
-    }	                
-    public void OnCollisionEnter2D(Collision2D collision) { }	            //Sent when an incoming collider makes contact with this object's collider (2D physics only).
-    public void OnCollisionExit(Collision collision) { }	                //OnCollisionExit is called when this collider/rigidbody has stopped touching another rigidbody/collider.
-    public void OnCollisionExit2D(Collision2D collision) { }	            //Sent when a collider on another object stops touching this object's collider (2D physics only).
-    public void OnCollisionStay(Collision collision) { }	                //OnCollisionStay is called once per frame for every collider/rigidbody that is touching rigidbody/collider.
-    public void OnCollisionStay2D(Collision2D collision) { }	            //Sent each frame where a collider on another object is touching this object's collider (2D physics only).
-            
-    //Triggers                      
-    public void OnTriggerEnter(Collider other) { }	                        //When a GameObject collides with another GameObject, Unity calls OnTriggerEnter.
-    public void OnTriggerEnter2D(Collider2D other) { }	                    //Sent when another object enters a trigger collider attached to this object (2D physics only).
-    public void OnTriggerExit(Collider other) { }	                        //OnTriggerExit is called when the Collider other has stopped touching the trigger.
-    public void OnTriggerExit2D(Collider2D other) { }	                    //Sent when another object leaves a trigger collider attached to this object (2D physics only).
-    public void OnTriggerStay(Collider other) { }	                        //OnTriggerStay is called once per physics update for every Collider other that is touching the trigger.
-    public void OnTriggerStay2D(Collider2D other) { }                       //Sent each frame where another object is within a trigger collider attached to this object (2D physics only).
+        else
+            variables["collision"] = new Var(collision, collision.GetType());
+
+
+        ExecuteLoop("OnCollisionEnter");
+    }
+
+    //Sent when an incoming collider makes contact with this object's collider (2D physics only).
+    public void OnCollisionEnter2D(Collision2D collision)
+    {
+        if (CheckVar("collision"))
+        {
+            variables["collision"].obj = collision;
+            variables["collision"].type = collision.GetType();
+        }
+
+        else
+            variables["collision"] = new Var(collision, collision.GetType());
+
+
+        ExecuteLoop("OnCollisionEnter2D");
+    }
+
+    //OnCollisionExit is called when this collider/rigidbody has stopped touching another rigidbody/collider.
+    public void OnCollisionExit(Collision collision)
+    {
+
+    }
+
+    //Sent when a collider on another object stops touching this object's collider (2D physics only).
+    public void OnCollisionExit2D(Collision2D collision)
+    {
+
+    }
+
+    //OnCollisionStay is called once per frame for every collider/rigidbody that is touching rigidbody/collider.
+    public void OnCollisionStay(Collision collision)
+    {
+
+    }
+
+    //Sent each frame where a collider on another object is touching this object's collider (2D physics only).
+    public void OnCollisionStay2D(Collision2D collision)
+    {
+
+    }
+
+    //Triggers     
+
+    //When a GameObject collides with another GameObject, Unity calls OnTriggerEnter.
+    public void OnTriggerEnter(Collider other)
+    {
+
+    }
+
+    //Sent when another object enters a trigger collider attached to this object (2D physics only).
+    public void OnTriggerEnter2D(Collider2D other)
+    {
+
+    }
+
+    //OnTriggerExit is called when the Collider other has stopped touching the trigger.
+    public void OnTriggerExit(Collider other)
+    {
+
+    }
+
+    //Sent when another object leaves a trigger collider attached to this object (2D physics only).
+    public void OnTriggerExit2D(Collider2D other)
+    {
+
+    }
+
+    //OnTriggerStay is called once per physics update for every Collider other that is touching the trigger.
+    public void OnTriggerStay(Collider other)
+    {
+
+    }
+    //Sent each frame where another object is within a trigger collider attached to this object (2D physics only).
+    public void OnTriggerStay2D(Collider2D other)
+    {
+
+    }                       
 
     //GUI
-    //OnGUI is called for rendering and handling GUI events.
-    [ExecuteAlways]
+    //OnGUI is called for rendering and handling GUI events.    
     public void OnGUI()
     {
         //GUILayout.Button("Press me");

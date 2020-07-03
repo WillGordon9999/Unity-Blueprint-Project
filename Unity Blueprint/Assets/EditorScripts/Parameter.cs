@@ -17,6 +17,7 @@ public class Parameter
     public UnityEngine.Object obj;
     public string objType;
     public bool noType;
+    public bool inputVar; //determine whether to take in a literal or a variable
 
     public Parameter() { }
 

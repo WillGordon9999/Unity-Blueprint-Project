@@ -27,6 +27,8 @@ public class NodeData
     public int index; //The index of the list found for function overloads
     public UnityEngine.Object target;
 
+    public List<string> passInParams; //Purely for Entry point descriptors
+
     //Function Specific
     public string returnType; //If a function that returns notify
     public string returnInput; //Tells where to return to
@@ -108,6 +110,17 @@ public class NodeData
             foreach (Parameter par in node.paramList)
             {
                 paramList.Add(new ParameterData(par));
+            }
+        }
+
+        if (passInParams == null)
+            passInParams = new List<string>();
+
+        if (node.passInParams != null)
+        {
+            foreach(string str in node.passInParams)
+            {
+                passInParams.Add(str);
             }
         }
 

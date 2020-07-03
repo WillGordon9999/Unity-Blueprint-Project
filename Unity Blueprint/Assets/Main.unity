@@ -497,7 +497,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   ComponentName: 
-  data: {fileID: 11400000, guid: f0db6c37aebfb7446ac8bc9e3ef8685e, type: 2}
+  data: {fileID: 11400000, guid: bad7aea1b0c85dd47838cb7076df890f, type: 2}
 --- !u!54 &1859602760
 Rigidbody:
   m_ObjectHideFlags: 0

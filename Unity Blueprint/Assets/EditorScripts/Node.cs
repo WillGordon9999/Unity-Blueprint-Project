@@ -46,6 +46,9 @@ public class Node
 
     public NodeType nodeType;
 
+    //public ParameterInfo[] passInParams; //THIS IS PURELY FOR LABELLING ENTRY POINT ARGUMENTS FOR INSTANCE OnTriggerEnter
+    public List<string> passInParams;
+
     //Operations Core    
     public object actualTarget;        
     public string varName;
@@ -198,6 +201,20 @@ public class Node
         }
         else
             EditorGUI.LabelField(new Rect(rect.position + initPos, initDimensions), input);
+
+        if (nodeType == NodeType.Entry_Point)
+        {
+            if (passInParams != null)
+            {
+                for (int i = 0; i < passInParams.Count; i++)
+                {
+                    Vector2 pos = rect.position + initPos;
+                    pos.y += (initDimensions.y * (i + 1));
+                    Rect entry = new Rect(pos, initDimensions);
+                    GUI.Label(entry, passInParams[i]);                                        
+                }
+            }
+        }
 
         //Function drawing
         if (nodeType == NodeType.Function)
@@ -499,6 +516,7 @@ public class Node
                 fieldVar = metaData.fields[0];
                 isStatic = fieldVar.IsStatic;
                 rect = new Rect(rect.x, rect.y, rect.width, rect.height * 2.0f);
+                returnType = fieldVar.FieldType;
                 isDefined = true;
             }
 
@@ -539,6 +557,7 @@ public class Node
                 nodeType = NodeType.Property_Get;
                 propertyVar = metaData.properties[0];
                 rect = new Rect(rect.x, rect.y, rect.width, rect.height * 2.0f);
+                returnType = propertyVar.PropertyType;
                 isDefined = true;
             }
 

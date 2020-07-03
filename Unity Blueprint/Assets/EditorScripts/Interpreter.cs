@@ -242,7 +242,7 @@ public class Interpreter
             {
                 if (node.prevNode != null)
                 {
-                    if (node.prevNode.nodeType == NodeType.Field_Get || node.prevNode.nodeType == NodeType.Property_Get || node.isReturning)
+                    if (node.prevNode.nodeType == NodeType.Field_Get || node.prevNode.nodeType == NodeType.Property_Get || node.prevNode.isReturning)
                     {
                         data.selectedType = node.prevNode.returnType;
                         data.selectedAsm = data.selectedType.Assembly;
@@ -485,14 +485,14 @@ public class Interpreter
 
         if (node.nodeType == NodeType.Field_Get)
         {
-            node.fieldVar = LoadField(node.input, node.type, node.assemblyPath);
+            node.fieldVar = LoadField(node.input, node.type, node.assemblyPath, node.isContextual);
             node.function = CreateGetFunction(node.fieldVar);
         }
 
         if (node.nodeType == NodeType.Field_Set)
         {
             //Find the base type
-            node.fieldVar = LoadField(node.input, node.type, node.assemblyPath);
+            node.fieldVar = LoadField(node.input, node.type, node.assemblyPath, node.isContextual);
             node.function = CreateSetFunction(node.fieldVar);
             
             if ((string)node.varField.arg != "")
@@ -503,7 +503,7 @@ public class Interpreter
 
         if (node.nodeType == NodeType.Property_Get)
         {
-            node.propertyVar = LoadProperty(node.input, node.type, node.assemblyPath);
+            node.propertyVar = LoadProperty(node.input, node.type, node.assemblyPath, node.isContextual);
             node.function = CreateGetFunction(node.propertyVar);
         }
 
@@ -648,7 +648,7 @@ public class Interpreter
         return null;
     }
 
-    public PropertyInfo LoadProperty(string input, string type, string path)
+    public PropertyInfo LoadProperty(string input, string type, string path, bool isContextual = false)
     {
         if (path == "")
             return null;
@@ -660,6 +660,11 @@ public class Interpreter
 
         if (args.Length > 1)
             name = args[1];
+
+        else if (args.Length == 1 && isContextual)
+        {
+            name = args[0];
+        }
         else
         {
             Debug.Log("No field name found returning null");
@@ -708,7 +713,27 @@ public class Interpreter
             }
 
             Debug.Log($"Method found for {text}");
-            
+
+            ParameterInfo[] pars = info.GetParameters();
+
+            if (node.passInParams == null)
+                node.passInParams = new List<string>();
+
+            foreach (ParameterInfo p in pars)
+            {
+                string final = p.ParameterType + " " + p.Name;
+                node.passInParams.Add(final);
+            }
+
+            float initHeight = node.rect.height;
+
+            if (node.passInParams.Count == 1)
+                node.rect = new Rect(node.rect.x, node.rect.y, node.rect.width, initHeight * (node.passInParams.Count + 1));
+
+
+            else if (node.passInParams.Count > 1)
+                node.rect = new Rect(node.rect.x, node.rect.y, node.rect.width, initHeight * (node.passInParams.Count));
+
             node.isDefined = true;
             node.isEntryPoint = true;
             return true;
@@ -1051,7 +1076,7 @@ public class Interpreter
             Expression.Convert(call, typeof(object)),
             instanceParameter,
             argumentsParameter);
-
+        
         return lambda.Compile();
     }
 

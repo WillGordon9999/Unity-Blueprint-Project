@@ -24,7 +24,9 @@ public static class HelperFunctions
     {
         try
         {
-            return (double)v.obj < (double)v2.obj;
+            double val = (double)System.Convert.ChangeType(v.obj, typeof(double));
+            double val2 = (double)System.Convert.ChangeType(v2.obj, typeof(double));
+            return val < val2;
         }
         catch
         {
@@ -37,7 +39,9 @@ public static class HelperFunctions
     {
         try
         {
-            return (double)v.obj > (double)v2.obj;
+            double val = (double)System.Convert.ChangeType(v.obj, typeof(double));
+            double val2 = (double)System.Convert.ChangeType(v2.obj, typeof(double));
+            return val > val2;
         }
 
         catch
@@ -50,7 +54,9 @@ public static class HelperFunctions
     {
         try
         {
-            return (double)v.obj <= (double)v2.obj;        
+            double val = (double)System.Convert.ChangeType(v.obj, typeof(double));
+            double val2 = (double)System.Convert.ChangeType(v2.obj, typeof(double));
+            return val <= val2;
         }
 
         catch
@@ -62,8 +68,10 @@ public static class HelperFunctions
     public static bool GreaterThanOrEqual(Var v, Var v2)
     {
         try
-        {
-            return (double)v.obj >= (double)v2.obj;
+        {            
+            double val = (double)System.Convert.ChangeType(v.obj, typeof(double));
+            double val2 = (double)System.Convert.ChangeType(v2.obj, typeof(double));
+            return val >= val2;
         }
 
         catch
