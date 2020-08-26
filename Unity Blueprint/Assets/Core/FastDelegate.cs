@@ -138,6 +138,8 @@ public static class MethodInfoExtensions
         }
     }
 
+   
+
     public static Type LambdaType(this MethodInfo method)
     {
         if (method.ReturnType == typeof(void))

@@ -26,6 +26,11 @@ public class ParameterData
     public Vector4 vec4Val;
     public UnityEngine.Object obj; //if applicable    
     public string objType; //More specific object type for proper casting
+    public bool inputVar; //Is this a variable access
+    public string varInput; //name of variable to access
+
+    public string strType;
+    public string asmPath;
 
     public enum ParamType { Bool, Int, Enum, Float, Char, Long, Double, String, Rect, Color, Vec2, Vec3, Vec4, Object }
 
@@ -35,6 +40,18 @@ public class ParameterData
     public ParameterData(Parameter par)
     {
         type = par.paramType;
+        inputVar = par.inputVar;
+        varInput = par.varInput;
+        name = par.name;
+
+        strType = par.type.ToString();
+        asmPath = par.type.Assembly.Location;
+                                
+        if (par.noType)
+        {
+            return;
+        }
+
         switch (type)
         {
             case ParamType.Bool:
@@ -123,7 +140,8 @@ public class ParameterData
                 return typeof(int);
 
             case ParamType.Enum:
-                return typeof(System.Enum);
+                //return typeof(System.Enum);
+                return Interpreter.Instance.LoadVarType(strType, asmPath);
 
             case ParamType.Float:
                 return typeof(float);

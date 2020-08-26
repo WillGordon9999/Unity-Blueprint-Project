@@ -7,12 +7,17 @@ using System.Reflection;
 
 public class Parameter
 {
-    public string name;
+    public string name { get; set; }
     public object arg;
     float[] numFields; //For managing vectors, I hope this approach will allow for value editing during play mode
     public Type type;
     public Rect rect;
     public Action draw;
+
+    public string varInput;
+    Action varDraw;
+    Action literalDraw;
+
     public ParameterData.ParamType paramType;
     public UnityEngine.Object obj;
     public string objType;
@@ -22,19 +27,44 @@ public class Parameter
     public Parameter() { }
 
 
-    public Parameter(Type objType)
+    public Parameter(Type objType, string parName = "")
     {
         type = objType;
+        name = parName;
+        varDraw = delegate { varInput = EditorGUI.TextField(rect, varInput); };
         GetFieldType();
+        literalDraw = draw;
     }
 
-    public Parameter(object obj, Type objType, ParameterData.ParamType parType, string label = "")
+    public Parameter(object obj, Type objType, ParameterData.ParamType parType, bool inVar, string varIn, string label = "")
     {
         arg = obj;
         type = objType;
         name = label;
         paramType = parType;
+        inputVar = inVar;
+        varInput = varIn;
+        varDraw = delegate { varInput = EditorGUI.TextField(rect, varInput); };
         GetFieldType();
+        literalDraw = draw;
+
+        if (inputVar)
+            draw = varDraw;
+        else
+            draw = literalDraw;
+
+    }
+
+    public void ToggleType()
+    {
+        inputVar = !inputVar;
+
+        if (inputVar)        
+            draw = varDraw;
+        
+        else
+            draw = literalDraw;
+
     }
 
     T GetType<T>() where T : new()
@@ -219,8 +249,10 @@ public class Parameter
             {
                 if (arg == null)
                     arg = Enum.ToObject(type, 0);
-
-                draw = delegate { arg = EditorGUI.EnumPopup(rect, (System.Enum)System.Convert.ChangeType(arg, type)); };
+                else
+                    arg = Enum.ToObject(type, arg);
+                //draw = delegate { arg = EditorGUI.EnumPopup(rect, (System.Enum)System.Convert.ChangeType(arg, type)); };
+                draw = delegate { arg = EditorGUI.EnumPopup(rect, (System.Enum)arg); };
                 paramType = ParameterData.ParamType.Enum;
 
                 return;
@@ -245,10 +277,16 @@ public class Parameter
                 paramType = ParameterData.ParamType.String;
                 return;
             }
-
+            
             Debug.Log("Type not found");
             noType = true;
 
+            
+            Debug.Log("Defaulting to Text field");
+
+            draw = delegate { arg = EditorGUI.TextField(rect, (string)System.Convert.ChangeType(arg, typeof(string))); };
+            paramType = ParameterData.ParamType.Object;
+            return;
         }
     }
 

@@ -24,6 +24,8 @@ public class NodeData
     public string input; //the raw input - can probably be used to activate the reflection
     public string type; //The stored type from original reflection    
     public string assemblyPath; //The path for the assembly
+    public string operatorStr;
+    public string operatorMethodName;
     public int index; //The index of the list found for function overloads
     public UnityEngine.Object target;
 
@@ -35,7 +37,7 @@ public class NodeData
     public string returnAsmPath;
     public bool isReturning;
     public bool isSpecial;
-    public string returnVarName;
+    //public string returnVarName;
     public Node.ReturnVarType retType;
 
     public bool isStatic;
@@ -79,6 +81,8 @@ public class NodeData
         type = node.type;
         index = node.index;
         assemblyPath = node.assemblyPath;
+        operatorStr = node.operatorStr;
+        operatorMethodName = node.operatorMethodName;
         //target = node.target;
         isVar = node.isVar;
 
@@ -86,10 +90,13 @@ public class NodeData
         isSpecial = node.isSpecial;
 
         if (node.returnType != null)
+        {
             returnType = node.returnType.ToString();
+            returnAsmPath = node.returnType.Assembly.Location;
+        }
 
-        returnInput = node.returnInput;        
-        //returnAsmPath = node.returnAsmPath;
+        returnInput = node.returnInput;
+        
         //returnVarName = node.returnVarName;
         retType = node.retType;
 
@@ -98,6 +105,8 @@ public class NodeData
 
         if (node.varField != null)
             varField = new ParameterData(node.varField);
+
+
 
         //varRef = node.targetVar;
         varName = node.varName;

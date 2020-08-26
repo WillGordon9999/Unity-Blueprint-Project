@@ -45,7 +45,7 @@ public class NodeEditor : EditorWindow
     string blueprintName;
     VariableDisplay varDisplay;
     Vector2 scrollPos;
-
+    
     [MenuItem("Window/NodeEditor")]
     static void OpenWindow()
     {
@@ -117,7 +117,7 @@ public class NodeEditor : EditorWindow
             DrawConnectionLine(Event.current);
             scrollPos = varDisplay.Update(scrollPos);
         }
-            
+        
         ProcessNodeEvents(Event.current);
         ProcessEvents(Event.current);
 

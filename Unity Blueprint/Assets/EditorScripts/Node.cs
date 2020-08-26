@@ -4,8 +4,10 @@ using UnityEngine;
 using UnityEditor;
 using System;
 using System.Reflection;
+using System.Linq;
+using System.Linq.Expressions;
 
-public enum NodeType { Entry_Point, Function, Field_Get, Field_Set, Property_Get, Property_Set, Conditional };
+public enum NodeType { Entry_Point, Function, Constructor, Field_Get, Field_Set, Property_Get, Property_Set, Conditional, Operation };
 
 public class Node
 {
@@ -51,8 +53,10 @@ public class Node
 
     //Operations Core    
     public object actualTarget;        
-    public string varName;
+    public string varName; //The name of the target variable to execute member call on
     public bool isStatic;
+    public string operatorStr;
+    public string operatorMethodName;
 
     //Function Specific
     public Func<object, object[], object> function;
@@ -67,13 +71,16 @@ public class Node
 
     public bool isSpecial = false; //Basically the target to call on is the BlueprintComponent
     
-    public string returnInput;
+    public string returnInput; // The variable to return to if the function returns
 
     public Parameter returnEntry;
           
     //For setting fields or properties
     public Parameter literalField; //Use a literal value
     public Parameter varField; //Access a variable
+    public Parameter setMember;
+
+    public List<Expression> expressionBody;
 
     //Determining if you are using a literal or var is still a work in progress
     public bool isVar { get; set; } //For when the node is a field set or property set, and the the value in question is being set to a variable
@@ -93,6 +100,7 @@ public class Node
     public Node falseNode; //For conditionals
 
     string initField = "Init Field";
+    public Node() { }
            
     public Node(Vector2 position, float width, float height, GUIStyle nodeStyle, GUIStyle selectStyle, GUIStyle inStyle, GUIStyle outStyle, Action<ConnectionPoint> inAction, Action<ConnectionPoint> outAction, Action<Node> onRemove)
     {
@@ -115,7 +123,8 @@ public class Node
         //The initial relative offset
         initPos = lerp - rect.position;                
         //Initial Label/Field dimensions for parameters
-        initDimensions = new Vector2(rect.width * 0.75f, rect.height * 0.45f);              
+        initDimensions = new Vector2(rect.width * 0.75f, rect.height * 0.45f);
+        expressionBody = new List<Expression>();
     }   
     
     public Node(NodeData data, Action<ConnectionPoint> inAction, Action<ConnectionPoint> outAction, Action<Node> removeNode)
@@ -129,6 +138,8 @@ public class Node
         index = data.index;
         OnRemoveNode = removeNode;
         assemblyPath = data.assemblyPath;
+        operatorStr = data.operatorStr;
+        operatorMethodName = data.operatorMethodName;
 
         inPoint = new ConnectionPoint(data.inPoint, this, data.inStyle, inAction);
         outPoint = new ConnectionPoint(data.outPoint, this, data.outStyle, outAction);
@@ -152,12 +163,17 @@ public class Node
         isSpecial = data.isSpecial;
         varName = data.varName;
         retType = data.retType;
-        
+
+        if (isReturning)
+            returnType = Interpreter.Instance.LoadVarType(data.returnType, data.returnAsmPath);
+
+        expressionBody = new List<Expression>();
+
         if (data.literalField != null)
-            literalField = new Parameter(data.literalField.GetValue(), data.literalField.GetSystemType(), data.literalField.type);
+            literalField = new Parameter(data.literalField.GetValue(), data.literalField.GetSystemType(), data.literalField.type, data.literalField.inputVar, data.literalField.varInput);
 
         if (data.varField != null)
-            varField = new Parameter(data.varField.GetValue(), data.varField.GetSystemType(), data.varField.type);
+            varField = new Parameter(data.varField.GetValue(), data.varField.GetSystemType(), data.varField.type, data.varField.inputVar, data.varField.varInput);
 
         if (isDefined)
         {
@@ -169,7 +185,7 @@ public class Node
             foreach(ParameterData par in data.paramList)
             {
                 //TO-DO: Add loading functionality                
-                paramList.Add(new Parameter(par.GetValue(), par.GetSystemType(), par.type, par.name));
+                paramList.Add(new Parameter(par.GetValue(), par.GetSystemType(), par.type, par.inputVar, par.varInput, par.name));
             }
         }
 
@@ -241,6 +257,32 @@ public class Node
             }
         }
 
+        if (nodeType == NodeType.Constructor)
+        {
+            for (int i = 0; i < paramList.Count; i++)
+            {
+                Vector2 pos = rect.position + initPos;
+                pos.y += (initDimensions.y * (i + 1));
+                Rect entry = new Rect(pos, initDimensions);
+                paramList[i].rect = entry;
+
+                //Equivalent to: if draw != null                
+                paramList[i].draw?.Invoke();
+
+                if (isReturning && i == paramList.Count - 1)
+                {
+                    pos.y += (initDimensions.y * (i + 1));
+                    entry = new Rect(pos, initDimensions);
+                    returnInput = GUI.TextField(entry, returnInput);
+                }
+            }
+
+            //Vector2 pos = rect.position + initPos;
+            //pos.y += (initDimensions.y);
+            //Rect entry = new Rect(pos, initDimensions);
+            //returnInput = GUI.TextField(entry, returnInput);
+        }
+
         //Get
         if (nodeType == NodeType.Field_Get || nodeType == NodeType.Property_Get)
         {
@@ -256,15 +298,19 @@ public class Node
             Vector2 pos = rect.position + initPos;
             pos.y += initDimensions.y;
             Rect entry = new Rect(pos, initDimensions);
+            paramList[0].rect = entry;
 
-            literalField.rect = entry;            
-            literalField.draw?.Invoke();
+            //Equivalent to: if draw != null                
+            paramList[0].draw?.Invoke();
 
-            pos.y += initDimensions.y;
-            entry.position = pos;
-
-            varField.rect = entry;
-            varField.draw?.Invoke();
+            //literalField.rect = entry;            
+            //literalField.draw?.Invoke();
+            //
+            //pos.y += initDimensions.y;
+            //entry.position = pos;
+            //
+            //varField.rect = entry;
+            //varField.draw?.Invoke();
         }
 
         //Conditional
@@ -279,6 +325,27 @@ public class Node
 
                 //Equivalent to: if draw != null                
                 paramList[0].draw?.Invoke();                              
+            }
+        }
+
+        if (nodeType == NodeType.Operation)
+        {
+            for (int i = 0; i < paramList.Count; i++)
+            {
+                Vector2 pos = rect.position + initPos;
+                pos.y += (initDimensions.y * (i + 1));
+                Rect entry = new Rect(pos, initDimensions);
+                paramList[i].rect = entry;
+        
+                //Equivalent to: if draw != null                
+                paramList[i].draw?.Invoke();
+        
+                if (isReturning && i == paramList.Count - 1)
+                {
+                    pos.y += (initDimensions.y * (i + 1));
+                    entry = new Rect(pos, initDimensions);
+                    returnInput = GUI.TextField(entry, returnInput);
+                }
             }
         }
        
@@ -314,8 +381,8 @@ public class Node
                     if (!isDefined)
                         Interpreter.Instance.Compile(input, NodeEditor.current, ref metaData, this);
 
-                    if (isDefined && isReturning)
-                        Interpreter.Instance.Compile(returnInput, NodeEditor.current, ref metaData, this);
+                    //if (isDefined && isReturning)
+                    //    Interpreter.Instance.Compile(returnInput, NodeEditor.current, ref metaData, this);
 
                     if (metaData == null)
                         Debug.LogWarning("Meta Data is null");
@@ -341,6 +408,15 @@ public class Node
             if (!isDefined)
             {
                 Interpreter.Instance.ParseKeywords(input, this);
+
+                if (metaData != null)
+                {
+                    if (metaData.isOperator && metaData.methods?.Length == 0)
+                    {
+                        Debug.Log("Node changing to operator node");
+                        ChangeToOperation(null);
+                    }
+                }
                 return true;
             }
             
@@ -353,7 +429,28 @@ public class Node
     {
         GenericMenu menu = new GenericMenu();
         menu.AddItem(new GUIContent("Remove node"), false, OnClickRemoveNode);
-                
+        
+        if (isDefined)
+        {
+            if (nodeType == NodeType.Conditional)
+            {
+                if (isContextual)
+                    menu.AddItem(new GUIContent("Change to use variable"), false, ToggleContext, false);
+                else
+                    menu.AddItem(new GUIContent("Change to use result of previous node"), false, ToggleContext, true);
+            }
+
+            for (int i = 0; i < paramList.Count; i++)
+            {
+                if (!paramList[i].inputVar)
+                    menu.AddItem(new GUIContent($"Change {paramList[i].name} to var"), false, ToggleParameterArg, i);
+                else
+                    menu.AddItem(new GUIContent($"Change {paramList[i].name} to field"), false, ToggleParameterArg, i);
+            }
+
+            goto End;
+        }
+         
         if (metaData != null)
         {
             if (metaData.selectedType == null)
@@ -378,7 +475,7 @@ public class Node
             }
 
             else
-            {
+            {               
                 if (metaData.constructors != null)
                 {
                     foreach(ConstructorInfo c in metaData.constructors)
@@ -423,8 +520,10 @@ public class Node
                             }
 
                             final += " )";
-
-                            menu.AddItem(new GUIContent(final), false, ChangeToMethod, m);
+                            if (!metaData.isOperator)
+                                menu.AddItem(new GUIContent(final), false, ChangeToMethod, m);
+                            else
+                                menu.AddItem(new GUIContent(final), false, ChangeToOperation, m);
                         }
                     }                    
                 }
@@ -492,12 +591,113 @@ public class Node
                         }
                     }
                 }
+
+                if (metaData.isOperator && metaData.methods.Length == 0)
+                {
+                    Debug.Log("Node changing to operator node");
+                    ChangeToOperation(null);
+                }
             }
         }
 
+        End:
+
         menu.ShowAsContext();
     }
-   
+
+    void ToggleContext(object input)
+    {
+        isContextual = (bool)input;
+    }
+
+    void ToggleParameterArg(object input)
+    {
+        int i = (int)input;
+        paramList[i].ToggleType();
+    }
+
+    void ChangeToOperation(object input)
+    {
+        Debug.Log("Inside Change To Operation");
+        nodeType = NodeType.Operation;
+        MethodInfo info = (MethodInfo)input;
+
+        operatorStr = metaData.operatorStr;
+
+        if (info != null)
+        {
+            operatorMethodName = info.Name;
+
+            float initHeight = rect.height;
+
+            ParameterInfo[] args = info.GetParameters();
+
+            //foreach (ParameterInfo p in args)
+            for (int i = 0; i < args.Length; i++)
+            {
+                if (i > 0) //The first parameter should be the variable calling the operation
+                paramList.Add(new Parameter(args[i].ParameterType, args[i].Name));
+            }
+
+            if (paramList.Count == 1)
+                rect = new Rect(rect.x, rect.y, rect.width, initHeight * (paramList.Count));
+
+            else if (paramList.Count > 1)
+                rect = new Rect(rect.x, rect.y, rect.width, initHeight * (paramList.Count - 1));
+
+            foreach (Parameter p in paramList)
+            {
+                p.GetFieldType();
+            }
+
+            if (info.ReturnType != typeof(void))
+            {
+                isReturning = true;
+                returnType = info.ReturnType;
+                rect = new Rect(rect.x, rect.y, rect.width, initHeight * (paramList.Count + 1));
+                retType = ReturnVarType.Var;
+            }
+        }
+
+        else
+        {
+            //Not performing var++ or var--
+            if (!metaData.isIncrementOrDecrement)
+            {
+                paramList.Add(new Parameter(metaData.selectedType, "other"));
+                //rect = new Rect(rect.x, rect.y, rect.width, rect.height * 2.0f);
+
+                //Not performing =, +=, -=, /=, *= etc
+                if (!metaData.isAssign && !metaData.returnBool)
+                {
+                    isReturning = true;
+                    returnType = metaData.selectedType;
+                    rect = new Rect(rect.x, rect.y, rect.width, rect.height * 3.0f);
+                }
+
+                if (metaData.returnBool)
+                {
+                    isReturning = true;
+                    returnType = typeof(bool);
+                    rect = new Rect(rect.x, rect.y, rect.width, rect.height * 3.0f);
+                }
+            }          
+        }
+
+        foreach (Parameter p in paramList)
+        {
+            p.GetFieldType();
+        }
+
+        //targetVar = metaData.varRef;
+        varName = metaData.varName;
+        input = metaData.input;
+        type = metaData.selectedType.ToString();
+        isStatic = false;
+        assemblyPath = metaData.selectedType.Assembly.Location;
+        isDefined = true;
+    }
+        
     void ChangeToField(object input)
     {
         string result = (string)input;
@@ -517,6 +717,7 @@ public class Node
                 isStatic = fieldVar.IsStatic;
                 rect = new Rect(rect.x, rect.y, rect.width, rect.height * 2.0f);
                 returnType = fieldVar.FieldType;
+                isReturning = true;
                 isDefined = true;
             }
 
@@ -527,11 +728,14 @@ public class Node
                 fieldVar = metaData.fields[0];
                 isStatic = fieldVar.IsStatic;
 
-                literalField = new Parameter(fieldVar.FieldType);
-                literalField.GetFieldType();
+                //literalField = new Parameter(fieldVar.FieldType);
+                //literalField.GetFieldType();
+                //
+                //varField = new Parameter(typeof(string));
+                //varField.GetFieldType();
 
-                varField = new Parameter(typeof(string));
-                varField.GetFieldType();
+                //setMember = new Parameter(fieldVar.FieldType);
+                paramList.Add(new Parameter(fieldVar.FieldType));
 
                 //Prepare rect for new appearance
                 rect = new Rect(rect.x, rect.y, rect.width, rect.height * 3.0f);
@@ -567,11 +771,12 @@ public class Node
 
                 propertyVar = metaData.properties[0];
 
-                literalField = new Parameter(propertyVar.PropertyType);
-                literalField.GetFieldType();
-
-                varField = new Parameter(typeof(string));
-                varField.GetFieldType();
+                //literalField = new Parameter(propertyVar.PropertyType);
+                //literalField.GetFieldType();
+                //
+                //varField = new Parameter(typeof(string));
+                //varField.GetFieldType();
+                paramList.Add(new Parameter(propertyVar.PropertyType));
 
                 //Prepare rect for new appearance
                 rect = new Rect(rect.x, rect.y, rect.width, rect.height * 3.0f);
@@ -613,7 +818,7 @@ public class Node
         ParameterInfo[] args = info.GetParameters();
 
         foreach (ParameterInfo p in args)
-            paramList.Add(new Parameter(p.ParameterType));
+            paramList.Add(new Parameter(p.ParameterType, p.Name));
 
         if (paramList.Count == 1)
             rect = new Rect(rect.x, rect.y, rect.width, initHeight * (paramList.Count + 1));
@@ -650,8 +855,7 @@ public class Node
     {
         nodeType = NodeType.Conditional;
         rect = new Rect(rect.x, rect.y, rect.width, rect.height * 2.0f);
-        paramList.Add(new Parameter(typeof(string))); //should be a variable
-        
+        paramList.Add(new Parameter(typeof(string))); //should be a variable        
     }
 
     public void ChangeToMethod(object method)
@@ -682,7 +886,7 @@ public class Node
         ParameterInfo[] args = info.GetParameters();
 
         foreach(ParameterInfo p in args)                    
-            paramList.Add(new Parameter(p.ParameterType));
+            paramList.Add(new Parameter(p.ParameterType, p.Name));
         
         if (paramList.Count == 1)                    
             rect = new Rect(rect.x, rect.y, rect.width, initHeight * (paramList.Count + 1));
@@ -730,7 +934,7 @@ public class Node
 
     public void ChangeToConstructor(object method)
     {
-        nodeType = NodeType.Function;
+        nodeType = NodeType.Constructor;
 
         ConstructorInfo info = (ConstructorInfo)method;
 
@@ -756,7 +960,7 @@ public class Node
         ParameterInfo[] args = info.GetParameters();
 
         foreach (ParameterInfo p in args)
-            paramList.Add(new Parameter(p.ParameterType));
+            paramList.Add(new Parameter(p.ParameterType, p.Name));
 
         if (paramList.Count == 1)
             rect = new Rect(rect.x, rect.y, rect.width, initHeight * (paramList.Count + 1));

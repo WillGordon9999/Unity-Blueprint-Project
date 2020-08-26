@@ -16,14 +16,15 @@ public class Var
     public string input;
     public string strType;
     public string asmPath;
-
-    public enum VarType { Field, Property };
-    public VarType varType;
+    //public enum VarType { Field, Property };
+    //public VarType varType;
 
     //To be set up during runtime
     public object obj; //For safety this should probably be the containing object of the property/field
     public Type type; //Type of class         
-   
+
+    public Var() { }
+
     public Var(object o, Type t)
     {
         obj = o;
@@ -57,6 +58,13 @@ public class InterpreterData
     public Assembly[] asms;
     public ConstructorInfo[] constructors;
 
+    //Operator Specifics
+    public string operatorStr;
+    public bool isOperator; //If using a valid operator
+    public bool isAssign;
+    public bool isIncrementOrDecrement;
+
+    public bool returnBool;
     public bool isKeyWord;
     public bool isStatic; //If class name is called directly and var is not used    
     public string varName; //The target
@@ -65,8 +73,8 @@ public class InterpreterData
     public string input;
     public Type selectedType;
     public Assembly selectedAsm;
-    public AccessType access;    
-
+    public AccessType access;
+    
     public enum AccessType { Get, Set, Both };
     
     /*
@@ -163,6 +171,8 @@ public class Interpreter
  
     };
 
+    List<Expression> expressions = new List<Expression>();
+
     static Interpreter mInstance;
 
     Interpreter() {}
@@ -224,6 +234,8 @@ public class Interpreter
         if (args.Length < 1)
             return;
 
+        Type varType = null;
+
         if (data != null)
         {
             if (input != data.input)
@@ -256,9 +268,7 @@ public class Interpreter
                 {
                     return;
                 }
-
-                Type varType = null;
-
+                
                 //Check for variables - again not a dictionary right now since I don't where it would be stored        
 
                 if (blueprint.variables != null)
@@ -310,10 +320,10 @@ public class Interpreter
         //TypeSelected:
         
         if (data.selectedType != null)
-        {
+        {            
             string name = "";
 
-            if (node.isContextual)
+            if (node != null && node.isContextual)
                 name = args[0];
             else
                 name = args[1];
@@ -344,7 +354,12 @@ public class Interpreter
             }
 
             data.methods = methodInfo.ToArray();
-            
+
+            //Enforce calls only on variables
+            if (node != null)
+                if (varType != null || node.isContextual)
+                    ParseOperators(ref data, node, args);
+
             if (data.isStatic)
             {
                 if (name == "methodDebug")
@@ -365,7 +380,7 @@ public class Interpreter
                 }
 
                 data.fields = new FieldInfo[1];                
-                FieldInfo result = data.selectedType.GetField(name);
+                FieldInfo result = data.selectedType.GetField(name);                
                 if (result != null && result.IsPublic)
                 {
                     data.fields[0] = result;
@@ -406,6 +421,9 @@ public class Interpreter
 
                 if (prop != null && (prop.CanRead || prop.CanWrite))
                 {
+                    if (varType == null)
+                        data.isStatic = true;
+
                     if (prop.CanRead && prop.CanWrite)
                         data.access = InterpreterData.AccessType.Both;
 
@@ -419,6 +437,240 @@ public class Interpreter
                 }
             }  
         }                
+    }
+
+    public void ParseOperators(ref InterpreterData data, Node node, string[] args)
+    {
+        string arg = "";
+
+        if (node.isContextual)
+            arg = args[0];
+        else
+            arg = args[1];
+
+        MethodInfo[] GetMethodMatches(Type type, string name)
+        {
+            MethodInfo[] infos = type.GetMethods();
+            List<MethodInfo> methods = new List<MethodInfo>();
+
+            foreach (MethodInfo m in infos)
+                if (name == m.Name)
+                    methods.Add(m);
+
+            return methods.ToArray();
+        }
+
+        data.operatorStr = arg;
+
+        switch(arg)
+        {
+            //Assignment
+            case "=":
+                {                    
+                    data.methods = GetMethodMatches(data.selectedType, "op_Assign");
+                    data.isOperator = true;
+                    data.isAssign = true;
+                }
+                break;
+
+            //case "+=":                
+            //    data.methods = GetMethodMatches(data.selectedType, "op_AdditionAssignment");
+            //    if (data.selectedType.IsPrimitive || data.methods.Length > 0)
+            //    {
+            //        data.isOperator = true;
+            //        data.isAssign = true;
+            //    }
+            //    break;
+            //
+            //case "-=":
+            //    data.methods = GetMethodMatches(data.selectedType, "op_SubtractionAssignment");
+            //    if (data.selectedType.IsPrimitive || data.methods.Length > 0)
+            //    {
+            //        data.isOperator = true;
+            //        data.isAssign = true;
+            //    }
+            //    break;
+            //
+            //case "*=":
+            //    data.methods = GetMethodMatches(data.selectedType, "op_MultiplicationAssignment");
+            //    if (data.selectedType.IsPrimitive || data.methods.Length > 0)
+            //    {
+            //        data.isOperator = true;
+            //        data.isAssign = true;
+            //    }
+            //    break;
+            //
+            //case "/=":
+            //    data.methods = GetMethodMatches(data.selectedType, "op_DivisionAssignment");
+            //    if (data.selectedType.IsPrimitive || data.methods.Length > 0)
+            //    {
+            //        data.isOperator = true;
+            //        data.isAssign = true;
+            //    }
+            //    break;
+            //
+            //case "%=":
+            //    data.methods = GetMethodMatches(data.selectedType, "op_ModulusAssignment");
+            //    if (data.selectedType.IsPrimitive || data.methods.Length > 0)
+            //    {
+            //        data.isOperator = true;
+            //        data.isAssign = true;
+            //    }
+            //    break;
+
+            case "++":
+                data.methods = GetMethodMatches(data.selectedType, "op_Increment");
+                if (data.selectedType.IsPrimitive || data.methods.Length > 0)
+                {
+                    data.isOperator = true;
+                    data.isIncrementOrDecrement = true;
+                }
+                break;
+
+            case "--":
+                data.methods = GetMethodMatches(data.selectedType, "op_Decrement");
+                if (data.selectedType.IsPrimitive || data.methods.Length > 0)
+                {
+                    data.isOperator = true;
+                    data.isIncrementOrDecrement = true;
+                }
+                break;
+           
+            //Standard Operations
+            case "+":
+                data.methods = GetMethodMatches(data.selectedType, "op_Addition");
+                if (data.selectedType.IsPrimitive || data.methods.Length > 0)
+                    data.isOperator = true;
+                break;
+
+            case "-":
+                data.methods = GetMethodMatches(data.selectedType, "op_Subtraction");
+                if (data.selectedType.IsPrimitive || data.methods.Length > 0)
+                    data.isOperator = true;
+                break;
+
+            case "*":
+                data.methods = GetMethodMatches(data.selectedType, "op_Multiply");
+                if (data.selectedType.IsPrimitive || data.methods.Length > 0)
+                    data.isOperator = true;
+                break;
+
+            case "/":
+                data.methods = GetMethodMatches(data.selectedType, "op_Division");
+                if (data.selectedType.IsPrimitive || data.methods.Length > 0)
+                    data.isOperator = true;
+                break;
+
+            case "%":
+                data.methods = GetMethodMatches(data.selectedType, "op_Modulus");
+                if (data.selectedType.IsPrimitive || data.methods.Length > 0)
+                    data.isOperator = true;
+                break;
+
+            //Bitwise Operations
+            //case "&":
+            //    data.methods = GetMethodMatches(data.selectedType, "op_BitwiseAnd");
+            //    if (data.selectedType.IsPrimitive || data.methods.Length > 0)
+            //        data.isOperator = true;
+            //    break;
+            //
+            //case "|":
+            //    data.methods = GetMethodMatches(data.selectedType, "op_BitwiseOr");
+            //    if (data.selectedType.IsPrimitive || data.methods.Length > 0)
+            //        data.isOperator = true;
+            //    break;
+            //
+            //case "^":
+            //    data.methods = GetMethodMatches(data.selectedType, "op_ExclusiveOr");
+            //    if (data.selectedType.IsPrimitive || data.methods.Length > 0)
+            //        data.isOperator = true;
+            //    break;
+            //
+            //case "~":
+            //    data.methods = GetMethodMatches(data.selectedType, "op_OnesComplement");
+            //    if (data.selectedType.IsPrimitive || data.methods.Length > 0)
+            //        data.isOperator = true;
+            //    break;
+            //
+            //case "<<":
+            //    data.methods = GetMethodMatches(data.selectedType, "op_LeftShift");
+            //    if (data.selectedType.IsPrimitive || data.methods.Length > 0)
+            //        data.isOperator = true;
+            //    break;
+            //
+            //case ">>":
+            //    data.methods = GetMethodMatches(data.selectedType, "op_RightShift");
+            //    if (data.selectedType.IsPrimitive || data.methods.Length > 0)
+            //        data.isOperator = true;
+            //    break;
+            
+            //Conditionals
+            case "==":
+                data.methods = GetMethodMatches(data.selectedType, "op_Equality");                
+                data.isOperator = true;
+                data.returnBool = true;
+                break;
+
+            case "<":
+                data.methods = GetMethodMatches(data.selectedType, "op_LessThan");
+                if (data.selectedType.IsPrimitive || data.methods.Length > 0)
+                {
+                    data.isOperator = true;
+                    data.returnBool = true;
+                }
+                break;
+
+            case ">":
+                data.methods = GetMethodMatches(data.selectedType, "op_GreaterThan");
+                if (data.selectedType.IsPrimitive || data.methods.Length > 0)
+                {
+                    data.isOperator = true;
+                    data.returnBool = true;
+                }
+                break;
+
+            case "<=":
+                data.methods = GetMethodMatches(data.selectedType, "op_LessThanOrEqual");
+                if (data.selectedType.IsPrimitive || data.methods.Length > 0)
+                {
+                    data.isOperator = true;
+                    data.returnBool = true;
+                }
+                break;
+
+            case ">=":
+                data.methods = GetMethodMatches(data.selectedType, "op_GreaterThanOrEqual");
+                if (data.selectedType.IsPrimitive || data.methods.Length > 0)
+                {
+                    data.isOperator = true;
+                    data.returnBool = true;
+                }
+                break;
+
+            case "!=":
+                data.methods = GetMethodMatches(data.selectedType, "op_Inequality");                
+                data.isOperator = true;
+                data.returnBool = true;
+                break;
+
+            case "&&":
+                data.methods = GetMethodMatches(data.selectedType, "op_LogicalAnd");
+                if (data.selectedType == typeof(bool) || data.methods.Length > 0)
+                {
+                    data.isOperator = true;
+                    data.returnBool = true;
+                }
+                break;
+
+            case "||":
+                data.methods = GetMethodMatches(data.selectedType, "op_LogicalOr");
+                if (data.selectedType == typeof(bool) || data.methods.Length > 0)
+                {
+                    data.isOperator = true;
+                    data.returnBool = true;
+                }
+                break;
+        }
     }
 
     public void CompileNode(Node node, object target = null, Blueprint blueprint = null)
@@ -475,10 +727,30 @@ public class Interpreter
             }
 
             if (node.currentMethod != null)
+            {
+                if (node.isReturning && node.isStatic)
+                    //Instance.expressions.Add(NonVoidStaticMethodExpression(node.currentMethod));
+                    node.expressionBody.Add(NonVoidStaticMethodExpression(node.currentMethod));
+
+                else if (node.isReturning && !node.isStatic)
+                    //Instance.expressions.Add(NonVoidInstanceMethodExpression(node.currentMethod));
+                    node.expressionBody.Add(NonVoidInstanceMethodExpression(node.currentMethod));
+
+                else if (!node.isReturning && node.isStatic)
+                    //Instance.expressions.Add(VoidStaticMethodExpression(node.currentMethod));
+                    node.expressionBody.Add(VoidStaticMethodExpression(node.currentMethod));
+
+                else if (!node.isReturning && !node.isStatic)
+                    //Instance.expressions.Add(VoidInstanceMethodExpression(node.currentMethod));
+                    node.expressionBody.Add(VoidInstanceMethodExpression(node.currentMethod));
+
                 node.function = node.currentMethod.Bind();
+            }
 
             if (node.constructorMethod != null)
+            {                
                 node.function = CreateConstructor(node.constructorMethod);
+            }
 
             return;
         }
@@ -739,7 +1011,7 @@ public class Interpreter
             return true;
         }
 
-        if (text == "Branch")
+        if (text == "if")
         {
             node.ChangeToConditional();
             node.isDefined = true;
@@ -747,67 +1019,67 @@ public class Interpreter
         }
 
         //Just so there doesn't have to be allocations over and over
-        Type[] argTypes = { typeof(Var), typeof(Var) };
-
-        //Conditionals
-        switch(text)
-        {                    
-            case "==":
-                node.input = "Equals";
-                node.isSpecial = true;
-                //node.ChangeToMethod(typeof(HelperFunctions).GetMethod("Equals", argTypes));
-                node.ChangeToSpecialMethod(typeof(BlueprintComponent).GetMethod("Equals", new Type[] { typeof(string), typeof(string) }));
-                break;
-
-            case "<":
-                node.input = "LessThan";
-                node.isSpecial = true;
-                //node.ChangeToMethod(typeof(HelperFunctions).GetMethod("LessThan", argTypes));
-                node.ChangeToSpecialMethod(typeof(BlueprintComponent).GetMethod("LessThan", new Type[] { typeof(string), typeof(string) }));
-                break;
-
-            case ">":
-                node.input = "GreaterThan";
-                node.isSpecial = true;
-                //node.ChangeToMethod(typeof(HelperFunctions).GetMethod("GreaterThan", argTypes));
-                node.ChangeToSpecialMethod(typeof(BlueprintComponent).GetMethod("GreaterThan", new Type[] { typeof(string), typeof(string) }));
-                break;
-
-            case "<=":
-                node.input = "LessThanOrEqual";
-                node.isSpecial = true;
-                //node.ChangeToMethod(typeof(HelperFunctions).GetMethod("LessThanOrEqual", argTypes));
-                node.ChangeToSpecialMethod(typeof(BlueprintComponent).GetMethod("LessThanOrEqual", new Type[] { typeof(string), typeof(string) }));
-                break;
-
-            case ">=":
-                node.input = "GreaterThanOrEqual";
-                node.isSpecial = true;
-                //node.ChangeToMethod(typeof(HelperFunctions).GetMethod("GreaterThanOrEqual", argTypes));
-                node.ChangeToSpecialMethod(typeof(BlueprintComponent).GetMethod("GreaterThanOrEqual", new Type[] { typeof(string), typeof(string) }));
-                break;
-
-            case "!=":
-                node.input = "NotEquals";
-                node.isSpecial = true;
-                //node.ChangeToMethod(typeof(HelperFunctions).GetMethod("NotEquals", argTypes));
-                node.ChangeToSpecialMethod(typeof(BlueprintComponent).GetMethod("NotEquals", new Type[] { typeof(string), typeof(string) }));
-                break;
-
-            case "&&":
-                node.input = "And";
-                node.isSpecial = true;
-                //node.ChangeToMethod(typeof(HelperFunctions).GetMethod("And", argTypes));
-                node.ChangeToSpecialMethod(typeof(BlueprintComponent).GetMethod("And", new Type[] { typeof(string), typeof(string) }));
-                break;
-
-            case "||":
-                node.input = "Or";
-                node.isSpecial = true;
-                //node.ChangeToMethod(typeof(HelperFunctions).GetMethod("Or", argTypes));
-                node.ChangeToSpecialMethod(typeof(BlueprintComponent).GetMethod("Or", new Type[] { typeof(string), typeof(string) }));
-                break;
-        }
+        //Type[] argTypes = { typeof(Var), typeof(Var) };
+        //
+        ////Conditionals
+        //switch(text)
+        //{                    
+        //    case "==":
+        //        node.input = "Equals";
+        //        node.isSpecial = true;
+        //        //node.ChangeToMethod(typeof(HelperFunctions).GetMethod("Equals", argTypes));
+        //        node.ChangeToSpecialMethod(typeof(BlueprintComponent).GetMethod("Equals", new Type[] { typeof(string), typeof(string) }));
+        //        break;
+        //
+        //    case "<":
+        //        node.input = "LessThan";
+        //        node.isSpecial = true;
+        //        //node.ChangeToMethod(typeof(HelperFunctions).GetMethod("LessThan", argTypes));
+        //        node.ChangeToSpecialMethod(typeof(BlueprintComponent).GetMethod("LessThan", new Type[] { typeof(string), typeof(string) }));
+        //        break;
+        //
+        //    case ">":
+        //        node.input = "GreaterThan";
+        //        node.isSpecial = true;
+        //        //node.ChangeToMethod(typeof(HelperFunctions).GetMethod("GreaterThan", argTypes));
+        //        node.ChangeToSpecialMethod(typeof(BlueprintComponent).GetMethod("GreaterThan", new Type[] { typeof(string), typeof(string) }));
+        //        break;
+        //
+        //    case "<=":
+        //        node.input = "LessThanOrEqual";
+        //        node.isSpecial = true;
+        //        //node.ChangeToMethod(typeof(HelperFunctions).GetMethod("LessThanOrEqual", argTypes));
+        //        node.ChangeToSpecialMethod(typeof(BlueprintComponent).GetMethod("LessThanOrEqual", new Type[] { typeof(string), typeof(string) }));
+        //        break;
+        //
+        //    case ">=":
+        //        node.input = "GreaterThanOrEqual";
+        //        node.isSpecial = true;
+        //        //node.ChangeToMethod(typeof(HelperFunctions).GetMethod("GreaterThanOrEqual", argTypes));
+        //        node.ChangeToSpecialMethod(typeof(BlueprintComponent).GetMethod("GreaterThanOrEqual", new Type[] { typeof(string), typeof(string) }));
+        //        break;
+        //
+        //    case "!=":
+        //        node.input = "NotEquals";
+        //        node.isSpecial = true;
+        //        //node.ChangeToMethod(typeof(HelperFunctions).GetMethod("NotEquals", argTypes));
+        //        node.ChangeToSpecialMethod(typeof(BlueprintComponent).GetMethod("NotEquals", new Type[] { typeof(string), typeof(string) }));
+        //        break;
+        //
+        //    case "&&":
+        //        node.input = "And";
+        //        node.isSpecial = true;
+        //        //node.ChangeToMethod(typeof(HelperFunctions).GetMethod("And", argTypes));
+        //        node.ChangeToSpecialMethod(typeof(BlueprintComponent).GetMethod("And", new Type[] { typeof(string), typeof(string) }));
+        //        break;
+        //
+        //    case "||":
+        //        node.input = "Or";
+        //        node.isSpecial = true;
+        //        //node.ChangeToMethod(typeof(HelperFunctions).GetMethod("Or", argTypes));
+        //        node.ChangeToSpecialMethod(typeof(BlueprintComponent).GetMethod("Or", new Type[] { typeof(string), typeof(string) }));
+        //        break;
+        //}
         
 
         return false;       
@@ -1095,7 +1367,7 @@ public class Interpreter
             ).Cast<Expression>().ToArray();
     }
 
-    Expression[] CreateMethodParameters(MethodInfo method, Expression argumentsParameter)
+    public Expression[] CreateMethodParameters(MethodInfo method, Expression argumentsParameter)
     {
         return method.GetParameters().Select
             (
@@ -1228,6 +1500,943 @@ public class Interpreter
 
         return null;
     }
+
+   
+
+    /*
+        Current Notes on the Full Compile:
+        It seems that to execute a sequence, we need the Expression.Block(IEnumerable<ParameterExpression> variables, Expression[] body)
+        Do these variables only refer to ones that exist purely as expressions and are not defined elsewhere?
+
+        We should be able to compile each node individually as before, but not return the delegate and instead the expression
+
+        With that in mind, we should then be able to nest the function expression in a new expression tree that prepares the parameters
+        for it and calls it.
+
+        May want to return the raw MethodCallExpression and NOT the final lambda
+
+        Big question marks that remain are: Conditionals, and contextual nodes for continuous member access       
+
+        Would recommend running tests of the similar set up in a test class
+
+        Remember end goal should have a delegate where the variables dictionary is passed in
+
+        Add Expression or Expression[] to nodes
+    */
+
+    public Action FullCompile(BlueprintComponent blueprint, string funcName)
+    {
+        if (blueprint.bp == null)
+            return null;
+
+        Node node = blueprint.bp.entryPoints[funcName];
+        List<Expression> expressions = new List<Expression>();
+        Expression contextTarget = null;
+
+        while (node != null)
+        {
+            if (node.isEntryPoint)
+            {
+                node = node.nextNode;
+                continue;
+            }
+
+            if (node.isContextual)
+            {
+                if (node.nodeType == NodeType.Function)
+                {
+                    expressions.Add(CallFunction(blueprint, node, out contextTarget, contextTarget));                    
+                }
+
+                if (node.nodeType == NodeType.Field_Get)
+                {
+                    expressions.Add(GetField(blueprint, node, out contextTarget, contextTarget));                   
+                }
+
+                if (node.nodeType == NodeType.Field_Set)
+                {
+                    expressions.Add(SetField(blueprint, node, out contextTarget, contextTarget));                    
+                }
+
+                if (node.nodeType == NodeType.Property_Get)
+                {
+                    expressions.Add(GetProperty(blueprint, node, out contextTarget, contextTarget));                    
+                }
+
+                if (node.nodeType == NodeType.Property_Set)
+                {
+                    expressions.Add(SetProperty(blueprint, node, out contextTarget, contextTarget));                    
+                }
+
+                if (node.nodeType == NodeType.Conditional)
+                {
+                    Expression trueBranch = CompileConditional(blueprint, node, true);
+                    Expression falseBranch = CompileConditional(blueprint, node, false);
+
+                    //Expression check = Expression.IfThenElse(Expression.Convert(contextTarget, typeof(bool)), trueBranch, falseBranch);
+                    //expressions.Add(check);
+                    Expression check = null;
+                    if (falseBranch != null)
+                        check = Expression.IfThenElse(Expression.Convert(contextTarget, typeof(bool)), trueBranch, falseBranch);
+                    else
+                        check = Expression.IfThen(Expression.Convert(contextTarget, typeof(bool)), trueBranch);
+
+                    if (check != null)
+                    {
+                        expressions.Add(check);
+                        break;
+                    }
+                }
+
+                if (node.nodeType == NodeType.Operation)
+                {
+                    expressions.Add(CompileOperation(blueprint, node, out contextTarget, contextTarget));
+                }
+
+                node = node.nextNode;
+                continue;
+            }
+        
+            if (node.nodeType == NodeType.Function)
+            {
+                expressions.Add(CallFunction(blueprint, node, out contextTarget));               
+            }
+
+            if (node.nodeType == NodeType.Constructor)
+            {
+                expressions.Add(CallConstructor(blueprint, node, out contextTarget));                
+            }
+
+            if (node.nodeType == NodeType.Field_Get)
+            {
+                expressions.Add(GetField(blueprint, node, out contextTarget));                
+            }
+
+            if (node.nodeType == NodeType.Field_Set)
+            {
+                expressions.Add(SetField(blueprint, node, out contextTarget));                               
+            }
+
+            //Make Property access here
+
+            if (node.nodeType == NodeType.Property_Get)
+            {
+                expressions.Add(GetProperty(blueprint, node, out contextTarget));                
+            }
+
+            if (node.nodeType == NodeType.Property_Set)
+            {
+                expressions.Add(SetProperty(blueprint, node, out contextTarget));               
+            }
+
+            if (node.nodeType == NodeType.Conditional)
+            {
+                Expression trueBranch = CompileConditional(blueprint, node, true);
+                Expression falseBranch = CompileConditional(blueprint, node, false);
+
+                //Expression check = Expression.IfThenElse(Expression.Convert(GetVariable(blueprint, (string)node.paramList[0].arg), typeof(bool)), trueBranch, falseBranch);
+                //expressions.Add(check);
+                Expression check = null;
+                if (falseBranch != null)
+                    check = Expression.IfThenElse(Expression.Convert(GetVariable(blueprint, (string)node.paramList[0].arg), typeof(bool)), trueBranch, falseBranch);
+                else
+                    check = Expression.IfThen(Expression.Convert(GetVariable(blueprint, (string)node.paramList[0].arg), typeof(bool)), trueBranch);
+
+                if (check != null)
+                {
+                    expressions.Add(check);
+                    break;
+                }
+            }
+
+            if (node.nodeType == NodeType.Operation)
+            {
+                expressions.Add(CompileOperation(blueprint, node, out contextTarget));
+            }
+
+            if (node.nextNode == null)
+                break;
+            node = node.nextNode;
+        }
+
+        //End While
+        if (expressions.Count > 0)
+        {
+            Expression final = Expression.Block(expressions.ToArray());
+
+            var func = Expression.Lambda<Action>(final, new ParameterExpression[] { });
+            
+            return func.Compile();                                                
+        }
+
+        return null;
+    }
+
+    //Printing in lambda
+    //lastExpression = assignVar;
+    //MethodInfo debugLog = typeof(MonoBehaviour).GetMethod("print");
+    //PropertyInfo nameProp = typeof(Transform).GetProperty("name");
+    //
+    //Expression convert = Expression.Convert(objAccess, nameProp.DeclaringType);
+    //
+    //Expression getName = Expression.Property(convert, nameProp);
+    //
+    //Expression checkAssign = Expression.Call(debugLog, getName);
+    //
+    //expressions.Add(Expression.Block(assignVar, checkAssign));        
+    Expression CompileOperation(BlueprintComponent blueprint, Node node, out Expression contextTarget, Expression myTarget = null)
+    {
+        //Notes on the assignment operators, it seems that we just shouldn't use them and just do Expression.Assign(x, Expression.Add(y))
+
+        Expression target = null;
+        Expression assignTarget = null;
+
+        if (myTarget == null)
+        {
+            assignTarget = (MemberExpression)GetVariable(blueprint, node.varName);
+            target = Expression.Convert(assignTarget, blueprint.variables[node.varName].type);            
+        }
+
+        else
+        {
+            target = myTarget;
+            assignTarget = myTarget;
+        }
+
+        MethodInfo overload = null;
+        Expression result = null;
+        contextTarget = null;
+
+        if (node.operatorMethodName != "")
+        {
+            overload = LoadMethod(node.operatorMethodName, node.type, node.assemblyPath, node.index, node.isContextual);
+        }
+
+        Expression GetSetArg(int i)
+        {
+            Expression setArg = null;
+            Node myNode = node;
+            if (myNode.paramList[i].inputVar)
+            {                
+                if (!myNode.isContextual || overload != null)
+                    //setArg = Expression.Convert(GetVariable(blueprint, myNode.paramList[i].varInput), blueprint.variables[myNode.varName].type);
+                    setArg = Expression.Convert(GetVariable(blueprint, myNode.paramList[i].varInput), myNode.paramList[i].type);
+                else
+                    setArg = Expression.Convert(GetVariable(blueprint, myNode.paramList[i].varInput), target.Type);
+            }
+            else
+            {
+                if (!myNode.isContextual || overload != null)
+                    //setArg = Expression.Convert(Expression.Constant(myNode.paramList[i].arg), blueprint.variables[myNode.varName].type);
+                    setArg = Expression.Convert(Expression.Constant(myNode.paramList[i].arg), myNode.paramList[i].type);
+                else
+                    setArg = Expression.Convert(Expression.Constant(myNode.paramList[i].arg), target.Type);
+            }
+
+
+            return setArg;
+        }
+
+        switch (node.operatorStr)
+        {
+            case "=":
+                Expression setArg = null;
+                if (node.paramList[0].inputVar)                    
+                    setArg = GetVariable(blueprint, node.paramList[0].varInput);
+                else                    
+                    setArg = Expression.Convert(Expression.Constant(node.paramList[0].arg), typeof(object));
+
+                result = Expression.Assign(assignTarget, setArg);                
+                break;
+
+            //case "+=":
+            //    if (overload != null)
+            //        result = Expression.AddAssign(target, GetSetArg(1), overload);
+            //    else
+            //    {
+            //        //result = Expression.AddAssign(target, GetSetArg(0));
+            //        Expression testTarget = target;
+            //        Expression add = Expression.Add(target, GetSetArg(0));
+            //        if (!node.isContextual)
+            //            result = Expression.Assign(assignTarget, Expression.Convert(add, typeof(object)));
+            //        else
+            //            result = Expression.Assign(target, add);
+            //    }
+            //     
+            //    break;
+            //
+            //case "-=":
+            //    //if (overload != null)
+            //    //    result = Expression.SubtractAssign(target, GetSetArg(1), overload);
+            //    //else
+            //    //    result = Expression.SubtractAssign(target, GetSetArg(0));                
+            //    //break;
+            //    if (overload != null)
+            //        result = Expression.SubtractAssign(target, GetSetArg(1), overload);
+            //    else
+            //    {
+            //        //result = Expression.AddAssign(target, GetSetArg(0));                                                        
+            //        Expression sub = Expression.Subtract(target, GetSetArg(0));
+            //        if (!node.isContextual)
+            //            result = Expression.Assign(assignTarget, Expression.Convert(sub, typeof(object)));
+            //        else
+            //            result = Expression.Assign(target, sub);
+            //    }
+            //    break;
+            //
+            //case "*=":
+            //    if (overload != null)
+            //        result = Expression.MultiplyAssign(target, GetSetArg(1), overload);
+            //    else
+            //        result = Expression.MultiplyAssign(target, GetSetArg(0));
+            //    break;
+            //
+            //case "/=":
+            //    if (overload != null)
+            //        result = Expression.DivideAssign(target, GetSetArg(1), overload);
+            //    else
+            //        result = Expression.DivideAssign(target, GetSetArg(0));
+            //    break;
+            //
+            //case "%=":
+            //    if (overload != null)
+            //        result = Expression.ModuloAssign(target, GetSetArg(1), overload);
+            //    else
+            //        result = Expression.ModuloAssign(target, GetSetArg(0));
+            //    break;
+            
+            case "++":
+                if (overload != null)
+                    result = Expression.Increment(target, overload);
+                else
+                    result = Expression.Increment(target);
+                break;
+
+            case "--":
+                if (overload != null)
+                    result = Expression.Decrement(target, overload);
+                else
+                    result = Expression.Decrement(target);
+                break;
+
+            //Standard Operations
+            case "+":
+                if (overload != null)
+                    result = Expression.Add(target, GetSetArg(0), overload);
+                else
+                    result = Expression.Add(target, GetSetArg(0));
+                contextTarget = result;                
+                break;
+
+            case "-":
+                if (overload != null)
+                    result = Expression.Subtract(target, GetSetArg(0), overload);
+                else
+                    result = Expression.Subtract(target, GetSetArg(0));
+                contextTarget = result;                
+                break;
+
+            case "*":
+                if (overload != null)
+                {
+                    Expression testTarget = target;
+                    Expression arg = GetSetArg(0);
+                    //result = Expression.Multiply(target, GetSetArg(0), overload);
+                    result = Expression.Multiply(testTarget, arg, overload);
+                }
+                else
+                    result = Expression.Multiply(target, GetSetArg(0));
+                contextTarget = result;
+                break;
+
+            case "/":
+                if (overload != null)
+                    result = Expression.Divide(target, GetSetArg(0), overload);
+                else
+                    result = Expression.Divide(target, GetSetArg(0));
+                contextTarget = result;
+                break;
+
+            case "%":
+                if (overload != null)
+                    result = Expression.Modulo(target, GetSetArg(0), overload);
+                else
+                    result = Expression.Modulo(target, GetSetArg(0));
+                contextTarget = result;
+                break;
+           
+            //Conditionals
+            case "==":
+                if (overload != null)
+                    result = Expression.Equal(target, GetSetArg(0), false, overload);
+                else
+                    result = Expression.Equal(target, GetSetArg(0));
+                contextTarget = result;
+                break;
+
+            case "<":
+                if (overload != null)
+                    result = Expression.LessThan(target, GetSetArg(0), false, overload);
+                else
+                    result = Expression.LessThan(target, GetSetArg(0));
+                contextTarget = result;
+                break;
+
+            case ">":
+                if (overload != null)
+                    result = Expression.GreaterThan(target, GetSetArg(0), false, overload);
+                else
+                    result = Expression.GreaterThan(target, GetSetArg(0));
+                contextTarget = result;
+                break;
+
+            case "<=":
+                if (overload != null)
+                    result = Expression.LessThanOrEqual(target, GetSetArg(0), false, overload);
+                else
+                    result = Expression.LessThanOrEqual(target, GetSetArg(0));
+                contextTarget = result;
+                break;
+
+            case ">=":
+                if (overload != null)
+                    result = Expression.GreaterThanOrEqual(target, GetSetArg(0), false, overload);
+                else
+                    result = Expression.GreaterThanOrEqual(target, GetSetArg(0));
+                contextTarget = result;
+                break;
+
+            case "!=":
+                if (overload != null)
+                    result = Expression.NotEqual(target, GetSetArg(0), false, overload);
+                else
+                    result = Expression.NotEqual(target, GetSetArg(0));
+                contextTarget = result;
+                break;
+
+            case "&&":
+                if (overload != null)
+                    result = Expression.AndAlso(target, GetSetArg(0), overload);
+                else
+                    result = Expression.AndAlso(target, GetSetArg(0), overload);
+                contextTarget = result;
+                break;
+
+            case "||":
+                if (overload != null)
+                    result = Expression.OrElse(target, GetSetArg(0), overload);
+                else
+                    result = Expression.OrElse(target, GetSetArg(0), overload);
+                contextTarget = result;
+                break;
+        }
+
+        if (node.returnInput != "")
+        {
+            Expression objAccess = GetVariable(blueprint, node.returnInput);
+            Expression assignVar = Expression.Assign(objAccess, Expression.Convert(result, typeof(object)));
+            return assignVar;
+        }
+
+        //if (node.isContextual)
+        //{
+        //    //Expression assignVar = Expression.Assign(Expression.Convert(assignTarget, typeof(object)), Expression.Convert(result, typeof(object)));
+        //    Expression assignVar = Expression.Assign(target, Expression.Convert(result, typeof(object)));
+        //    return assignVar;
+        //}
+
+        /*
+         IMPORTANT NOTES:
+         IF A VARIABLE IS BEING RETURNED TO IN PREVIOUS NODE, THAT WILL BE THE RESULT OF THE CONTEXTUAL NODE
+         IF YOU TRULY WANT THE PROPERTY BEING ACCESSED LEAVE BLANK
+         */
+        
+        return result;
+    }
+
+    Expression CompileConditional(BlueprintComponent blueprint, Node node, bool truePath, Expression target = null)
+    {
+        List<Expression> expressions = new List<Expression>();
+
+        Expression contextTarget = null;
+
+        bool init = false;
+
+        if (target != null)
+            contextTarget = target;
+                
+        while (node != null)
+        {
+            //No recursion bombs on start
+            if (!init)
+            {
+                if (node.nodeType == NodeType.Conditional)
+                {
+                    if (truePath)
+                    {
+                        if (node.nextNode == null)
+                            break;
+                        node = node.nextNode;
+                        init = true;
+                    }
+
+                    else
+                    {
+                        if (node.falseNode == null)
+                            break;
+                        node = node.falseNode;
+                        init = true;
+                    }
+                    continue;
+                }
+            }
+
+            if (node.isContextual)
+            {
+                if (node.nodeType == NodeType.Function)                
+                    expressions.Add(CallFunction(blueprint, node, out contextTarget, contextTarget));
+                
+                if (node.nodeType == NodeType.Field_Get)                
+                    expressions.Add(GetField(blueprint, node, out contextTarget, contextTarget));
+                
+                if (node.nodeType == NodeType.Field_Set)                
+                    expressions.Add(SetField(blueprint, node, out contextTarget, contextTarget));
+                
+                if (node.nodeType == NodeType.Property_Get)                
+                    expressions.Add(GetProperty(blueprint, node, out contextTarget, contextTarget));
+                
+                if (node.nodeType == NodeType.Property_Set)                
+                    expressions.Add(SetProperty(blueprint, node, out contextTarget, contextTarget));
+
+                if (node.nodeType == NodeType.Operation)                
+                    expressions.Add(CompileOperation(blueprint, node, out contextTarget, contextTarget));
+                
+
+                if (node.nodeType == NodeType.Conditional)
+                {
+                    Expression trueBranch = CompileConditional(blueprint, node, true);
+                    Expression falseBranch = CompileConditional(blueprint, node, false);
+                    Expression check = null;
+                    if (falseBranch != null)
+                        check = Expression.IfThenElse(Expression.Convert(contextTarget, typeof(bool)), trueBranch, falseBranch);
+                    else
+                        check = Expression.IfThen(Expression.Convert(contextTarget, typeof(bool)), trueBranch);
+
+                    if (check != null)
+                        expressions.Add(check);
+                }
+
+                if (truePath)
+                {
+                    if (node.nextNode == null)
+                        break;
+                    node = node.nextNode;
+                }
+
+                else
+                {
+                    if (node.falseNode == null)
+                        break;
+                    node = node.falseNode;
+                }
+                continue;
+            }
+
+            if (node.nodeType == NodeType.Function)                
+                expressions.Add(CallFunction(blueprint, node, out contextTarget));
+
+            if (node.nodeType == NodeType.Constructor)
+                expressions.Add(CallConstructor(blueprint, node, out contextTarget));
+
+            if (node.nodeType == NodeType.Field_Get)
+                expressions.Add(GetField(blueprint, node, out contextTarget));
+
+            if (node.nodeType == NodeType.Field_Set)
+                expressions.Add(SetField(blueprint, node, out contextTarget));
+
+            if (node.nodeType == NodeType.Property_Get)
+                expressions.Add(GetProperty(blueprint, node, out contextTarget));
+
+            if (node.nodeType == NodeType.Property_Set)
+                expressions.Add(SetProperty(blueprint, node, out contextTarget));
+
+            if (node.nodeType == NodeType.Operation)            
+                expressions.Add(CompileOperation(blueprint, node, out contextTarget));
+            
+
+            if (node.nodeType == NodeType.Conditional)
+            {
+                Expression trueBranch = CompileConditional(blueprint, node, true);
+                Expression falseBranch = CompileConditional(blueprint, node, false);
+
+                //Expression check = Expression.IfThenElse(GetVariable(blueprint, (string)node.paramList[0].arg), trueBranch, falseBranch);
+                //expressions.Add(check);
+                Expression check = null;
+                if (falseBranch != null)
+                    check = Expression.IfThenElse(Expression.Convert(contextTarget, typeof(bool)), trueBranch, falseBranch);
+                else
+                    check = Expression.IfThen(Expression.Convert(contextTarget, typeof(bool)), trueBranch);
+
+                if (check != null)
+                    expressions.Add(check);
+
+            }
+
+            if (truePath)
+            {
+                if (node.nextNode == null)
+                    break;
+                node = node.nextNode;
+            }
+
+            else
+            {
+                if (node.falseNode == null)
+                    break;
+                node = node.falseNode;
+            }
+        }
+
+        if (expressions.Count > 0)
+        {
+            return Expression.Block(expressions.ToArray());
+        }
+
+        else
+            return null;
+        
+    }
+
+    Expression CallFunction(BlueprintComponent blueprint, Node node, out Expression contextTarget, Expression target = null)
+    {
+        //Get the function target --NEEDS TO BE AN EXPRESSION
+        if (node.isSpecial)
+        {
+            target = Expression.Constant(blueprint);
+            node.currentMethod = GetSpecialFunction(node.input);
+        }
+
+        else
+        {
+            //Load Method
+            node.currentMethod = LoadMethod(node.input, node.type, node.assemblyPath, node.index, node.isContextual);
+            
+            if (target == null && !node.currentMethod.IsStatic)
+            {
+                Expression temp = (MemberExpression)GetVariable(blueprint, node.varName);
+                target = Expression.Convert(temp, node.currentMethod.DeclaringType);
+            }
+           
+        }
+        List<Expression> argExpressions = new List<Expression>();
+
+        ParameterInfo[] pars = node.currentMethod.GetParameters();
+
+        //Determine which parameters are literals and which are calling functions
+        for (int i = 0; i < node.paramList.Count; i++)
+        {
+            if (node.paramList[i].inputVar)
+                argExpressions.Add(Expression.Convert(GetVariable(blueprint, node.paramList[i].varInput), pars[i].ParameterType));
+
+            else
+                argExpressions.Add(Expression.Convert(Expression.Constant(node.paramList[i].arg), pars[i].ParameterType));
+        }
+
+        //Prep arguments                 
+        Expression[] args = argExpressions.ToArray();
+
+        //MethodCall apparently DOES not like Field Expressions but is fine with MemberExpressions
+        MethodCallExpression call = Expression.Call
+        (
+            target,
+            node.currentMethod,
+            args
+        );
+
+        //If the function is returning set that to be the 
+        if (node.returnInput != "")
+        {
+            Expression objAccess = GetVariable(blueprint, node.returnInput);
+            Expression assignVar = Expression.Assign(objAccess, Expression.Convert(call, typeof(object)));
+
+            //expressions.Add(assignVar);
+            contextTarget = objAccess;
+            return assignVar;
+
+        }
+
+        else
+        {
+            //expressions.Add(call);
+            contextTarget = call;
+            return call;
+        }
+    }
+
+    Expression CallConstructor(BlueprintComponent blueprint, Node node, out Expression contextTarget, Expression target = null)
+    {
+        //Load Method
+        node.constructorMethod = LoadConstructor(node.input, node.type, node.assemblyPath, node.index, node.isContextual);
+        //Expression temp = (MemberExpression)GetVariable(blueprint, node.varName);
+        //target = Expression.Convert(temp, node.currentMethod.DeclaringType);
+
+        List<Expression> argExpressions = new List<Expression>();
+
+        ParameterInfo[] pars = node.constructorMethod.GetParameters();
+
+        //Determine which parameters are literals and which are calling functions
+        for (int i = 0; i < node.paramList.Count; i++)
+        {
+            if (node.paramList[i].inputVar)
+                argExpressions.Add(Expression.Convert(GetVariable(blueprint, node.paramList[i].varInput), pars[i].ParameterType));
+
+            else
+                argExpressions.Add(Expression.Convert(Expression.Constant(node.paramList[i].arg), pars[i].ParameterType));
+        }
+
+        //Prep arguments                 
+        Expression[] args = argExpressions.ToArray();
+
+        //MethodCall apparently DOES not like Field Expressions but is fine with MemberExpressions
+        Expression call = Expression.New(node.constructorMethod, args);
+
+        //If the function is returning set that to be assigned
+        if (node.returnInput != "")
+        {
+            Expression objAccess = GetVariable(blueprint, node.returnInput);
+            Expression assignVar = Expression.Assign(objAccess, Expression.Convert(call, typeof(object)));
+            //expressions.Add(assignVar);
+            contextTarget = objAccess;
+            return assignVar;
+        }
+
+        else
+        {
+            //expressions.Add(call);
+            contextTarget = call;
+            return call;
+        }
+    }
+
+    Expression GetField(BlueprintComponent blueprint, Node node, out Expression contextTarget, Expression target = null)
+    {
+        node.fieldVar = LoadField(node.input, node.type, node.assemblyPath, node.isContextual);
+        
+        if (!node.fieldVar.IsStatic)
+        {
+            if (target == null)
+            {
+                Expression temp = (MemberExpression)GetVariable(blueprint, node.varName);
+                target = Expression.Convert(temp, node.fieldVar.DeclaringType);
+            }
+        }
+
+        Expression access = Expression.Field(target, node.fieldVar);
+
+        if (node.returnInput != "")
+        {
+            Expression objAccess = GetVariable(blueprint, node.returnInput);
+            Expression assignVar = Expression.Assign(objAccess, Expression.Convert(access, typeof(object)));
+
+            //expressions.Add(assignVar);
+            contextTarget = objAccess;
+            return assignVar;
+        }
+
+        else
+        {
+            //expressions.Add(access);
+            contextTarget = access;
+            return access;
+        }
+    }
+
+    Expression SetField(BlueprintComponent blueprint, Node node, out Expression contextTarget, Expression target = null)
+    {
+        node.fieldVar = LoadField(node.input, node.type, node.assemblyPath, node.isContextual);
+        
+        if (!node.fieldVar.IsStatic)
+        {
+            if (target == null)
+            {
+                Expression temp = (MemberExpression)GetVariable(blueprint, node.varName);
+                target = Expression.Convert(temp, node.fieldVar.DeclaringType);
+            }
+        }
+
+        Expression setArg = null;
+        if (node.paramList[0].inputVar)
+            setArg = Expression.Convert(GetVariable(blueprint, node.paramList[0].varInput), node.fieldVar.FieldType);
+        else
+            setArg = Expression.Convert(Expression.Constant(node.paramList[0].arg), node.fieldVar.FieldType);
+
+        Expression access = Expression.Field(target, node.fieldVar);
+
+        Expression assign = Expression.Assign(access, setArg);
+
+        //expressions.Add(assign);
+        contextTarget = access; //Should this be allowed?!
+        return assign;
+    }
+
+    Expression GetProperty(BlueprintComponent blueprint, Node node, out Expression contextTarget, Expression target = null)
+    {
+        node.propertyVar = LoadProperty(node.input, node.type, node.assemblyPath, node.isContextual);
+        
+        if (!node.isStatic)
+        {
+            if (target == null)
+            {
+                Expression temp = (MemberExpression)GetVariable(blueprint, node.varName);
+                target = Expression.Convert(temp, node.propertyVar.DeclaringType);
+            }
+        }
+        
+        Expression access = Expression.Property(target, node.propertyVar);
+
+        if (node.returnInput != "")
+        {            
+            Expression objAccess = GetVariable(blueprint, node.returnInput);
+            Expression assignVar = Expression.Assign(objAccess, Expression.Convert(access, typeof(object)));
+
+            //expressions.Add(assignVar);
+            contextTarget = objAccess;
+            return assignVar;
+        }
+
+        else
+        {
+            //expressions.Add(access);
+            contextTarget = access;
+            return access;
+        }
+    }
+
+    Expression SetProperty(BlueprintComponent blueprint, Node node, out Expression contextTarget, Expression target = null)
+    {
+        node.propertyVar = LoadProperty(node.input, node.type, node.assemblyPath, node.isContextual);
+        
+        if (!node.isStatic)
+        {
+            if (target == null)
+            {
+                Expression temp = (MemberExpression)GetVariable(blueprint, node.varName);
+                target = Expression.Convert(temp, node.propertyVar.DeclaringType);
+            }
+        }
+
+        Expression setArg = null;
+        if (node.paramList[0].inputVar)
+            setArg = Expression.Convert(GetVariable(blueprint, node.paramList[0].varInput), node.propertyVar.PropertyType);
+        else
+            setArg = Expression.Convert(Expression.Constant(node.paramList[0].arg), node.propertyVar.PropertyType);
+
+        Expression access = Expression.Property(target, node.propertyVar);
+
+        Expression assign = Expression.Assign(access, setArg);
+
+        //expressions.Add(assign);
+        //lastExpression = assign;
+        contextTarget = access;
+        return assign;
+    }
+
+    Expression GetVariable(BlueprintComponent blueprint, string varName)
+    {
+        //Access the field named variables
+        //Expression accessDictionary = Expression.Field(variables, "variables");
+
+        //Source: https://stackoverflow.com/questions/3085955/how-do-i-access-a-dictionary-item-using-linq-expressions
+
+        //Make the key
+        Expression key = Expression.Constant(varName);
+
+        //Access dictionary
+        Expression dictAccess = Expression.Property(Expression.Constant(blueprint.variables), "Item", key);
+
+        //Access the true object
+        Expression objAccess = Expression.Field(dictAccess, typeof(Var).GetField("obj"));
+
+        return objAccess;
+        //return Expression.Constant(objAccess);
+    }
+
+    Type GetVariableType(BlueprintComponent blueprint, string varName)
+    {
+        return blueprint.variables[varName].type;
+    }
+
+    //Expression Getters --------------------------
+
+    public Expression NonVoidInstanceMethodExpression(MethodInfo method)
+    {
+        ParameterExpression instanceParameter = Expression.Parameter(typeof(object), "target");
+        ParameterExpression argumentsParameter = Expression.Parameter(typeof(object[]), "arguments");
+
+        MethodCallExpression call = Expression.Call(
+           Expression.Convert(instanceParameter, method.DeclaringType),
+           method,
+           CreateMethodParameters(method, argumentsParameter));
+
+        return call;
+
+        //Expression<Func<object, object[], object>> lambda = Expression.Lambda<Func<object, object[], object>>(
+        //    Expression.Convert(call, typeof(object)),
+        //    instanceParameter,
+        //    argumentsParameter);
+
+        //return lambda;
+    }
+
+    public Expression NonVoidStaticMethodExpression(MethodInfo method)
+    {
+        ParameterExpression argumentsParameter = Expression.Parameter(typeof(object[]), "arguments");
+
+        MethodCallExpression call = Expression.Call(
+            method,
+            CreateMethodParameters(method, argumentsParameter));
+
+        Expression<Func<object[], object>> lambda = Expression.Lambda<Func<object[], object>>(
+            Expression.Convert(call, typeof(object)),
+            argumentsParameter);
+
+        return lambda;
+    }
+
+    public Expression VoidInstanceMethodExpression(MethodInfo method)
+    {
+        ParameterExpression instanceParameter = Expression.Parameter(typeof(object), "target");
+        ParameterExpression argumentsParameter = Expression.Parameter(typeof(object[]), "arguments");
+
+        MethodCallExpression call = Expression.Call(
+            Expression.Convert(instanceParameter, method.DeclaringType),
+            method,
+            CreateMethodParameters(method, argumentsParameter));
+
+        Expression<Action<object, object[]>> lambda = Expression.Lambda<Action<object, object[]>>(
+            call,
+            instanceParameter,
+            argumentsParameter);
+
+        return lambda;
+    }
+
+    public Expression VoidStaticMethodExpression(MethodInfo method)
+    {
+        ParameterExpression argumentsParameter = Expression.Parameter(typeof(object[]), "arguments");
+
+        MethodCallExpression call = Expression.Call(
+            method,
+            CreateMethodParameters(method, argumentsParameter));
+
+        Expression<Action<object[]>> lambda = Expression.Lambda<Action<object[]>>(
+            call,
+            argumentsParameter);
+
+        return lambda;
+    }
+
+    //End Expression Getters ----------------------
 
     //OLD UNUSED STUFF DONE BELOW KEEPING FOR REFERENCE/POSTERITY ---------------------------------------
 

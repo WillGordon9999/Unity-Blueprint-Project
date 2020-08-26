@@ -68,6 +68,7 @@
     <Compile Include="Assets\Core\NewTest.cs" />
     <Compile Include="Assets\Core\NodeData.cs" />
     <Compile Include="Assets\Core\ParameterData.cs" />
+    <Compile Include="Assets\Core\RealTimeEditor.cs" />
     <Compile Include="Assets\Core\TestComponent.cs" />
     <Compile Include="Assets\EditorScripts\Blueprint.cs" />
     <Compile Include="Assets\EditorScripts\BlueprintComponent.cs" />
