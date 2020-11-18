@@ -12,7 +12,7 @@ public class NodeData
     public Vector2 initDimensions;
     public bool isDefined;
     public bool isEntryPoint;
-    public string entryPointName; //Name for built in monobehaviour functions
+    //public string entryPointName; //Name for built in monobehaviour functions
     public ConnectionPointData inPoint;
     public ConnectionPointData outPoint;
     public ConnectionPointData falsePoint;
@@ -26,8 +26,9 @@ public class NodeData
     public string assemblyPath; //The path for the assembly
     public string operatorStr;
     public string operatorMethodName;
+    public string nameSpace;
     public int index; //The index of the list found for function overloads
-    public UnityEngine.Object target;
+    public bool isGenericFunction;
 
     public List<string> passInParams; //Purely for Entry point descriptors
 
@@ -38,7 +39,7 @@ public class NodeData
     public bool isReturning;
     public bool isSpecial;
     //public string returnVarName;
-    public Node.ReturnVarType retType;
+    //public Node.ReturnVarType retType;
 
     public bool isStatic;
     public bool isContextual;
@@ -47,17 +48,20 @@ public class NodeData
     public int prevID;
     public int falseID;
 
-    public ParameterData literalField; //For Setting applicable serializable types to a literal
-    public ParameterData varField; //For referencing variables in the blueprint
-    public Var varRef;
+    //public ParameterData literalField; //For Setting applicable serializable types to a literal
+    //public ParameterData varField; //For referencing variables in the blueprint
+    //public Var varRef;
     public string varName;
-    public bool isVar;
+    //public bool isVar;
 
     //GUI stuff - not sure if really needed here - might be useful later if I want to make UI prettier
     public GUIStyle nodeStyle;
-    public GUIStyle selectStyle;
+    //public GUIStyle selectStyle;
     public GUIStyle inStyle;
     public GUIStyle outStyle;
+
+    //Game Specific
+    public bool hasCost;
 
     public NodeData(Node node)
     {
@@ -72,7 +76,7 @@ public class NodeData
 
         //Style stuff
         nodeStyle = node.style;
-        selectStyle = node.selectedNodeStyle;
+        //selectStyle = node.selectedNodeStyle;
         inStyle = node.inPoint.style;
         outStyle = node.outPoint.style;
 
@@ -81,10 +85,16 @@ public class NodeData
         type = node.type;
         index = node.index;
         assemblyPath = node.assemblyPath;
+        nameSpace = node.nameSpace;
+        isGenericFunction = node.isGenericFunction;
+
         operatorStr = node.operatorStr;
         operatorMethodName = node.operatorMethodName;
         //target = node.target;
-        isVar = node.isVar;
+        //isVar = node.isVar;
+
+        //Game Specific
+        hasCost = node.hasCost;
 
         isReturning = node.isReturning;
         isSpecial = node.isSpecial;
@@ -98,13 +108,13 @@ public class NodeData
         returnInput = node.returnInput;
         
         //returnVarName = node.returnVarName;
-        retType = node.retType;
-
-        if (node.literalField != null)
-            literalField = new ParameterData(node.literalField);
-
-        if (node.varField != null)
-            varField = new ParameterData(node.varField);
+        //retType = node.retType;
+        //
+        //if (node.literalField != null)
+        //    literalField = new ParameterData(node.literalField);
+        //
+        //if (node.varField != null)
+        //    varField = new ParameterData(node.varField);
 
 
 
@@ -129,6 +139,7 @@ public class NodeData
         {
             foreach(string str in node.passInParams)
             {
+                Debug.Log("Adding passInParam to node data");
                 passInParams.Add(str);
             }
         }

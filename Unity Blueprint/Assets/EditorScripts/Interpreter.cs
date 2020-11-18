@@ -7,6 +7,18 @@ using System.Linq;
 using System.Linq.Expressions;
 using System;
 using System.IO;
+using System.Runtime.Serialization.Formatters.Binary;
+using System.CodeDom.Compiler;
+using Microsoft.CSharp;
+using System.Text;
+
+/*
+ CRITICAL INFO: 
+ IN ORDER TO USE SYSTEM.REFLECTION.EMIT FOR UNITY
+ GO INTO PROJECT SETTINGS > PLAYER > OTHER SETTINGS > API COMPATIBILITY AND SET IT TO .NET 4.X
+ SOURCE: https://answers.unity.com/questions/1585741/the-type-or-namespace-name-ilgenerator-could-not-b.html
+ */
+
 
 [Serializable]
 public class Var
@@ -63,17 +75,18 @@ public class InterpreterData
     public bool isOperator; //If using a valid operator
     public bool isAssign;
     public bool isIncrementOrDecrement;
+    public bool isBaseClass = false;
 
     public bool returnBool;
     public bool isKeyWord;
     public bool isStatic; //If class name is called directly and var is not used    
     public string varName; //The target
-    public Var varRef;
+    public Var varRef; //pretty sure this isn't being used
 
     public string input;
     public Type selectedType;
     public Assembly selectedAsm;
-    public AccessType access;
+    public AccessType access; 
     
     public enum AccessType { Get, Set, Both };
     
@@ -170,10 +183,10 @@ public class Interpreter
     "Update"                            //Update is called every frame, if the MonoBehaviour is enabled.
  
     };
-
-    List<Expression> expressions = new List<Expression>();
-
+    
     static Interpreter mInstance;
+
+    public bool UseGameCompile = false;
 
     Interpreter() {}
 
@@ -191,6 +204,8 @@ public class Interpreter
         private set { }
     }
 
+#if UNITY_EDITOR
+    
     //Source: https://wiki.unity3d.com/index.php/CreateScriptableObjectAsset
     public T CreateAsset<T>(string filePath) where T: ScriptableObject
     {       
@@ -217,10 +232,50 @@ public class Interpreter
         }
     }
 
-    public BlueprintData LoadBlueprint(string name)
+    public BlueprintData LoadBlueprintAssets(string name)
     {
         BlueprintData asset = AssetDatabase.LoadAssetAtPath<BlueprintData>("Assets/" + name + ".asset");
-        return asset;
+        return asset;          
+    }
+
+#endif
+
+    public BlueprintData CreateBlueprint(string name)
+    {
+        BlueprintData bp = ScriptableObject.CreateInstance<BlueprintData>();        
+        FileStream file = File.Create(Application.persistentDataPath + "/" + name + ".asset");
+        return bp;
+    }
+
+    public void SaveBlueprint(BlueprintData data)
+    {        
+        BinaryFormatter bf = new BinaryFormatter();
+        string json = JsonUtility.ToJson(data);
+        FileStream file = File.Create(Application.persistentDataPath + "/" + data.ComponentName + ".asset");
+        //FileStream file = File.Open(Application.persistentDataPath + "/" + data.ComponentName + ".asset", FileMode.Open);
+        bf.Serialize(file, json);        
+        file.Close();
+    }
+
+    public BlueprintData LoadBlueprint(string name)
+    {
+        BinaryFormatter bf = new BinaryFormatter();
+        FileStream file = File.Open(Application.persistentDataPath + "/" + name + ".asset", FileMode.Open);
+        string json = (string)bf.Deserialize(file);
+        file.Close();
+
+        BlueprintFile bp = JsonUtility.FromJson<BlueprintFile>(json);
+
+        BlueprintData data = ScriptableObject.CreateInstance<BlueprintData>();
+
+        data.ComponentName = bp.ComponentName;
+        data.nodes = bp.nodes;
+        data.variables = bp.variables;
+        data.passInParams = bp.passInParams;
+        data.ID_Count = bp.ID_Count;
+        data.connections = bp.connections; //SERIOUS CONCERN WITH THIS
+
+        return data;
     }
     
     //This is only for processing code nodes, defining variables should be handled by CreateVariable
@@ -263,14 +318,39 @@ public class Interpreter
             }
 
             else
-            { 
-                if (ParseKeywords(args[0], node))
+            {
+                if (ParseGameFunctions(args[0], node, ref data))
+                    return;
+
+
+                if (ParseKeywords(args[0], ref node, ref blueprint))
                 {
                     return;
                 }
-                
-                //Check for variables - again not a dictionary right now since I don't where it would be stored        
 
+                //Check for inherited members
+                FieldInfo field = typeof(MonoBehaviour).GetField(input);
+                PropertyInfo prop = typeof(MonoBehaviour).GetProperty(input);
+                MethodInfo[] methodInfos = typeof(MonoBehaviour).GetMethods();
+                List<MethodInfo> baseMethods = new List<MethodInfo>();
+
+                foreach(MethodInfo m in methodInfos)
+                {
+                    if (m.Name == input)
+                        baseMethods.Add(m);
+                }
+
+                if (field != null || prop != null || baseMethods.Count > 0)
+                {
+                    data.selectedType = typeof(MonoBehaviour);
+                    data.fields = new FieldInfo[] { field };
+                    data.properties = new PropertyInfo[] { prop };
+                    data.methods = baseMethods.ToArray();
+                    data.isBaseClass = true;
+                    return;
+                }
+
+                //Check for variables - again not a dictionary right now since I don't where it would be stored        
                 if (blueprint.variables != null)
                 {
                     foreach (Var v in blueprint.variables)
@@ -278,6 +358,23 @@ public class Interpreter
                         if (v.name == args[0])
                         {
                             //Methods, Fields, and Properties are found below
+                            varType = v.type;
+                            data.selectedType = varType;
+                            data.isStatic = false;
+                            data.varName = args[0];
+                            data.varRef = v;
+                            break;
+                        }
+                    }
+                }
+
+                //Check for Pass In Params in my functions - probably ought to add a scope check
+                if (blueprint.passInParams != null)
+                {
+                    foreach(Var v in blueprint.passInParams)
+                    {
+                        if (v.name == args[0])
+                        {
                             varType = v.type;
                             data.selectedType = varType;
                             data.isStatic = false;
@@ -319,7 +416,7 @@ public class Interpreter
         //If type selected
         //TypeSelected:
         
-        if (data.selectedType != null)
+        if (data.selectedType != null && !data.isBaseClass)
         {            
             string name = "";
 
@@ -673,6 +770,7 @@ public class Interpreter
         }
     }
 
+    //DEPRECATED
     public void CompileNode(Node node, object target = null, Blueprint blueprint = null)
     {        
         //This might need to be changed later in the event of unity messages with params such as OnCollisionEnter
@@ -711,8 +809,8 @@ public class Interpreter
                     //I don't remember why I added this, but there must have been a good reason I hope
                     if (node.isSpecial && node.paramList[i].noType)
                     {
-                        node.passArgs[i] = node.actualTarget;
-                        node.actualTarget = null;
+                        //node.passArgs[i] = node.actualTarget;
+                        //node.actualTarget = null;
                         continue;
                     }
 
@@ -723,26 +821,26 @@ public class Interpreter
             if (target != null)
             {
                 //Debug.Log("passed in target is not null");
-                node.actualTarget = target;
+                //node.actualTarget = target;
             }
 
             if (node.currentMethod != null)
             {
-                if (node.isReturning && node.isStatic)
-                    //Instance.expressions.Add(NonVoidStaticMethodExpression(node.currentMethod));
-                    node.expressionBody.Add(NonVoidStaticMethodExpression(node.currentMethod));
-
-                else if (node.isReturning && !node.isStatic)
-                    //Instance.expressions.Add(NonVoidInstanceMethodExpression(node.currentMethod));
-                    node.expressionBody.Add(NonVoidInstanceMethodExpression(node.currentMethod));
-
-                else if (!node.isReturning && node.isStatic)
-                    //Instance.expressions.Add(VoidStaticMethodExpression(node.currentMethod));
-                    node.expressionBody.Add(VoidStaticMethodExpression(node.currentMethod));
-
-                else if (!node.isReturning && !node.isStatic)
-                    //Instance.expressions.Add(VoidInstanceMethodExpression(node.currentMethod));
-                    node.expressionBody.Add(VoidInstanceMethodExpression(node.currentMethod));
+                //if (node.isReturning && node.isStatic)
+                //    //Instance.expressions.Add(NonVoidStaticMethodExpression(node.currentMethod));
+                //    //node.expressionBody.Add(NonVoidStaticMethodExpression(node.currentMethod));
+                //
+                //else if (node.isReturning && !node.isStatic)
+                //    //Instance.expressions.Add(NonVoidInstanceMethodExpression(node.currentMethod));
+                //    //node.expressionBody.Add(NonVoidInstanceMethodExpression(node.currentMethod));
+                //
+                //else if (!node.isReturning && node.isStatic)
+                //    //Instance.expressions.Add(VoidStaticMethodExpression(node.currentMethod));
+                //    //node.expressionBody.Add(VoidStaticMethodExpression(node.currentMethod));
+                //
+                //else if (!node.isReturning && !node.isStatic)
+                //    //Instance.expressions.Add(VoidInstanceMethodExpression(node.currentMethod));
+                //    //node.expressionBody.Add(VoidInstanceMethodExpression(node.currentMethod));
 
                 node.function = node.currentMethod.Bind();
             }
@@ -767,10 +865,10 @@ public class Interpreter
             node.fieldVar = LoadField(node.input, node.type, node.assemblyPath, node.isContextual);
             node.function = CreateSetFunction(node.fieldVar);
             
-            if ((string)node.varField.arg != "")
-            {
-                  node.isVar = true;
-            }                                  
+            //if ((string)node.varField.arg != "")
+            //{
+            //      node.isVar = true;
+            //}                                  
         }
 
         if (node.nodeType == NodeType.Property_Get)
@@ -784,8 +882,8 @@ public class Interpreter
             node.propertyVar = LoadProperty(node.input, node.type, node.assemblyPath);
             node.function = CreateSetFunction(node.propertyVar);
           
-            if ((string)node.varField.arg != "")            
-                node.isVar = true;
+            //if ((string)node.varField.arg != "")            
+            //    node.isVar = true;
             
         }
     }
@@ -801,16 +899,18 @@ public class Interpreter
         string[] args = input.Split(' ');
         string name = "";
 
-        if (isContextual && args.Length == 1)
+        //if (isContextual && args.Length == 1)
+        if (args.Length == 1)
             name = args[0];
 
-        else if (args.Length > 1 && !isContextual)
+        //else if (args.Length > 1 && !isContextual)
+        else if (args.Length > 1)
             name = args[1];
-        else
-        {
-            Debug.Log("No function name found returning null");
-            return null;
-        }
+        //else
+        //{
+        //    Debug.Log("No function name found returning null");
+        //    return null;
+        //}
 
         if (TestASM != null)
         {
@@ -870,7 +970,7 @@ public class Interpreter
 
     public Type LoadVarType(string type, string asmPath)
     {
-        if (asmPath == "")
+        if (asmPath == "" || asmPath == null)
             return null;
 
         Assembly TestASM = Assembly.LoadFile(asmPath);
@@ -958,10 +1058,54 @@ public class Interpreter
         return null;
     }
 
-    public bool ParseKeywords(string text, Node node)
+    public bool ParseGameFunctions(string text, Node node, ref InterpreterData data)
+    {
+        Type type = typeof(GameFramework);
+        //data.selectedType = typeof(GameFramework);
+        //data.selectedAsm = data.selectedType.Assembly;
+        //node.hasCost = true;
+        //data.isStatic = true;
+        MethodInfo[] methods = type.GetMethods();
+        List<MethodInfo> methodInfo = new List<MethodInfo>();
+
+        foreach (MethodInfo m in methods)
+        {
+            if (m.Name == text && m.IsStatic)
+                methodInfo.Add(m);           
+        }
+
+        data.methods = methodInfo.ToArray();
+
+        if (data.methods != null && data.methods.Length > 0)
+        {
+            data.selectedType = typeof(GameFramework);
+            data.selectedAsm = data.selectedType.Assembly;
+            node.hasCost = true;
+            data.isStatic = true;
+            return true;
+        }
+        else
+            return false;
+    }
+
+    public bool ParseKeywords(string text, ref Node node, ref BlueprintData data)
     {
         MethodInfo info = null;
-        
+        PropertyInfo prop = null;
+        FieldInfo field = null;
+
+        //try
+        //{
+        //    info = typeof(MonoBehaviour).GetMethod(text);
+        //    prop = typeof(MonoBehaviour).GetProperty(text);
+        //    field = typeof(MonoBehaviour).GetField(text);
+        //}
+        //
+        //catch
+        //{
+        //
+        //}
+
         try
         {
             info = typeof(BlueprintComponent).GetMethod(text);
@@ -969,32 +1113,43 @@ public class Interpreter
 
         catch
         {            
-            if (text == "GetComponent" || text == "AddComponent" || text == "Set")
-            {                
-                info = typeof(BlueprintComponent).GetMethod(text, new Type[] { typeof(string), typeof(string) });
-            }        
+            //if (text == "GetComponent" || text == "AddComponent" || text == "Set")
+            //{                
+            //    info = typeof(BlueprintComponent).GetMethod(text, new Type[] { typeof(string), typeof(string) });
+            //}            
         }
         
         if (info != null)
         {
+            //Questionable if this is still needed here
             if (info.Name == "GetComponent" || info.Name == "AddComponent" || info.Name == "Set")
             {
                 node.isSpecial = true;                
                 node.ChangeToSpecialMethod(info);
                 return true;
-            }
-
+            }            
+            
             Debug.Log($"Method found for {text}");
 
             ParameterInfo[] pars = info.GetParameters();
-
+            
             if (node.passInParams == null)
+            {
+                Debug.Log("Allocating new passInParam List for node");
                 node.passInParams = new List<string>();
+            }
 
+            if (data.passInParams == null)
+            {
+                Debug.Log("Allocating new passInParam List for data");
+                data.passInParams = new List<Var>();
+            }
+            
             foreach (ParameterInfo p in pars)
             {
                 string final = p.ParameterType + " " + p.Name;
                 node.passInParams.Add(final);
+                data.passInParams.Add(new Var(p.ParameterType, p.Name));
             }
 
             float initHeight = node.rect.height;
@@ -1085,12 +1240,33 @@ public class Interpreter
         return false;       
     }
 
-    public MethodInfo GetSpecialFunction(string input)
+    public MethodInfo GetSpecialFunction(string input, bool hasCost, int index = 0)
     {
         MethodInfo info = null;
-        
-        //This will probably have to be altered later
-        info = typeof(BlueprintComponent).GetMethod(input, new Type[] { typeof(string), typeof(string) });
+
+        if (hasCost)
+        {
+            //info = typeof(GameFramework).GetMethod(input);
+            MethodInfo[] allMethods = typeof(GameFramework).GetMethods();
+            List<MethodInfo> methods = new List<MethodInfo>();
+
+            MethodInfo final = null;
+
+            foreach (MethodInfo m in allMethods)
+            {
+                if (m.Name == input)
+                    methods.Add(m);
+            }
+
+            if (methods != null && index < methods.Count)
+            {
+                final = methods[index];
+                return final;
+            }
+        }
+
+        else
+            info = typeof(BlueprintComponent).GetMethod(input, new Type[] { typeof(string), typeof(string) });
 
         if (info != null)        
             return info;
@@ -1099,7 +1275,7 @@ public class Interpreter
     }
     
     //Return true if multiple types are found
-    bool FindType(string input, out Type[] type, out Assembly[] ASM)
+    public bool FindType(string input, out Type[] type, out Assembly[] ASM)
     {
         //Source: https://stackoverflow.com/questions/8499593/c-sharp-how-to-check-if-namespace-class-or-method-exists-in-c
         //type = (from assembly in AppDomain.CurrentDomain.GetAssemblies() from type2 in assembly.GetTypes() where type2.Name == raw[0] select type2).FirstOrDefault();
@@ -1524,7 +1700,1616 @@ public class Interpreter
         Add Expression or Expression[] to nodes
     */
 
-    public Action FullCompile(BlueprintComponent blueprint, string funcName)
+    string GetLiteral(object obj)
+    {
+        Type type = obj.GetType();
+
+        if (type == typeof(bool))
+        {
+            bool val = (bool)obj;
+
+            if (val)
+                return "true";
+            else
+                return "false";
+        }
+
+        if (type == typeof(char))
+        {
+            return $"'{obj.ToString()}'";
+        }
+
+        if (type == typeof(int))
+        {
+            return obj.ToString();
+        }
+
+        if (type == typeof(long))
+        {
+            return obj.ToString();
+        }
+
+        if (type == typeof(float))
+        {
+            return obj.ToString() + "f";
+        }
+
+        if (type == typeof(double))
+        {
+            return obj.ToString();
+        }
+
+        if (type == typeof(string))
+        {
+            //@"UnityEngine.Debug.Log( ""Object name is  "" + someObj.name );"
+            string quote = @"""";
+            return quote + obj.ToString() + quote;
+        }
+
+        if (type == typeof(Vector2))
+        {
+            Vector2 v = (Vector2)obj;
+            return "new UnityEngine.Vector2" + $"({v.x}f, {v.y}f)";
+        }
+
+        if (type == typeof(Vector3))
+        {
+            Vector3 v = (Vector3)obj;
+            return "new UnityEngine.Vector3" + $"({v.x}f, {v.y}f, {v.z}f)";
+        }
+
+        if (type == typeof(Vector4))
+        {
+            Vector4 v = (Vector4)obj;
+            return "new UnityEngine.Vector4" + $"({v.x}f, {v.y}f, {v.z}f, {v.w})";
+        }
+
+        if (type == typeof(Quaternion))
+        {            
+            Quaternion q = (Quaternion)obj;
+            return "new UnityEngine.Quaternion" + $"({q.x}f, {q.y}f, {q.z}f, {q.w}f)";
+        }
+
+        if (type == typeof(Rect))
+        {
+            Rect r = (Rect)obj;
+            return $"new UnityEngine.Rect({r.x}f, {r.y}f, {r.width}f, {r.height}f)";
+        }
+
+        if (type == typeof(Color))
+        {
+            Color c = (Color)obj;
+            return $"new UnityEngine.Color({c.r}f, {c.g}f, {c.b}f, {c.a}f)";
+        }
+
+        if (type == typeof(System.Enum))
+        {
+            return obj.GetType().ToString() + "." + obj.ToString();
+        }
+
+        return "";
+    }
+
+    public Type FullCompile(Blueprint data, Type baseClass)
+    {
+        if (data == null)
+            return null;
+
+        CSharpCodeProvider compiler = new CSharpCodeProvider();
+
+        CompilerParameters parameters = new CompilerParameters();
+        parameters.GenerateExecutable = false;
+        parameters.GenerateInMemory = false;
+
+        StringBuilder classFile = new StringBuilder();
+
+        //Setup the using directives
+        
+        foreach (Node node in data.nodes)
+        {
+
+            if (!parameters.ReferencedAssemblies.Contains(node.assemblyPath))
+            {
+                parameters.ReferencedAssemblies.Add(node.assemblyPath);
+            }
+
+            foreach(Parameter p in node.paramList)
+            {
+                if (p.isGeneric)
+                {
+                    parameters.ReferencedAssemblies.Add(p.templateTypeAsmPath);
+                }
+            }
+
+            //if (node.nodeType == NodeType.Function)
+            //{
+            //    if (!node.isSpecial)
+            //        node.currentMethod = LoadMethod(node.input, node.type, node.assemblyPath, node.index, node.isContextual);
+            //    else
+            //        node.currentMethod = GetSpecialFunction(node.input, node.hasCost);
+            //
+            //    //string asmPath = node.currentMethod.DeclaringType.Assembly.Location;
+            //
+            //    //if (!parameters.ReferencedAssemblies.Contains(asmPath))
+            //    if (!parameters.ReferencedAssemblies.Contains(node.assemblyPath))
+            //    {
+            //        //parameters.ReferencedAssemblies.Add(asmPath);
+            //        parameters.ReferencedAssemblies.Add(node.assemblyPath);
+            //
+            //        //if (node.currentMethod.DeclaringType.Namespace != null)
+            //        //    classFile.Append("using " + node.currentMethod.DeclaringType.Namespace + ";\n");
+            //    }
+            //}
+            //
+            //if (node.nodeType == NodeType.Constructor)
+            //{
+            //    node.constructorMethod = LoadConstructor(node.input, node.type, node.assemblyPath, node.index, node.isContextual);
+            //
+            //    string asmPath = node.constructorMethod.DeclaringType.Assembly.Location;
+            //
+            //    if (!parameters.ReferencedAssemblies.Contains(asmPath))
+            //    {
+            //        parameters.ReferencedAssemblies.Add(asmPath);
+            //
+            //        //if (node.constructorMethod.DeclaringType.Namespace != null)
+            //        //    classFile.Append("using " + node.constructorMethod.DeclaringType.Namespace + ";\n");
+            //    }
+            //}
+            //
+            //if (node.nodeType == NodeType.Field_Get || node.nodeType == NodeType.Field_Set)
+            //{
+            //    node.fieldVar = LoadField(node.input, node.type, node.assemblyPath, node.isContextual);
+            //    string asmPath = node.fieldVar.FieldType.Assembly.Location;
+            //
+            //    if (!parameters.ReferencedAssemblies.Contains(asmPath))
+            //    {
+            //        parameters.ReferencedAssemblies.Add(asmPath);
+            //
+            //        //if (node.fieldVar.FieldType.Namespace != null)
+            //        //    classFile.Append("using " + node.fieldVar.FieldType.Namespace + ";\n");
+            //    }
+            //}
+            //
+            //if (node.nodeType == NodeType.Property_Get || node.nodeType == NodeType.Property_Set)
+            //{
+            //    node.propertyVar = LoadProperty(node.input, node.type, node.assemblyPath, node.isContextual);
+            //    string asmPath = node.propertyVar.PropertyType.Assembly.Location;
+            //
+            //    if (!parameters.ReferencedAssemblies.Contains(asmPath))
+            //    {
+            //        parameters.ReferencedAssemblies.Add(asmPath);
+            //
+            //        //if (node.propertyVar.PropertyType.Namespace != null)
+            //        //    classFile.Append("using " + node.propertyVar.PropertyType.Namespace + ";\n");
+            //    }
+            //}
+        }
+
+        //classFile.Append("using UnityEngine;\n");
+        //classFile.Append("using System.Collections;\n");
+        //classFile.Append("using System.Collections.Generic;\n");
+
+        //Declare the Type
+        if (baseClass != null)
+            classFile.Append("public class " + data.name + " : " + baseClass.ToString() + "\n");
+        else
+            classFile.Append("public class " + data.name + "\n");
+
+        classFile.Append("{\n");
+
+        //Add variable declarations
+
+        foreach (string varName in data.variables.Keys)
+        {
+            Var v = data.variables[varName];
+            parameters.ReferencedAssemblies.Add(v.type.Assembly.Location);
+            string declare = $"{v.type.ToString()} {v.name};\n";
+            classFile.Append(declare);
+        }
+
+        classFile.Append("\n");
+
+        foreach (string entryName in data.entryPoints.Keys)
+        {
+            Node node = data.entryPoints[entryName];
+
+            string passInParams = "";
+
+            if (node.passInParams != null)
+            {
+                for (int i = 0; i < node.passInParams.Count; i++)
+                {
+                    passInParams += node.passInParams[i];
+
+                    if (i < node.passInParams.Count - 1)
+                        passInParams += ", ";
+                }
+            }
+
+            StringBuilder funcBuilder = new StringBuilder();
+            string funcDeclaration = $"public void {entryName}(" + passInParams + ")\n{\n";
+
+            funcBuilder.Append(funcDeclaration);
+
+            List<string> lines = new List<string>(); //The final lines
+            List<string> baseLines = new List<string>();
+
+            //Begin Main Loop
+            while (node != null)
+            {
+                if (node.nodeType == NodeType.Function)
+                {
+                    string[] split = node.input.Split(' ');
+
+                    string passInArgs = "";
+                    string genericDefine = "";
+
+                    List<Parameter> generics = new List<Parameter>();
+
+                    //Set up the parameters
+                    if (node.paramList != null)
+                    {
+                        for (int i = 0; i < node.paramList.Count; i++)
+                        {
+                            //Add Generics
+                            if (node.paramList[i].isGeneric)
+                            {
+                                generics.Add(node.paramList[i]);
+                                continue;
+                            }
+
+                            //Add the normal ones
+                            if (node.paramList[i].inputVar)
+                                passInArgs += node.paramList[i].varInput;
+                            else
+                                passInArgs += GetLiteral(node.paramList[i].arg);
+
+                            if (i < node.paramList.Count - 1)
+                                passInArgs += ", ";
+                        }
+                    }
+
+                    //Process Generics
+                    if (generics.Count > 0)
+                    {
+                        genericDefine = "<";
+
+                        for (int i = 0; i < generics.Count; i++)
+                        {
+                            genericDefine += generics[i].templateType;
+
+                            if (i < generics.Count - 1)
+                                genericDefine += ", ";
+                        }
+
+                        genericDefine += ">";
+
+                    }
+
+                    if (split.Length > 1)
+                    {
+                        //If a node is returning that should be the end of the particular line
+                        if (node.returnInput != "")
+                        {
+                            if (node.isStatic)
+                            {
+                                if (node.isGenericFunction)
+                                {
+                                    baseLines.Add($"{node.type}.{split[1]}{genericDefine}(" + passInArgs + ")");
+                                    lines.Add($"{node.returnInput} = {node.type}.{split[1]}{genericDefine}(" + passInArgs + ");");
+                                }
+                                else
+                                {
+                                    baseLines.Add($"{node.type}.{split[1]}(" + passInArgs + ")");
+                                    lines.Add($"{node.returnInput} = {node.type}.{split[1]}(" + passInArgs + ");");
+                                }
+                            }
+                            else
+                            {
+                                if (node.isGenericFunction)
+                                {
+                                    baseLines.Add($"{split[0]}.{split[1]}{genericDefine}(" + passInArgs + ")");
+                                    lines.Add($"{node.returnInput} = {split[0]}.{split[1]}{genericDefine}(" + passInArgs + ");");
+                                }
+                                else
+                                {
+                                    baseLines.Add($"{split[0]}.{split[1]}(" + passInArgs + ")");
+                                    lines.Add($"{node.returnInput} = {split[0]}.{split[1]}(" + passInArgs + ");");
+                                }
+                            }
+
+                            //if (node.nextNode != null)
+                            //{
+                            //    if (!node.nextNode.isContextual)
+                            //    {
+                            //        if (node.isStatic)
+                            //        {
+                            //            if (node.isGenericFunction)
+                            //                lines.Add($"{node.returnInput} = {node.type}.{split[1]}{genericDefine}(" + passInArgs + ");");
+                            //            else
+                            //                lines.Add($"{node.returnInput} = {node.type}.{split[1]}(" + passInArgs + ");");
+                            //        }
+                            //        else
+                            //        {
+                            //            if (node.isGenericFunction)
+                            //                lines.Add($"{node.returnInput} = {split[0]}.{split[1]}{genericDefine}(" + passInArgs + ");");
+                            //            else
+                            //                lines.Add($"{node.returnInput} = {split[0]}.{split[1]}(" + passInArgs + ");");
+                            //        }
+                            //    }
+                            //}
+                        }
+
+                        //No Returning
+                        else
+                        {
+                            //Static No Return
+                            if (node.isStatic)
+                            {                               
+                                if (node.isGenericFunction)
+                                    baseLines.Add($"{node.type}.{split[1]}{genericDefine}(" + passInArgs + ")");
+                                else
+                                    baseLines.Add($"{node.type}.{split[1]}(" + passInArgs + ")");
+
+                                //If next node is not contexual execute the line
+                                if (node.nextNode != null)
+                                {
+                                    if (!node.nextNode.isContextual)
+                                    {
+                                        if (node.isGenericFunction)
+                                            lines.Add($"{node.type}.{split[1]}{genericDefine}(" + passInArgs + ");");
+                                        else
+                                            lines.Add($"{node.type}.{split[1]}(" + passInArgs + ");");
+                                    }
+                                }
+
+                                //If next node does not exist execute the line
+                                else
+                                {
+                                    if (node.isGenericFunction)
+                                        lines.Add($"{node.type}.{split[1]}{genericDefine}(" + passInArgs + ");");
+                                    else
+                                        lines.Add($"{node.type}.{split[1]}(" + passInArgs + ");");
+                                }
+
+                            }
+
+                            //Non Static No Return
+                            else
+                            {
+                                if (node.isGenericFunction)
+                                    baseLines.Add($"{split[0]}.{split[1]}{genericDefine}(" + passInArgs + ")");
+                                else
+                                    baseLines.Add($"{split[0]}.{split[1]}(" + passInArgs + ")");
+
+                                //If next node is not contexual execute the line
+                                if (node.nextNode != null)
+                                {
+                                    if (!node.nextNode.isContextual)
+                                    {
+                                        if (node.isGenericFunction)
+                                            lines.Add($"{split[0]}.{split[1]}{genericDefine}(" + passInArgs + ");");
+                                        else
+                                            lines.Add($"{split[0]}.{split[1]}(" + passInArgs + ");");
+                                    }
+                                }
+
+                                //If next node does not exist execute the line
+                                else
+                                {
+                                    if (node.isGenericFunction)
+                                        lines.Add($"{split[0]}.{split[1]}{genericDefine}(" + passInArgs + ");");
+                                    else
+                                        lines.Add($"{split[0]}.{split[1]}(" + passInArgs + ");");
+                                }
+
+                            }
+                            //if (node.nextNode != null)
+                            //{
+                            //    if (!node.nextNode.isContextual)
+                            //    {
+                            //        if (node.isGenericFunction)
+                            //            lines.Add($"{split[0]}.{split[1]}{genericDefine}(" + passInArgs + ");");
+                            //        else
+                            //            lines.Add($"{split[0]}.{split[1]}(" + passInArgs + ");");
+                            //    }
+                            //}
+                            //
+                            //else
+                            //{
+                            //    if (node.isGenericFunction)
+                            //        lines.Add($"{split[0]}.{split[1]}{genericDefine}(" + passInArgs + ");");
+                            //    else
+                            //        lines.Add($"{split[0]}.{split[1]}(" + passInArgs + ");");
+                            //}
+                        }
+                    } 
+                    
+                    //Enter here if node is contextual or using a base class method
+                    else
+                    {
+                        //If you are returning go in here
+                        if (node.returnInput != "")
+                        {
+                            if (node.isContextual)
+                            {
+                                //Create the lines
+                                string prevLine = baseLines[baseLines.Count - 1];
+                                string newLine = prevLine + $".{node.input}(" + passInArgs + ")";
+
+                                if (node.isGenericFunction)
+                                    newLine = prevLine + $".{node.input}{genericDefine}(" + passInArgs + ")";
+
+                                //Add the line
+                                baseLines.Add(newLine);
+                                lines.Add($"{node.returnInput} = " + newLine + ";");
+                            }
+
+                            //Not a contextual node
+                            else
+                            {
+                                if (node.isGenericFunction)
+                                {
+                                    baseLines.Add($"{node.input}{genericDefine}(" + passInArgs + ")");
+                                    lines.Add($"{node.returnInput} = {node.input}{genericDefine}(" + passInArgs + ");");
+                                }
+                                else
+                                {
+                                    baseLines.Add($"{node.input}(" + passInArgs + ")");
+                                    lines.Add($"{node.returnInput} = {node.input}(" + passInArgs + ");");
+                                }
+                                
+                            }
+                        }
+
+                        //If not returning
+                        else
+                        {
+                            if (node.isContextual)
+                            {
+                                string prevLine = baseLines[baseLines.Count - 1];
+                                string newLine = "";
+
+                                if (node.isGenericFunction)
+                                    newLine = prevLine + $".{node.input}{genericDefine}(" + passInArgs + ")";
+                                else
+                                    newLine = prevLine + $".{node.input}(" + passInArgs + ")";
+
+                                baseLines.Add(newLine);
+
+                                //If the next node is not contextual execute the line
+                                if (node.nextNode != null)
+                                {
+                                    if (!node.nextNode.isContextual)
+                                    {
+                                        lines.Add(newLine + ";");
+                                    }
+                                }
+
+                                //If the next node does not exist, execute the line
+                                else
+                                {
+                                    lines.Add(newLine + ";");
+                                }
+
+                            }
+
+                            //If not contextual
+                            else
+                            {
+                                if (node.isGenericFunction)
+                                {
+                                    baseLines.Add($"{node.input}{genericDefine}(" + passInArgs + ")");
+                                    lines.Add($"{node.input}{genericDefine}(" + passInArgs + ");");
+                                }
+                                else
+                                {
+                                    baseLines.Add($"{node.input}(" + passInArgs + ")");
+                                    lines.Add($"{node.input}(" + passInArgs + ");");
+                                }
+                            }
+                        }
+                    }
+
+                }
+
+                if (node.nodeType == NodeType.Constructor)
+                {
+                    string[] split = node.input.Split(' ');
+
+                    string passInArgs = "";
+                    string genericDefine = "";
+
+                    List<Parameter> generics = new List<Parameter>();
+
+                    for (int i = 0; i < node.paramList.Count; i++)
+                    {
+                        if (node.paramList[i].isGeneric)
+                        {
+                            generics.Add(node.paramList[i]);
+                            continue;
+                        }
+
+                        if (node.paramList[i].inputVar)
+                            passInArgs += node.paramList[i].varInput;
+                        else
+                            passInArgs += GetLiteral(node.paramList[i].arg);
+
+                        if (i < node.paramList.Count - 1)
+                            passInArgs += ", ";
+                    }
+
+                    if (generics.Count > 0)
+                    {
+                        genericDefine = "<";
+
+                        for (int i = 0; i < generics.Count; i++)
+                        {
+                            genericDefine += generics[i].templateType;
+
+                            if (i < generics.Count - 1)
+                                genericDefine += ", ";
+                        }
+
+                        genericDefine += ">";
+
+                    }
+
+                    if (split.Length > 1)
+                    {                        
+                        string line = $"{node.type}.{split[0]}(" + passInArgs + ")";
+
+                        if (node.isGenericFunction)
+                            line = $"{node.type}.{split[0]}{genericDefine}(" + passInArgs + ")";
+
+                        if (node.returnInput != "")
+                        {
+                            //string line = $"{node.nameSpace}.{split[0]}(" + passInArgs + ")";
+                            baseLines.Add(line);
+                            lines.Add($"{node.returnInput} =  new " + line + ";");
+                        }
+
+                    }
+                }
+
+
+                if (node.nodeType == NodeType.Field_Get)
+                {
+                    string[] split = node.input.Split(' ');
+
+                    if (node.isContextual)
+                    {
+                        string prevLine = baseLines[baseLines.Count - 1];
+                        string newLine = prevLine + $".{node.input}";
+                        baseLines.Add(newLine);
+
+                        if (node.returnInput != "")
+                        {                            
+                            lines.Add($"{node.returnInput} = " + newLine + ";");                                                        
+                        }
+                        else
+                            lines.Add(newLine + ";");
+                    }
+
+                    else
+                    {
+                        string newLine = "";
+
+                        if (node.isStatic)
+                        {
+                            //string nameSpace = node.type.Split('.')[0];
+                            //newLine = $"{node.nameSpace}.{split[0]}.{split[1]}";
+                            //newLine = $"{nameSpace}.{split[0]}.{split[1]}";
+                            newLine = $"{node.type}.{split[1]}";
+                        }
+                        else
+                            newLine = $"{split[0]}.{split[1]}";
+
+                        baseLines.Add(newLine);
+
+                        if (node.returnInput != "")
+                        {
+                            lines.Add($"{node.returnInput} = " + newLine + ";");
+                        }
+                    }
+                }
+
+                if (node.nodeType == NodeType.Field_Set)
+                {
+                    string[] split = node.input.Split(' ');
+
+                    if (node.isContextual)
+                    {
+                        string prevLine = baseLines[baseLines.Count - 1];
+                        string newLine = prevLine + $"{node.input}";
+                        baseLines.Add(newLine);
+
+                        if (node.paramList[0].inputVar)
+                            lines.Add(newLine + $" = {node.paramList[0].varInput};");
+                        else
+                            lines.Add(newLine + $" = {GetLiteral(node.paramList[0].arg)};");
+                    }
+
+                    else
+                    {
+                        if (node.paramList[0].inputVar)
+                        {
+                            if (node.isStatic)
+                            {
+                                //string nameSpace = node.type.Split('.')[0];
+                                //lines.Add($"{node.nameSpace}.{split[0]}.{split[1]} = {node.paramList[0].varInput};");
+                                //lines.Add($"{nameSpace}.{split[0]}.{split[1]} = {node.paramList[0].varInput};");
+                                lines.Add($"{node.type}.{split[1]} = {node.paramList[0].varInput};");
+                            }
+                            else
+                                lines.Add($"{split[0]}.{split[1]} = {node.paramList[0].varInput};");
+                        }
+                        else
+                        {
+                            if (node.isStatic)
+                            {
+                                //string nameSpace = node.type.Split('.')[0];
+                                //lines.Add($"{node.nameSpace}.{split[0]}.{split[1]} = {GetLiteral(node.paramList[0].arg)};");
+                                //lines.Add($"{nameSpace}.{split[0]}.{split[1]} = {GetLiteral(node.paramList[0].arg)};");
+                                lines.Add($"{node.type}.{split[1]} = {GetLiteral(node.paramList[0].arg)};");
+                            }
+                            else
+                                lines.Add($"{split[0]}.{split[1]} = {GetLiteral(node.paramList[0].arg)};");
+                        }
+                    }
+
+                }
+
+                if (node.nodeType == NodeType.Property_Get)
+                {
+                    string[] split = node.input.Split(' ');
+
+                    if (node.isContextual)
+                    {
+                        string prevLine = baseLines[baseLines.Count - 1];
+                        string newLine = prevLine + $".{node.input}";
+                        baseLines.Add(newLine);
+
+                        if (node.returnInput != "")
+                            lines.Add($"{node.returnInput} = " + newLine + ";");
+                        else
+                            lines.Add(newLine + ";");
+                    }
+
+                    else
+                    {
+                        string newLine = "";
+
+                        if (node.isStatic)
+                        {
+                            //string nameSpace = node.type.Split('.')[0];
+                            //newLine = $"{node.nameSpace}.{split[0]}.{split[1]}";
+                            //newLine = $"{nameSpace}.{split[0]}.{split[1]}";
+                            newLine = $"{node.type}.{split[1]}";
+                        }
+                        else
+                            newLine = $"{split[0]}.{split[1]}";
+
+                        baseLines.Add(newLine);
+
+                        if (node.returnInput != "")
+                        {
+                            lines.Add($"{node.returnInput} = " + newLine + ";");
+                        }
+                    }
+                }
+
+                if (node.nodeType == NodeType.Property_Set)
+                {
+                    string[] split = node.input.Split(' ');
+
+                    if (node.isContextual)
+                    {
+                        string prevLine = baseLines[baseLines.Count - 1];
+                        string newLine = prevLine + $"{node.input}";
+                        baseLines.Add(newLine);
+
+                        if (node.paramList[0].inputVar)
+                            lines.Add(newLine + $" = {node.paramList[0].varInput};");
+                        else
+                            lines.Add(newLine + $" = {GetLiteral(node.paramList[0].arg)};");
+                    }
+
+                    else
+                    {
+                        if (node.paramList[0].inputVar)
+                        {
+                            if (node.isStatic)
+                            {
+                                //string nameSpace = node.type.Split('.')[0];
+                                //lines.Add($"{node.nameSpace}.{split[0]}.{split[1]} = {node.paramList[0].varInput};");
+                                //lines.Add($"{nameSpace}.{split[0]}.{split[1]} = {node.paramList[0].varInput};");
+                                lines.Add($"{node.type}.{split[1]} = {node.paramList[0].varInput};");
+                            }
+                            else
+                                lines.Add($"{split[0]}.{split[1]} = {node.paramList[0].varInput};");
+                        }
+                        else
+                        {
+                            if (node.isStatic)
+                            {
+                                //string nameSpace = node.type.Split('.')[0];
+                                //lines.Add($"{node.nameSpace}.{split[0]}.{split[1]} = {GetLiteral(node.paramList[0].arg)};");
+                                //lines.Add($"{nameSpace}.{split[0]}.{split[1]} = {GetLiteral(node.paramList[0].arg)};");
+                                lines.Add($"{node.type}.{split[1]} = {GetLiteral(node.paramList[0].arg)};");
+                            }
+                            else
+                                lines.Add($"{split[0]}.{split[1]} = {GetLiteral(node.paramList[0].arg)};");
+                        }
+                    }
+                }
+
+                if (node.nodeType == NodeType.Conditional)
+                {
+                    if (node.nextNode != null)
+                    {
+                        if (node.isContextual)
+                        {
+                            string prevLine = baseLines[baseLines.Count - 1];
+                            string newLine = $"if (" + prevLine + ")";
+                            lines.Add(newLine);
+                            lines.Add("{");
+                        }
+
+                        else
+                        {
+                            if (node.paramList[0].inputVar)
+                                lines.Add($"if ({node.paramList[0].varInput})");
+                            else
+                                lines.Add($"if ({node.paramList[0].arg.ToString()})");
+                            lines.Add("{");
+                        }
+
+                        List<string> result = FullCompileConditional(node.nextNode, true);
+
+                        foreach (string line in result)
+                        {
+                            lines.Add(line);
+                        }
+
+                        lines.Add("}");
+                    }
+
+                    if (node.falseNode != null)
+                    {
+                        lines.Add("else");
+                        lines.Add("{");
+
+                        List<string> result = FullCompileConditional(node.nextNode, false);
+
+                        foreach (string line in result)
+                        {
+                            lines.Add(line);
+                        }
+
+                        lines.Add("}");
+                    }
+
+                    break;
+
+                }
+
+                if (node.nodeType == NodeType.Operation)
+                {
+                    string[] split = node.input.Split(' ');
+
+                    if (node.isContextual)
+                    {
+                        string prevLine = baseLines[baseLines.Count - 1];
+
+                        if (node.paramList[0].inputVar)
+                        {
+                            string newLine = prevLine + $" {split[0]} {node.paramList[0].varInput}";
+                            baseLines.Add(newLine);
+
+                            //Check if the next node is contextual for parentheses
+                            if (node.nextNode != null)
+                            {
+                                if (node.nextNode.isContextual && split[0] != "=")
+                                {
+                                    baseLines.Add($"({newLine})");
+                                }
+                            }
+                            if (node.returnInput != "")
+                                lines.Add($"{node.returnInput} = " + newLine + ";");
+                            //else
+                            //    lines.Add(newLine + ";");
+                        }
+
+                        else
+                        {
+                            string newLine = prevLine + $" {split[0]} {GetLiteral(node.paramList[0].arg)}";
+                            baseLines.Add(newLine);
+
+                            //Check if the next node is contextual for parentheses
+                            if (node.nextNode != null)
+                            {
+                                if (node.nextNode.isContextual && split[0] != "=")
+                                {
+                                    baseLines.Add($"({newLine})");
+                                }
+                            }
+
+                            if (node.returnInput != "")
+                                lines.Add($"{node.returnInput} = " + newLine + ";");
+                            //else
+                            //    lines.Add(newLine + ";");
+                        }
+                    }
+
+                    else
+                    {
+                        if (node.paramList[0].inputVar)
+                        {
+                            string newLine = $"{split[0]} {split[1]} {node.paramList[0].varInput}";
+                            baseLines.Add(newLine);
+
+                            if (node.nextNode != null)
+                            {
+                                if (node.nextNode.isContextual && split[1] != "=")
+                                {
+                                    baseLines.Add($"({newLine})");
+                                }
+                            }
+
+                            if (node.returnInput != "")
+                                lines.Add($"{node.returnInput} = " + newLine + ";");
+                            else
+                            {
+                                if (split[1] == "=")
+                                {
+                                    lines.Add(newLine + ";");
+                                }
+                            }
+                        }
+
+                        else
+                        {
+                            string newLine = $"{split[0]} {split[1]} {GetLiteral(node.paramList[0].arg)}";
+                            baseLines.Add(newLine);
+
+                            if (node.nextNode != null)
+                            {
+                                if (node.nextNode.isContextual && split[1] != "=")
+                                {
+                                    baseLines.Add($"({newLine})");
+                                }
+                            }
+
+                            if (node.returnInput != "")
+                                lines.Add($"{node.returnInput} = " + newLine + ";");
+                            
+                            else
+                            {
+                                if (split[1] == "=")
+                                {
+                                    lines.Add(newLine + ";");
+                                }
+                            }
+
+                        }
+                    }
+                }
+
+                if (node.nextNode == null)
+                {
+                    //lines.Add("}\n");
+                    break;
+                }
+                node = node.nextNode;
+            }
+
+            foreach (string line in lines)
+            {
+                funcBuilder.Append(line + "\n");
+            }
+
+            //Add space after function
+            funcBuilder.Append("}\n");
+            classFile.Append(funcBuilder.ToString());            
+        }
+
+        //Ending bracket for class
+        classFile.Append("}\n");
+        //classFile.Append("}\n");
+        //string final = classFile.ToString();
+        //final += "}\n";
+
+        //Debug File Create
+        //FileStream file = File.Create(Application.persistentDataPath + "/" + data.name + ".cs");
+        //BinaryFormatter bf = new BinaryFormatter();
+        //string final = classFile.ToString();        
+        //bf.Serialize(file, final);
+        //file.Close();
+
+        File.WriteAllText(Application.persistentDataPath + "/" + data.name + ".cs", classFile.ToString());
+
+        //Add actual Compiling here        
+        //parameters.OutputAssembly = "NewAssembly.dll";
+        parameters.OutputAssembly = $"{data.name}.dll";
+
+        string final = classFile.ToString();
+
+        CompilerResults compile = compiler.CompileAssemblyFromSource(parameters, final);
+
+        if (compile.Errors.Count > 0)
+        {
+            Debug.Log($"Errors building {final} to  {compile.PathToAssembly}");
+
+            foreach (CompilerError error in compile.Errors)
+            {
+                Debug.Log($"  {error.ToString()}  ");
+            }
+        }
+
+        Type type = compile.CompiledAssembly.GetType(data.name);
+
+        data.dataRef.compiledClassType = type.ToString();
+        data.dataRef.compiledClassTypeAsmPath = type.Assembly.Location;
+
+#if UNITY_EDITOR
+        EditorUtility.SetDirty(data.dataRef);
+        AssetDatabase.Refresh();
+#endif
+
+        return type;
+    }
+
+    List<string> FullCompileConditional(Node node, bool truePath)
+    {
+        List<string> lines = new List<string>();
+        List<string> baseLines = new List<string>();
+        
+        while (node != null)
+        {
+            if (node.nodeType == NodeType.Function)
+            {
+                string[] split = node.input.Split(' ');
+
+                string passInArgs = "";
+                string genericDefine = "";
+
+                List<Parameter> generics = new List<Parameter>();
+
+                //Set up the parameters
+                if (node.paramList != null)
+                {
+                    for (int i = 0; i < node.paramList.Count; i++)
+                    {
+                        //Add Generics
+                        if (node.paramList[i].isGeneric)
+                        {
+                            generics.Add(node.paramList[i]);
+                            continue;
+                        }
+
+                        //Add the normal ones
+                        if (node.paramList[i].inputVar)
+                            passInArgs += node.paramList[i].varInput;
+                        else
+                            passInArgs += GetLiteral(node.paramList[i].arg);
+
+                        if (i < node.paramList.Count - 1)
+                            passInArgs += ", ";
+                    }
+                }
+
+                //Process Generics
+                if (generics.Count > 0)
+                {
+                    genericDefine = "<";
+
+                    for (int i = 0; i < generics.Count; i++)
+                    {
+                        genericDefine += generics[i].templateType;
+
+                        if (i < generics.Count - 1)
+                            genericDefine += ", ";
+                    }
+
+                    genericDefine += ">";
+
+                }
+
+                if (split.Length > 1)
+                {
+                    //If a node is returning that should be the end of the particular line
+                    if (node.returnInput != "")
+                    {
+                        if (node.isStatic)
+                        {
+                            if (node.isGenericFunction)
+                            {
+                                baseLines.Add($"{node.type}.{split[1]}{genericDefine}(" + passInArgs + ")");
+                                lines.Add($"{node.returnInput} = {node.type}.{split[1]}{genericDefine}(" + passInArgs + ");");
+                            }
+                            else
+                            {
+                                baseLines.Add($"{node.type}.{split[1]}(" + passInArgs + ")");
+                                lines.Add($"{node.returnInput} = {node.type}.{split[1]}(" + passInArgs + ");");
+                            }
+                        }
+                        else
+                        {
+                            if (node.isGenericFunction)
+                            {
+                                baseLines.Add($"{split[0]}.{split[1]}{genericDefine}(" + passInArgs + ")");
+                                lines.Add($"{node.returnInput} = {split[0]}.{split[1]}{genericDefine}(" + passInArgs + ");");
+                            }
+                            else
+                            {
+                                baseLines.Add($"{split[0]}.{split[1]}(" + passInArgs + ")");
+                                lines.Add($"{node.returnInput} = {split[0]}.{split[1]}(" + passInArgs + ");");
+                            }
+                        }
+
+                        //if (node.nextNode != null)
+                        //{
+                        //    if (!node.nextNode.isContextual)
+                        //    {
+                        //        if (node.isStatic)
+                        //        {
+                        //            if (node.isGenericFunction)
+                        //                lines.Add($"{node.returnInput} = {node.type}.{split[1]}{genericDefine}(" + passInArgs + ");");
+                        //            else
+                        //                lines.Add($"{node.returnInput} = {node.type}.{split[1]}(" + passInArgs + ");");
+                        //        }
+                        //        else
+                        //        {
+                        //            if (node.isGenericFunction)
+                        //                lines.Add($"{node.returnInput} = {split[0]}.{split[1]}{genericDefine}(" + passInArgs + ");");
+                        //            else
+                        //                lines.Add($"{node.returnInput} = {split[0]}.{split[1]}(" + passInArgs + ");");
+                        //        }
+                        //    }
+                        //}
+                    }
+
+                    //No Returning
+                    else
+                    {
+                        //Static No Return
+                        if (node.isStatic)
+                        {
+                            if (node.isGenericFunction)
+                                baseLines.Add($"{node.type}.{split[1]}{genericDefine}(" + passInArgs + ")");
+                            else
+                                baseLines.Add($"{node.type}.{split[1]}(" + passInArgs + ")");
+
+                            //If next node is not contexual execute the line
+                            if (node.nextNode != null)
+                            {
+                                if (!node.nextNode.isContextual)
+                                {
+                                    if (node.isGenericFunction)
+                                        lines.Add($"{node.type}.{split[1]}{genericDefine}(" + passInArgs + ");");
+                                    else
+                                        lines.Add($"{node.type}.{split[1]}(" + passInArgs + ");");
+                                }
+                            }
+
+                            //If next node does not exist execute the line
+                            else
+                            {
+                                if (node.isGenericFunction)
+                                    lines.Add($"{node.type}.{split[1]}{genericDefine}(" + passInArgs + ");");
+                                else
+                                    lines.Add($"{node.type}.{split[1]}(" + passInArgs + ");");
+                            }
+
+                        }
+
+                        //Non Static No Return
+                        else
+                        {
+                            if (node.isGenericFunction)
+                                baseLines.Add($"{split[0]}.{split[1]}{genericDefine}(" + passInArgs + ")");
+                            else
+                                baseLines.Add($"{split[0]}.{split[1]}(" + passInArgs + ")");
+
+                            //If next node is not contexual execute the line
+                            if (node.nextNode != null)
+                            {
+                                if (!node.nextNode.isContextual)
+                                {
+                                    if (node.isGenericFunction)
+                                        lines.Add($"{split[0]}.{split[1]}{genericDefine}(" + passInArgs + ");");
+                                    else
+                                        lines.Add($"{split[0]}.{split[1]}(" + passInArgs + ");");
+                                }
+                            }
+
+                            //If next node does not exist execute the line
+                            else
+                            {
+                                if (node.isGenericFunction)
+                                    lines.Add($"{split[0]}.{split[1]}{genericDefine}(" + passInArgs + ");");
+                                else
+                                    lines.Add($"{split[0]}.{split[1]}(" + passInArgs + ");");
+                            }
+
+                        }
+                        //if (node.nextNode != null)
+                        //{
+                        //    if (!node.nextNode.isContextual)
+                        //    {
+                        //        if (node.isGenericFunction)
+                        //            lines.Add($"{split[0]}.{split[1]}{genericDefine}(" + passInArgs + ");");
+                        //        else
+                        //            lines.Add($"{split[0]}.{split[1]}(" + passInArgs + ");");
+                        //    }
+                        //}
+                        //
+                        //else
+                        //{
+                        //    if (node.isGenericFunction)
+                        //        lines.Add($"{split[0]}.{split[1]}{genericDefine}(" + passInArgs + ");");
+                        //    else
+                        //        lines.Add($"{split[0]}.{split[1]}(" + passInArgs + ");");
+                        //}
+                    }
+                }
+
+                //Enter here if node is contextual or using a base class method
+                else
+                {
+                    //If you are returning go in here
+                    if (node.returnInput != "")
+                    {
+                        if (node.isContextual)
+                        {
+                            //Create the lines
+                            string prevLine = baseLines[baseLines.Count - 1];
+                            string newLine = prevLine + $".{node.input}(" + passInArgs + ")";
+
+                            if (node.isGenericFunction)
+                                newLine = prevLine + $".{node.input}{genericDefine}(" + passInArgs + ")";
+
+                            //Add the line
+                            baseLines.Add(newLine);
+                            lines.Add($"{node.returnInput} = " + newLine + ";");
+                        }
+
+                        //Not a contextual node
+                        else
+                        {
+                            if (node.isGenericFunction)
+                            {
+                                baseLines.Add($"{node.input}{genericDefine}(" + passInArgs + ")");
+                                lines.Add($"{node.returnInput} = {node.input}{genericDefine}(" + passInArgs + ");");
+                            }
+                            else
+                            {
+                                baseLines.Add($"{node.input}(" + passInArgs + ")");
+                                lines.Add($"{node.returnInput} = {node.input}(" + passInArgs + ");");
+                            }
+
+                        }
+                    }
+
+                    //If not returning
+                    else
+                    {
+                        if (node.isContextual)
+                        {
+                            string prevLine = baseLines[baseLines.Count - 1];
+                            string newLine = "";
+
+                            if (node.isGenericFunction)
+                                newLine = prevLine + $".{node.input}{genericDefine}(" + passInArgs + ")";
+                            else
+                                newLine = prevLine + $".{node.input}(" + passInArgs + ")";
+
+                            baseLines.Add(newLine);
+
+                            //If the next node is not contextual execute the line
+                            if (node.nextNode != null)
+                            {
+                                if (!node.nextNode.isContextual)
+                                {
+                                    lines.Add(newLine + ";");
+                                }
+                            }
+
+                            //If the next node does not exist, execute the line
+                            else
+                            {
+                                lines.Add(newLine + ";");
+                            }
+
+                        }
+
+                        //If not contextual
+                        else
+                        {
+                            if (node.isGenericFunction)
+                            {
+                                baseLines.Add($"{node.input}{genericDefine}(" + passInArgs + ")");
+                                lines.Add($"{node.input}{genericDefine}(" + passInArgs + ");");
+                            }
+                            else
+                            {
+                                baseLines.Add($"{node.input}(" + passInArgs + ")");
+                                lines.Add($"{node.input}(" + passInArgs + ");");
+                            }
+                        }
+                    }
+                }
+
+            }
+
+            if (node.nodeType == NodeType.Constructor)
+            {
+                string[] split = node.input.Split(' ');
+
+                string passInArgs = "";
+                string genericDefine = "";
+
+                List<Parameter> generics = new List<Parameter>();
+
+                for (int i = 0; i < node.paramList.Count; i++)
+                {
+                    if (node.paramList[i].isGeneric)
+                    {
+                        generics.Add(node.paramList[i]);
+                        continue;
+                    }
+
+                    if (node.paramList[i].inputVar)
+                        passInArgs += node.paramList[i].varInput;
+                    else
+                        passInArgs += GetLiteral(node.paramList[i].arg);
+
+                    if (i < node.paramList.Count - 1)
+                        passInArgs += ", ";
+                }
+
+                if (generics.Count > 0)
+                {
+                    genericDefine = "<";
+
+                    for (int i = 0; i < generics.Count; i++)
+                    {
+                        genericDefine += generics[i].templateType;
+
+                        if (i < generics.Count - 1)
+                            genericDefine += ", ";
+                    }
+
+                    genericDefine += ">";
+
+                }
+
+                if (split.Length > 1)
+                {
+                    //string line = $"{node.nameSpace}.{split[0]}(" + passInArgs + ")";
+                    //string nameSpace = node.type.Split('.')[0];
+                    //string line = $"{nameSpace}.{split[0]}(" + passInArgs + ")";
+                    string line = $"{node.type}.{split[0]}(" + passInArgs + ")";
+
+                    if (node.isGenericFunction)
+                        line = $"{node.type}.{split[0]}{genericDefine}(" + passInArgs + ")";
+
+                    if (node.returnInput != "")
+                    {
+                        //string line = $"{node.nameSpace}.{split[0]}(" + passInArgs + ")";
+                        baseLines.Add(line);
+                        lines.Add($"{node.returnInput} =  new " + line + ";");
+                    }
+
+                }
+            }
+
+            if (node.nodeType == NodeType.Field_Get)
+            {
+                string[] split = node.input.Split(' ');
+
+                if (node.isContextual)
+                {
+                    string prevLine = baseLines[baseLines.Count - 1];
+                    string newLine = prevLine + $".{node.input}";
+                    baseLines.Add(newLine);
+
+                    if (node.returnInput != "")
+                    {
+                        lines.Add($"{node.returnInput} = " + newLine + ";");
+                    }
+                    else
+                        lines.Add(newLine + ";");
+                }
+
+                else
+                {
+                    string newLine = "";
+
+                    if (node.isStatic)
+                    {
+                        //string nameSpace = node.type.Split('.')[0];
+                        //newLine = $"{node.nameSpace}.{split[0]}.{split[1]}";
+                        //newLine = $"{nameSpace}.{split[0]}.{split[1]}";
+                        newLine = $"{node.type}.{split[1]}";
+                    }
+                    else
+                        newLine = $"{split[0]}.{split[1]}";
+
+                    baseLines.Add(newLine);
+
+                    if (node.returnInput != "")
+                    {
+                        lines.Add($"{node.returnInput} = " + newLine + ";");
+                    }
+                }
+            }
+
+            if (node.nodeType == NodeType.Field_Set)
+            {
+                string[] split = node.input.Split(' ');
+
+                if (node.isContextual)
+                {
+                    string prevLine = baseLines[baseLines.Count - 1];
+                    string newLine = prevLine + $"{node.input}";
+                    baseLines.Add(newLine);
+
+                    if (node.paramList[0].inputVar)
+                        lines.Add(newLine + $" = {node.paramList[0].varInput};");
+                    else
+                        lines.Add(newLine + $" = {GetLiteral(node.paramList[0].arg)};");
+                }
+
+                else
+                {
+                    if (node.paramList[0].inputVar)
+                    {
+                        if (node.isStatic)
+                        {
+                            //string nameSpace = node.type.Split('.')[0];
+                            //lines.Add($"{node.nameSpace}.{split[0]}.{split[1]} = {node.paramList[0].varInput};");
+                            //lines.Add($"{nameSpace}.{split[0]}.{split[1]} = {node.paramList[0].varInput};");
+                            lines.Add($"{node.type}.{split[1]} = {node.paramList[0].varInput};");
+                        }
+                        else
+                            lines.Add($"{split[0]}.{split[1]} = {node.paramList[0].varInput};");
+                    }
+                    else
+                    {
+                        if (node.isStatic)
+                        {
+                            //string nameSpace = node.type.Split('.')[0];
+                            //lines.Add($"{node.nameSpace}.{split[0]}.{split[1]} = {GetLiteral(node.paramList[0].arg)};");
+                            //lines.Add($"{nameSpace}.{split[0]}.{split[1]} = {GetLiteral(node.paramList[0].arg)};");
+                            lines.Add($"{node.type}.{split[1]} = {GetLiteral(node.paramList[0].arg)};");
+                        }
+                        else
+                            lines.Add($"{split[0]}.{split[1]} = {GetLiteral(node.paramList[0].arg)};");
+                    }
+                }
+
+            }
+
+            if (node.nodeType == NodeType.Property_Get)
+            {
+                string[] split = node.input.Split(' ');
+
+                if (node.isContextual)
+                {
+                    string prevLine = baseLines[baseLines.Count - 1];
+                    string newLine = prevLine + $".{node.input}";
+                    baseLines.Add(newLine);
+
+                    if (node.returnInput != "")
+                        lines.Add($"{node.returnInput} = " + newLine + ";");
+                    else
+                        lines.Add(newLine + ";");
+                }
+
+                else
+                {
+                    string newLine = "";
+
+                    if (node.isStatic)
+                    {
+                        //string nameSpace = node.type.Split('.')[0];
+                        //newLine = $"{node.nameSpace}.{split[0]}.{split[1]}";
+                        //newLine = $"{nameSpace}.{split[0]}.{split[1]}";
+                        newLine = $"{node.type}.{split[1]}";
+                    }
+                    else
+                        newLine = $"{split[0]}.{split[1]}";
+
+                    baseLines.Add(newLine);
+
+                    if (node.returnInput != "")
+                    {
+                        lines.Add($"{node.returnInput} = " + newLine + ";");
+                    }
+                }
+            }
+
+            if (node.nodeType == NodeType.Property_Set)
+            {
+                string[] split = node.input.Split(' ');
+
+                if (node.isContextual)
+                {
+                    string prevLine = baseLines[baseLines.Count - 1];
+                    string newLine = prevLine + $"{node.input}";
+                    baseLines.Add(newLine);
+
+                    if (node.paramList[0].inputVar)
+                        lines.Add(newLine + $" = {node.paramList[0].varInput};");
+                    else
+                        lines.Add(newLine + $" = {GetLiteral(node.paramList[0].arg)};");
+                }
+
+                else
+                {
+                    if (node.paramList[0].inputVar)
+                    {
+                        if (node.isStatic)
+                        {
+                            //string nameSpace = node.type.Split('.')[0];
+                            //lines.Add($"{node.nameSpace}.{split[0]}.{split[1]} = {node.paramList[0].varInput};");
+                            //lines.Add($"{nameSpace}.{split[0]}.{split[1]} = {node.paramList[0].varInput};");
+                            lines.Add($"{node.type}.{split[1]} = {node.paramList[0].varInput};");
+                        }
+                        else
+                            lines.Add($"{split[0]}.{split[1]} = {node.paramList[0].varInput};");
+                    }
+                    else
+                    {
+                        if (node.isStatic)
+                        {
+                            //string nameSpace = node.type.Split('.')[0];
+                            //lines.Add($"{node.nameSpace}.{split[0]}.{split[1]} = {GetLiteral(node.paramList[0].arg)};");
+                            //lines.Add($"{nameSpace}.{split[0]}.{split[1]} = {GetLiteral(node.paramList[0].arg)};");
+                            lines.Add($"{node.type}.{split[1]} = {GetLiteral(node.paramList[0].arg)};");
+                        }
+                        else
+                            lines.Add($"{split[0]}.{split[1]} = {GetLiteral(node.paramList[0].arg)};");
+                    }
+                }
+            }
+
+            if (node.nodeType == NodeType.Conditional)
+            {
+                if (node.nextNode != null)
+                {
+                    if (node.isContextual)
+                    {
+                        string prevLine = baseLines[baseLines.Count - 1];
+                        string newLine = $"if (" + prevLine + ")";
+                        lines.Add(newLine);
+                        lines.Add("{");
+                    }
+
+                    else
+                    {
+                        if (node.paramList[0].inputVar)
+                            lines.Add($"if ({node.paramList[0].varInput})");
+                        else
+                            lines.Add($"if ({node.paramList[0].arg.ToString()})");
+                        lines.Add("{");
+                    }
+
+                    List<string> result = FullCompileConditional(node.nextNode, true);
+
+                    foreach(string line in result)
+                    {
+                        lines.Add(line);
+                    }
+
+                    lines.Add("}");
+                }
+
+                if (node.falseNode != null)
+                {
+                    lines.Add("else");
+                    lines.Add("{");
+
+                    List<string> result = FullCompileConditional(node.nextNode, false);
+
+                    foreach (string line in result)
+                    {
+                        lines.Add(line);
+                    }
+
+                    lines.Add("}");
+                }
+
+                break;
+            }
+
+            if (node.nodeType == NodeType.Operation)
+            {
+                string[] split = node.input.Split(' ');
+
+                if (node.isContextual)
+                {
+                    string prevLine = baseLines[baseLines.Count - 1];
+
+                    if (node.paramList[0].inputVar)
+                    {
+                        string newLine = prevLine + $" {split[0]} {node.paramList[0].varInput}";
+                        baseLines.Add(newLine);
+
+                        //Check if the next node is contextual for parentheses
+                        if (node.nextNode != null)
+                        {
+                            if (node.nextNode.isContextual)
+                            {
+                                baseLines.Add($"({newLine})");
+                            }
+                        }
+                        if (node.returnInput != "")
+                            lines.Add($"{node.returnInput} = " + newLine + ";");
+                        //else
+                        //    lines.Add(newLine + ";");
+                    }
+
+                    else
+                    {
+                        string newLine = prevLine + $" {split[0]} {GetLiteral(node.paramList[0].arg)}";
+                        baseLines.Add(newLine);
+
+                        //Check if the next node is contextual for parentheses
+                        if (node.nextNode != null)
+                        {
+                            if (node.nextNode.isContextual)
+                            {
+                                baseLines.Add($"({newLine})");
+                            }
+                        }
+
+                        if (node.returnInput != "")
+                            lines.Add($"{node.returnInput} = " + newLine + ";");
+                        //else
+                        //    lines.Add(newLine + ";");
+                    }
+                }
+
+                else
+                {
+                    if (node.paramList[0].inputVar)
+                    {
+                        string newLine = $"{split[0]} {split[1]} {node.paramList[0].varInput}";
+                        baseLines.Add(newLine);
+
+                        if (node.returnInput != "")
+                            lines.Add($"{node.returnInput} = " + newLine + ";");
+                        //else
+                        //    lines.Add(newLine + ";");
+                    }
+
+                    else
+                    {
+                        string newLine = $"{split[0]} {split[1]} {GetLiteral(node.paramList[0].arg)}";
+                        baseLines.Add(newLine);
+
+                        if (node.returnInput != "")
+                            lines.Add($"{node.returnInput} = " + newLine + ";");
+                        //else
+                        //    lines.Add(newLine + ";");
+                    }
+                }
+            }
+
+            if (node.nextNode == null)
+                break;
+            node = node.nextNode;
+        }
+
+        //lines.Add("}\n");
+
+        return lines;
+    }
+
+    public Action FullCompile_Expression(BlueprintComponent blueprint, string funcName)
     {
         if (blueprint.bp == null)
             return null;
@@ -1532,7 +3317,8 @@ public class Interpreter
         Node node = blueprint.bp.entryPoints[funcName];
         List<Expression> expressions = new List<Expression>();
         Expression contextTarget = null;
-
+        LabelTarget endLabel = Expression.Label("End");
+        
         while (node != null)
         {
             if (node.isEntryPoint)
@@ -1545,7 +3331,7 @@ public class Interpreter
             {
                 if (node.nodeType == NodeType.Function)
                 {
-                    expressions.Add(CallFunction(blueprint, node, out contextTarget, contextTarget));                    
+                    expressions.Add(CallFunction(blueprint, node, out contextTarget, contextTarget, endLabel));                    
                 }
 
                 if (node.nodeType == NodeType.Field_Get)
@@ -1570,8 +3356,8 @@ public class Interpreter
 
                 if (node.nodeType == NodeType.Conditional)
                 {
-                    Expression trueBranch = CompileConditional(blueprint, node, true);
-                    Expression falseBranch = CompileConditional(blueprint, node, false);
+                    Expression trueBranch = CompileConditional_Expression(blueprint, node, true, null, endLabel);
+                    Expression falseBranch = CompileConditional_Expression(blueprint, node, false, null, endLabel);
 
                     //Expression check = Expression.IfThenElse(Expression.Convert(contextTarget, typeof(bool)), trueBranch, falseBranch);
                     //expressions.Add(check);
@@ -1599,7 +3385,7 @@ public class Interpreter
         
             if (node.nodeType == NodeType.Function)
             {
-                expressions.Add(CallFunction(blueprint, node, out contextTarget));               
+                expressions.Add(CallFunction(blueprint, node, out contextTarget, null, endLabel));               
             }
 
             if (node.nodeType == NodeType.Constructor)
@@ -1631,8 +3417,8 @@ public class Interpreter
 
             if (node.nodeType == NodeType.Conditional)
             {
-                Expression trueBranch = CompileConditional(blueprint, node, true);
-                Expression falseBranch = CompileConditional(blueprint, node, false);
+                Expression trueBranch = CompileConditional_Expression(blueprint, node, true, null, endLabel);
+                Expression falseBranch = CompileConditional_Expression(blueprint, node, false, null, endLabel);
 
                 //Expression check = Expression.IfThenElse(Expression.Convert(GetVariable(blueprint, (string)node.paramList[0].arg), typeof(bool)), trueBranch, falseBranch);
                 //expressions.Add(check);
@@ -1662,6 +3448,8 @@ public class Interpreter
         //End While
         if (expressions.Count > 0)
         {
+            expressions.Add(Expression.Label(endLabel));
+
             Expression final = Expression.Block(expressions.ToArray());
 
             var func = Expression.Lambda<Action>(final, new ParameterExpression[] { });
@@ -1954,7 +3742,7 @@ public class Interpreter
         return result;
     }
 
-    Expression CompileConditional(BlueprintComponent blueprint, Node node, bool truePath, Expression target = null)
+    Expression CompileConditional_Expression(BlueprintComponent blueprint, Node node, bool truePath, Expression target = null, LabelTarget endLabel = null)
     {
         List<Expression> expressions = new List<Expression>();
 
@@ -1994,7 +3782,7 @@ public class Interpreter
             if (node.isContextual)
             {
                 if (node.nodeType == NodeType.Function)                
-                    expressions.Add(CallFunction(blueprint, node, out contextTarget, contextTarget));
+                    expressions.Add(CallFunction(blueprint, node, out contextTarget, contextTarget, endLabel));
                 
                 if (node.nodeType == NodeType.Field_Get)                
                     expressions.Add(GetField(blueprint, node, out contextTarget, contextTarget));
@@ -2014,8 +3802,8 @@ public class Interpreter
 
                 if (node.nodeType == NodeType.Conditional)
                 {
-                    Expression trueBranch = CompileConditional(blueprint, node, true);
-                    Expression falseBranch = CompileConditional(blueprint, node, false);
+                    Expression trueBranch = CompileConditional_Expression(blueprint, node, true, null, endLabel);
+                    Expression falseBranch = CompileConditional_Expression(blueprint, node, false, null, endLabel);
                     Expression check = null;
                     if (falseBranch != null)
                         check = Expression.IfThenElse(Expression.Convert(contextTarget, typeof(bool)), trueBranch, falseBranch);
@@ -2043,7 +3831,7 @@ public class Interpreter
             }
 
             if (node.nodeType == NodeType.Function)                
-                expressions.Add(CallFunction(blueprint, node, out contextTarget));
+                expressions.Add(CallFunction(blueprint, node, out contextTarget, null, endLabel));
 
             if (node.nodeType == NodeType.Constructor)
                 expressions.Add(CallConstructor(blueprint, node, out contextTarget));
@@ -2066,8 +3854,8 @@ public class Interpreter
 
             if (node.nodeType == NodeType.Conditional)
             {
-                Expression trueBranch = CompileConditional(blueprint, node, true);
-                Expression falseBranch = CompileConditional(blueprint, node, false);
+                Expression trueBranch = CompileConditional_Expression(blueprint, node, true, null, endLabel);
+                Expression falseBranch = CompileConditional_Expression(blueprint, node, false, null, endLabel);
 
                 //Expression check = Expression.IfThenElse(GetVariable(blueprint, (string)node.paramList[0].arg), trueBranch, falseBranch);
                 //expressions.Add(check);
@@ -2107,13 +3895,19 @@ public class Interpreter
         
     }
 
-    Expression CallFunction(BlueprintComponent blueprint, Node node, out Expression contextTarget, Expression target = null)
+    Expression CallFunction(BlueprintComponent blueprint, Node node, out Expression contextTarget, Expression target = null, LabelTarget endLabel = null)
     {
         //Get the function target --NEEDS TO BE AN EXPRESSION
-        if (node.isSpecial)
+        if (node.isSpecial && !node.hasCost)
         {
             target = Expression.Constant(blueprint);
-            node.currentMethod = GetSpecialFunction(node.input);
+            node.currentMethod = GetSpecialFunction(node.input, false);
+        }
+
+        else if (node.hasCost && !node.isSpecial)
+        {
+            target = null;
+            node.currentMethod = GetSpecialFunction(node.input, node.hasCost, node.index);
         }
 
         else
@@ -2135,6 +3929,12 @@ public class Interpreter
         //Determine which parameters are literals and which are calling functions
         for (int i = 0; i < node.paramList.Count; i++)
         {
+            if (pars[i].ParameterType == typeof(BlueprintComponent))
+            {
+                argExpressions.Add(Expression.Constant(blueprint));
+                continue;
+            }
+
             if (node.paramList[i].inputVar)
                 argExpressions.Add(Expression.Convert(GetVariable(blueprint, node.paramList[i].varInput), pars[i].ParameterType));
 
@@ -2152,14 +3952,26 @@ public class Interpreter
             node.currentMethod,
             args
         );
-
+        
         //If the function is returning set that to be the 
         if (node.returnInput != "")
         {
             Expression objAccess = GetVariable(blueprint, node.returnInput);
             Expression assignVar = Expression.Assign(objAccess, Expression.Convert(call, typeof(object)));
 
-            //expressions.Add(assignVar);
+            if (node.hasCost)
+            {
+                Expression statusAccess = Expression.Field(Expression.Constant(blueprint), typeof(BlueprintComponent).GetField("status"));
+
+                Expression check = Expression.Equal(statusAccess, Expression.Constant(ActionStatus.Failure));
+
+                Expression eject = Expression.IfThen(check, Expression.Return(Expression.Label()));
+
+                contextTarget = objAccess;
+                return Expression.Block(assignVar, eject);
+
+            }
+
             contextTarget = objAccess;
             return assignVar;
 
@@ -2167,7 +3979,23 @@ public class Interpreter
 
         else
         {
-            //expressions.Add(call);
+            if (node.hasCost)
+            {
+                Expression statusAccess = Expression.Field(Expression.Constant(blueprint), typeof(BlueprintComponent).GetField("status"));
+
+                Expression check = Expression.Equal(statusAccess, Expression.Constant(ActionStatus.Failure));
+
+                MethodInfo debugLog = typeof(MonoBehaviour).GetMethod("print");
+
+                var debug = Expression.Call(debugLog, Expression.Constant("Returning to end label"));
+
+                Expression eject = Expression.IfThen(check, Expression.Block(debug, Expression.Return(endLabel)));
+
+                contextTarget = call;
+                return Expression.Block(call, eject);
+
+            }
+            
             contextTarget = call;
             return call;
         }

@@ -44,7 +44,11 @@ public class ConnectionPoint
         this.type = type;
         this.style = style;
         this.OnClickConnectionPoint = OnClickConnectionPoint;
-        rect = new Rect(0.0f, 0.0f, 10.0f, 20.0f);
+
+        if (!Application.isPlaying)
+            rect = new Rect(0.0f, 0.0f, 10.0f, 20.0f);
+        else
+            rect = new Rect(0.0f, 0.0f, 30.0f, 20.0f);
     }
 
     public ConnectionPoint(ConnectionPointData data, Node target, GUIStyle connectStyle, Action<ConnectionPoint> clickConnection)
@@ -56,32 +60,59 @@ public class ConnectionPoint
         OnClickConnectionPoint = clickConnection;
     }
 
-    public void Draw()
+    public void Draw(float zoomScale = 1.0f)
     {
-        rect.y = node.rect.y + (node.rect.height * 0.5f) - rect.height * 0.5f;
+        //rect.y = node.rect.y + (node.rect.height * 0.5f) - rect.height * 0.5f;
+        rect.y = (node.rect.y * zoomScale) + (node.rect.height * zoomScale * 0.5f) - rect.height * zoomScale * 0.5f;
+        //rect.y = (node.rect.y * zoomScale) + ((node.rect.height * 0.5f) * zoomScale) - (rect.height * 0.5f) * zoomScale;
 
         switch (type)
         {
             case ConnectionPointType.In:
-                rect.x = node.rect.x - rect.width + 8.0f;
+                //rect.x = node.rect.x - rect.width + 8.0f;
+                rect.x = (node.rect.x * zoomScale) - (rect.width * zoomScale) + 8.0f;
+                //rect.x = (node.rect.x * zoomScale) - (rect.width + 8.0f) * zoomScale;
                 break;
 
             case ConnectionPointType.Out:
-                rect.x = node.rect.x + node.rect.width - 8.0f;
+                //rect.x = node.rect.x + node.rect.width - 8.0f;
+                rect.x = (node.rect.x * zoomScale) + (node.rect.width * zoomScale) - 8.0f;
+                //rect.x = (node.rect.x * zoomScale) + (node.rect.width - 8.0f) * zoomScale;
                 break;
 
             case ConnectionPointType.False:
-                rect.x = node.rect.x + node.rect.width - 8.0f;
-                rect.y = node.rect.y + 70.0f;
+                //rect.x = node.rect.x + node.rect.width - 8.0f;
+                rect.x = (node.rect.x * zoomScale) + (node.rect.width * zoomScale) - 8.0f;
+
+                rect.y = (node.rect.y * zoomScale) + 70.0f;
+                //rect.y = (node.rect.y += 70.0f) * zoomScale;
+                //rect.y = node.rect.y + 70.0f;
                 break;
         }
 
-        if (GUI.Button(rect, "", style))
+        //Rect final = new Rect(rect.position * zoomScale, rect.size * zoomScale);
+
+        if (!Application.isPlaying)
         {
-            if (OnClickConnectionPoint != null)
+            if (GUI.Button(rect, "", style))
             {
-                //OnClickConnectionPoint(this);
-                OnClickConnectionPoint.Invoke(this);
+                if (OnClickConnectionPoint != null)
+                {
+                    //OnClickConnectionPoint(this);
+                    OnClickConnectionPoint.Invoke(this);
+                }
+            }
+        }
+
+        else
+        {
+            if (GUI.Button(rect, ""))
+            {
+                if (OnClickConnectionPoint != null)
+                {
+                    //OnClickConnectionPoint(this);
+                    OnClickConnectionPoint.Invoke(this);
+                }
             }
         }
     }

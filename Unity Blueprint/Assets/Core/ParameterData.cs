@@ -24,15 +24,22 @@ public class ParameterData
     public Vector2 vec2Val;
     public Vector3 vec3Val;
     public Vector4 vec4Val;
+    public Quaternion quat;
     public UnityEngine.Object obj; //if applicable    
     public string objType; //More specific object type for proper casting
     public bool inputVar; //Is this a variable access
     public string varInput; //name of variable to access
 
+    public bool isGeneric;
+    public bool isGenericDef;
+    public string templateType;
+    public string templateTypeAsmPath;
+
     public string strType;
     public string asmPath;
 
-    public enum ParamType { Bool, Int, Enum, Float, Char, Long, Double, String, Rect, Color, Vec2, Vec3, Vec4, Object }
+    public bool shouldDraw = true;
+    public enum ParamType { Bool, Int, Enum, Float, Char, Long, Double, String, Rect, Color, Vec2, Vec3, Vec4, Quaternion, Object }
 
     public ParamType type;
     
@@ -46,7 +53,12 @@ public class ParameterData
 
         strType = par.type.ToString();
         asmPath = par.type.Assembly.Location;
-                                
+        shouldDraw = par.shouldDraw;
+        isGeneric = par.isGeneric;
+        isGenericDef = par.isGenericDef;
+        templateType = par.templateType;
+        templateTypeAsmPath = par.templateTypeAsmPath;
+
         if (par.noType)
         {
             return;
@@ -119,6 +131,12 @@ public class ParameterData
                     vec4Val = (Vector4)par.arg;
                     break;
                 }
+            case ParamType.Quaternion:
+                {
+                    quat = (Quaternion)par.arg;
+                    break;
+                }
+            
             case ParamType.Object:
                 {
                     //obj = (UnityEngine.Object)par.arg;                    
@@ -173,6 +191,9 @@ public class ParameterData
             case ParamType.Vec4:
                 return typeof(Vector4);
 
+            case ParamType.Quaternion:
+                return typeof(Quaternion);
+
             case ParamType.Object:
                 return typeof(UnityEngine.Object);
 
@@ -222,6 +243,9 @@ public class ParameterData
 
             case ParamType.Vec4:
                 return vec4Val;
+
+            case ParamType.Quaternion:
+                return quat;
 
             case ParamType.Object:
                 return obj;

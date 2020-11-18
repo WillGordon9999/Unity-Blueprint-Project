@@ -31,63 +31,103 @@ public class VariableDisplay
     }
 
     public Vector2 Update(Vector2 scrollPos)
-    {        
-        scrollPos = GUI.BeginScrollView(new Rect(0.0f, 0.0f, Screen.width * 0.18f, Screen.height), scrollPos, new Rect(0.0f, 0.0f, Screen.width * 0.2f, maxHeight), true, true);
-        
-        GUI.Box(rect, "", style);
+    {
+        //scrollPos = GUI.BeginScrollView(new Rect(0.0f, 0.0f, Screen.width * 0.18f, Screen.height), scrollPos, new Rect(0.0f, 0.0f, Screen.width * 0.2f, maxHeight), true, true);
+        //GUILayout.BeginArea(new Rect(Screen.width * 0.1f, Screen.height * 0.1f, 500.0f, Screen.height));
+        //scrollPos = GUILayout.BeginScrollView(scrollPos);
+        scrollPos = GUILayout.BeginScrollView(scrollPos, GUILayout.MaxWidth(300.0f), GUILayout.MaxHeight(Screen.height));
 
-        Vector2 pos = Vector2.zero + initFieldPos - scrollPos;
-        Rect entry = new Rect(pos, initFieldDim);
+        //GUI.Box(rect, "", style);
 
+        //Vector2 pos = Vector2.zero + initFieldPos - scrollPos;
+        //Rect entry = new Rect(pos, initFieldDim);
+        //
         for (int i = 0; i < inputs.Count; i++)
         {
-            if (i > 0)
-                pos.y += initFieldDim.y + offset;
-            entry.position = pos;
-
+            //if (i > 0)
+            //    pos.y += initFieldDim.y + offset;
+            //entry.position = pos;
+        
             GUI.SetNextControlName(i.ToString());
-            inputs[i] = EditorGUI.TextField(entry, inputs[i]);
+            //inputs[i] = EditorGUI.TextField(entry, inputs[i]);
+            inputs[i] = GUILayout.TextField(inputs[i]);
             
             if (Event.current.keyCode == KeyCode.Return && GUI.GetNameOfFocusedControl() == i.ToString())
             {
                 Debug.Log("Call reflection here for variables");
-                ProcessContextMenu(inputs[i], entry);
+                ProcessContextMenu(inputs[i], Rect.zero);
             }
         }
-        
-        //Add an input if button is pressed
-        if (GUI.Button(new Rect(entry.x, entry.y + initFieldDim.y + offset, entry.width, entry.height), "+"))
+        //
+        ////Add an input if button is pressed
+        //if (GUI.Button(new Rect(entry.x, entry.y + initFieldDim.y + offset, entry.width, entry.height), "+"))
+        //{
+        //    inputs.Add("");
+        //}
+        //maxHeight = entry.y + (initFieldDim.y * 4.0f) + offset;
+
+        if (GUILayout.Button("Add Variable", GUILayout.MaxWidth(300.0f)))
         {
             inputs.Add("");
         }
-        maxHeight = entry.y + (initFieldDim.y * 4.0f) + offset;
 
-        GUI.EndScrollView();
+
+
+        GUILayout.EndScrollView();
+        //GUILayout.EndArea();
+        //GUI.EndScrollView();
         return scrollPos;       
     }
 
     public void ProcessContextMenu(string input, Rect rect)
     {
-        GenericMenu menu = new GenericMenu();
+#if UNITY_EDITOR
 
-        Interpreter.Instance.CreateVariable(NodeEditor.current, ref metaData, input);
-
-        if (metaData != null && metaData.selectedType == null)
+        if (!Application.isPlaying)
         {
-            foreach(System.Type type in metaData.types)
+            GenericMenu menu = new GenericMenu();
+
+            Interpreter.Instance.CreateVariable(NodeEditor.current, ref metaData, input);
+
+            if (metaData != null && metaData.selectedType == null)
             {
-                menu.AddItem(new GUIContent(type.ToString()), true, SetObjectType, type);
+                foreach (System.Type type in metaData.types)
+                {
+                    menu.AddItem(new GUIContent(type.ToString()), true, SetObjectType, type);
+                }
+
+                menu.DropDown(rect);
+            }
+        }
+#endif
+        if (Application.isPlaying)
+        {
+            Interpreter.Instance.CreateVariable(RealTimeEditor.Instance.current, ref metaData, input);
+
+            if (metaData != null && metaData.selectedType == null)
+            {
+                foreach (System.Type type in metaData.types)
+                {
+                    RealTimeEditor.Instance.contextMenu.AddItem(type.ToString(), SetObjectType, type);
+                }
+
+                RealTimeEditor.Instance.contextMenu.canDraw = true;
             }
 
-            menu.DropDown(rect);
-        }        
+        }
+
     }
 
     public void SetObjectType(object input)
     {
         metaData.selectedType = (System.Type)input;
         metaData.selectedAsm = metaData.selectedType.Assembly;
-        Interpreter.Instance.CreateVariable(NodeEditor.current, ref metaData, metaData.input);
+#if UNITY_EDITOR
+        if (!Application.isPlaying)
+            Interpreter.Instance.CreateVariable(NodeEditor.current, ref metaData, metaData.input);
+#endif
+        if (Application.isPlaying)
+            Interpreter.Instance.CreateVariable(RealTimeEditor.Instance.current, ref metaData, metaData.input);
     }
 
 }

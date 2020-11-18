@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using UnityEngine;
 using System;
 
+public enum ActionStatus { Success, Failure }
+
 public class BlueprintComponent : MonoBehaviour
 {
     public string ComponentName;
@@ -10,6 +12,8 @@ public class BlueprintComponent : MonoBehaviour
     public Blueprint bp;
     public BlueprintData data;
     public Dictionary<string, Action> functions = new Dictionary<string, Action>();
+    public bool useGame;
+    public ActionStatus status;
    
     [ExecuteInEditMode]
     public Component GetTargetComponent(Type type)
@@ -17,23 +21,23 @@ public class BlueprintComponent : MonoBehaviour
         return GetComponent(type);        
     }
       
-    public Component GetComponent(string type, string other)
-    {
-        print("In Custom Get Component");
-        if (other != "")
-        {
-            return (variables[other].obj as Component).GetComponent(type);
-        }
-
-        Component comp = GetComponent(type);
-
-        if (comp)
-            print($"Comp is {comp.name} {comp.GetType()} ");
-        else
-            print("Comp is null in Custom Get Component");
-
-        return comp;
-    }
+    //public Component GetComponent(string type, string other)
+    //{
+    //    print("In Custom Get Component");
+    //    if (other != "")
+    //    {
+    //        return (variables[other].obj as Component).GetComponent(type);
+    //    }
+    //
+    //    Component comp = GetComponent(type);
+    //
+    //    if (comp)
+    //        print($"Comp is {comp.name} {comp.GetType()} ");
+    //    else
+    //        print("Comp is null in Custom Get Component");
+    //
+    //    return comp;
+    //}
 
     public Component AddComponent(string type, string other)
     {
@@ -82,10 +86,46 @@ public class BlueprintComponent : MonoBehaviour
         Var v;
         return variables.TryGetValue(name, out v);        
     }
+
+    //public void Sweep(GameObject obj, Vector3 targetPos, float speed)
+    //{
+    //    //float cost = 20.0f * Vector3.Distance(obj.transform.position, targetPos) * speed;
+    //    float cost = 100.0f;
+    //    print("Inside sweep");
+    //
+    //    if (cost > 50.0f)
+    //    {
+    //        print("Not enough Mana");
+    //        status = ActionStatus.Failure;
+    //        return;
+    //    }
+    //
+    //    obj.transform.position = Vector3.Lerp(obj.transform.position, targetPos, speed * Time.deltaTime);
+    //}
+
+    public void EnterState()
+    {
+
+    }
+
+    public void UpdateState()
+    {
+
+    }
+
+    public void FixedUpdateState()
+    {
+
+    }
+
+    public void ExitState()
+    {
+
+    }
         
     //This function is called when the script is loaded or a value is changed in the Inspector (Called in the editor only).
     public void OnEnable()
-    {
+    {        
         if (BlueprintManager.blueprints == null)
         {
             BlueprintManager.blueprints = new Dictionary<BlueprintData, Blueprint>();
@@ -95,8 +135,8 @@ public class BlueprintComponent : MonoBehaviour
         {
             if (!Application.isPlaying)
                 return;
-            else
-                print("In construction of blueprint component play");
+            //else
+            //    print("In construction of blueprint component play");
 
             bp = new Blueprint();
             bp.name = ComponentName;
@@ -150,7 +190,7 @@ public class BlueprintComponent : MonoBehaviour
 
             foreach (string key in bp.entryPoints.Keys)
             {
-                functions[key] = Interpreter.Instance.FullCompile(this, key);
+                functions[key] = Interpreter.Instance.FullCompile_Expression(this, key);
             }
             
             //BlueprintManager.blueprints[bp.name] = bp;            
@@ -169,10 +209,12 @@ public class BlueprintComponent : MonoBehaviour
 
             foreach (string key in bp.entryPoints.Keys)
             {
-                functions[key] = Interpreter.Instance.FullCompile(this, key);
+                functions[key] = Interpreter.Instance.FullCompile_Expression(this, key);
             }
            
         }
+
+        //Interpreter.Instance.FullCompile(this, typeof(MonoBehaviour));
         
         return;
     }

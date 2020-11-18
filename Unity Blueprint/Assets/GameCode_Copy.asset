@@ -1,0 +1,1223 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ff7e4c77176a31b41bc793e30e251524, type: 3}
+  m_Name: GameCode_Copy
+  m_EditorClassIdentifier: 
+  classes:
+  - className: NavMeshAgent
+    access: 0
+  - className: NavMeshObstacle
+    access: 0
+  - className: OffMeshLink
+    access: 0
+  - className: NavMeshData
+    access: 0
+  - className: Animator
+    access: 0
+  - className: StateMachineBehaviour
+    access: 0
+  - className: AnimationClip
+    access: 0
+  - className: AnimatorOverrideController
+    access: 0
+  - className: Avatar
+    access: 0
+  - className: AvatarMask
+    access: 0
+  - className: Motion
+    access: 0
+  - className: RuntimeAnimatorController
+    access: 0
+  - className: Animation
+    access: 0
+  - className: AimConstraint
+    access: 0
+  - className: PositionConstraint
+    access: 0
+  - className: RotationConstraint
+    access: 0
+  - className: ScaleConstraint
+    access: 0
+  - className: LookAtConstraint
+    access: 0
+  - className: ParentConstraint
+    access: 0
+  - className: Transition
+    access: 0
+  - className: StateMachine
+    access: 0
+  - className: State
+    access: 0
+  - className: AnimatorController
+    access: 0
+  - className: BlendTree
+    access: 0
+  - className: AssetBundle
+    access: 0
+  - className: AssetBundleManifest
+    access: 0
+  - className: AudioSource
+    access: 0
+  - className: AudioLowPassFilter
+    access: 0
+  - className: AudioHighPassFilter
+    access: 0
+  - className: AudioReverbFilter
+    access: 0
+  - className: AudioClip
+    access: 0
+  - className: AudioBehaviour
+    access: 0
+  - className: AudioListener
+    access: 0
+  - className: AudioReverbZone
+    access: 0
+  - className: AudioDistortionFilter
+    access: 0
+  - className: AudioEchoFilter
+    access: 0
+  - className: AudioChorusFilter
+    access: 0
+  - className: MovieTexture
+    access: 0
+  - className: WebCamTexture
+    access: 0
+  - className: AudioMixer
+    access: 0
+  - className: AudioMixerGroup
+    access: 0
+  - className: AudioMixerSnapshot
+    access: 0
+  - className: Cloth
+    access: 0
+  - className: Camera
+    access: 0
+  - className: FlareLayer
+    access: 0
+  - className: ReflectionProbe
+    access: 0
+  - className: BillboardAsset
+    access: 0
+  - className: BillboardRenderer
+    access: 0
+  - className: LightmapSettings
+    access: 0
+  - className: LightProbes
+    access: 0
+  - className: QualitySettings
+    access: 0
+  - className: Mesh
+    access: 0
+  - className: Renderer
+    access: 0
+  - className: Projector
+    access: 0
+  - className: Shader
+    access: 0
+  - className: TrailRenderer
+    access: 0
+  - className: LineRenderer
+    access: 0
+  - className: RenderSettings
+    access: 0
+  - className: Material
+    access: 0
+  - className: OcclusionPortal
+    access: 0
+  - className: OcclusionArea
+    access: 0
+  - className: Flare
+    access: 0
+  - className: LensFlare
+    access: 0
+  - className: Light
+    access: 0
+  - className: Skybox
+    access: 0
+  - className: MeshFilter
+    access: 0
+  - className: Halo
+    access: 0
+  - className: LightProbeProxyVolume
+    access: 0
+  - className: SkinnedMeshRenderer
+    access: 0
+  - className: MeshRenderer
+    access: 0
+  - className: LightProbeGroup
+    access: 0
+  - className: LODGroup
+    access: 0
+  - className: Texture
+    access: 0
+  - className: Texture2D
+    access: 0
+  - className: Cubemap
+    access: 0
+  - className: Texture3D
+    access: 0
+  - className: Texture2DArray
+    access: 0
+  - className: CubemapArray
+    access: 0
+  - className: SparseTexture
+    access: 0
+  - className: RenderTexture
+    access: 0
+  - className: CustomRenderTexture
+    access: 0
+  - className: NetworkView
+    access: 0
+  - className: Behaviour
+    access: 0
+  - className: Component
+    access: 0
+  - className: FailedToLoadScriptObject
+    access: 0
+  - className: GameObject
+    access: 0
+  - className: MonoBehaviour
+    access: 0
+  - className: ScriptableObject
+    access: 0
+  - className: TextAsset
+    access: 0
+  - className: ShaderVariantCollection
+    access: 0
+  - className: ComputeShader
+    access: 0
+  - className: LowerResBlitTexture
+    access: 0
+  - className: PreloadData
+    access: 0
+  - className: RectTransform
+    access: 0
+  - className: Transform
+    access: 0
+  - className: SpriteRenderer
+    access: 0
+  - className: Sprite
+    access: 0
+  - className: SpriteAtlas
+    access: 0
+  - className: PlayerConnection
+    access: 0
+  - className: GraphicsSettings
+    access: 0
+  - className: RenderPipelineAsset
+    access: 0
+  - className: SortingGroup
+    access: 0
+  - className: PlayableAsset
+    access: 0
+  - className: RayTracingShader
+    access: 0
+  - className: PlayableDirector
+    access: 0
+  - className: Grid
+    access: 0
+  - className: GridLayout
+    access: 0
+  - className: GUISkin
+    access: 0
+  - className: LocalizationAsset
+    access: 0
+  - className: ParticleSystem
+    access: 0
+  - className: ParticleSystemRenderer
+    access: 0
+  - className: ParticleSystemForceField
+    access: 0
+  - className: PhysicMaterial
+    access: 0
+  - className: Rigidbody
+    access: 0
+  - className: Collider
+    access: 0
+  - className: CharacterController
+    access: 0
+  - className: MeshCollider
+    access: 0
+  - className: CapsuleCollider
+    access: 0
+  - className: BoxCollider
+    access: 0
+  - className: SphereCollider
+    access: 0
+  - className: ConstantForce
+    access: 0
+  - className: Joint
+    access: 0
+  - className: HingeJoint
+    access: 0
+  - className: SpringJoint
+    access: 0
+  - className: FixedJoint
+    access: 0
+  - className: CharacterJoint
+    access: 0
+  - className: ConfigurableJoint
+    access: 0
+  - className: Rigidbody2D
+    access: 0
+  - className: Collider2D
+    access: 0
+  - className: CircleCollider2D
+    access: 0
+  - className: CapsuleCollider2D
+    access: 0
+  - className: EdgeCollider2D
+    access: 0
+  - className: BoxCollider2D
+    access: 0
+  - className: PolygonCollider2D
+    access: 0
+  - className: CompositeCollider2D
+    access: 0
+  - className: Joint2D
+    access: 0
+  - className: AnchoredJoint2D
+    access: 0
+  - className: SpringJoint2D
+    access: 0
+  - className: DistanceJoint2D
+    access: 0
+  - className: FrictionJoint2D
+    access: 0
+  - className: HingeJoint2D
+    access: 0
+  - className: RelativeJoint2D
+    access: 0
+  - className: SliderJoint2D
+    access: 0
+  - className: TargetJoint2D
+    access: 0
+  - className: FixedJoint2D
+    access: 0
+  - className: WheelJoint2D
+    access: 0
+  - className: Effector2D
+    access: 0
+  - className: AreaEffector2D
+    access: 0
+  - className: BuoyancyEffector2D
+    access: 0
+  - className: PointEffector2D
+    access: 0
+  - className: PlatformEffector2D
+    access: 0
+  - className: SurfaceEffector2D
+    access: 0
+  - className: PhysicsUpdateBehaviour2D
+    access: 0
+  - className: ConstantForce2D
+    access: 0
+  - className: PhysicsMaterial2D
+    access: 0
+  - className: SpriteMask
+    access: 0
+  - className: SpriteShapeRenderer
+    access: 0
+  - className: StreamingController
+    access: 0
+  - className: ProceduralMaterial
+    access: 0
+  - className: ProceduralTexture
+    access: 0
+  - className: Terrain
+    access: 0
+  - className: Tree
+    access: 0
+  - className: SpeedTreeWindAsset
+    access: 0
+  - className: TerrainData
+    access: 0
+  - className: TerrainLayer
+    access: 0
+  - className: TerrainCollider
+    access: 0
+  - className: FontAsset
+    access: 0
+  - className: TextGradientPreset
+    access: 0
+  - className: TextSettings
+    access: 0
+  - className: TextSpriteAsset
+    access: 0
+  - className: TextStyleSheet
+    access: 0
+  - className: TextMesh
+    access: 0
+  - className: Font
+    access: 0
+  - className: GridBrushBase
+    access: 0
+  - className: Tile
+    access: 0
+  - className: TileBase
+    access: 0
+  - className: Tilemap
+    access: 0
+  - className: TilemapRenderer
+    access: 0
+  - className: TilemapCollider2D
+    access: 0
+  - className: CanvasGroup
+    access: 0
+  - className: CanvasRenderer
+    access: 0
+  - className: Canvas
+    access: 0
+  - className: StyleSheet
+    access: 0
+  - className: VectorImage
+    access: 0
+  - className: VisualTreeAsset
+    access: 0
+  - className: NetworkMatch
+    access: 0
+  - className: UnityConnectSettings
+    access: 0
+  - className: VFXSpawnerCallbacks
+    access: 0
+  - className: VisualEffectObject
+    access: 0
+  - className: VisualEffectAsset
+    access: 0
+  - className: VisualEffect
+    access: 0
+  - className: VFXRenderer
+    access: 0
+  - className: WorldAnchor
+    access: 0
+  - className: WheelCollider
+    access: 0
+  - className: VideoClip
+    access: 0
+  - className: VideoPlayer
+    access: 0
+  - className: WindZone
+    access: 0
+  - className: TroubleshooterWindow
+    access: 0
+  - className: TreeData
+    access: 0
+  - className: TreeEditor
+    access: 0
+  - className: HolographicEmulationWindow
+    access: 0
+  - className: AddCurvesPopup
+    access: 0
+  - className: AnimationClipSelectionItem
+    access: 0
+  - className: AnimationWindowControl
+    access: 0
+  - className: AnimationWindowKeySelection
+    access: 0
+  - className: AnimationWindowSelectionItem
+    access: 0
+  - className: AnimationWindowState
+    access: 0
+  - className: GameObjectSelectionItem
+    access: 0
+  - className: IAnimationWindowControl
+    access: 0
+  - className: AssemblyDefinitionImporter
+    access: 0
+  - className: AssemblyDefinitionAsset
+    access: 0
+  - className: AssemblyDefinitionReferenceImporter
+    access: 0
+  - className: AssemblyDefinitionReferenceAsset
+    access: 0
+  - className: ProjectSettingsBaseEditor
+    access: 0
+  - className: ProjectSettingsBase
+    access: 0
+  - className: PackageManifestImporter
+    access: 0
+  - className: PackageManifest
+    access: 0
+  - className: XRProjectSettings
+    access: 0
+  - className: VisualEffectEditorDefault
+    access: 0
+  - className: VisualEffectResource
+    access: 0
+  - className: VisualEffectSubgraph
+    access: 0
+  - className: VisualEffectSubgraphOperator
+    access: 0
+  - className: VisualEffectSubgraphBlock
+    access: 0
+  - className: TestEditorWindow
+    access: 0
+  - className: FontAssetEditor
+    access: 0
+  - className: StyleSheetEditor
+    access: 0
+  - className: StyleSheetImporter
+    access: 0
+  - className: StyleSheetImporterEditor
+    access: 0
+  - className: ConflictResolverWindow
+    access: 0
+  - className: DeleteShortcutProfileWindow
+    access: 0
+  - className: PromptWindow
+    access: 0
+  - className: ShortcutManagerWindow
+    access: 0
+  - className: PresetChanged
+    access: 0
+  - className: PresetContextMenu
+    access: 0
+  - className: PresetEditor
+    access: 0
+  - className: PresetManagerEditor
+    access: 0
+  - className: PresetSelectorReceiver
+    access: 0
+  - className: DefaultPresetSelectorReceiver
+    access: 0
+  - className: PresetSelector
+    access: 0
+  - className: AddPresetTypeWindow
+    access: 0
+  - className: Preset
+    access: 0
+  - className: PresetManager
+    access: 0
+  - className: PackageManifestImporterEditor
+    access: 0
+  - className: PackageManifestState
+    access: 0
+  - className: PlayModeDownloadState
+    access: 0
+  - className: PackageDatabaseInternal
+    access: 0
+  - className: PackageFilteringInternal
+    access: 0
+  - className: UpmClientInternal
+    access: 0
+  - className: PackageManagerWindow
+    access: 0
+  - className: PageManagerInternal
+    access: 0
+  - className: AssetStoreCacheInternal
+    access: 0
+  - className: AssetStoreClientInternal
+    access: 0
+  - className: AssetStoreOAuthInternal
+    access: 0
+  - className: WindowChange
+    access: 0
+  - className: WindowCheckoutFailure
+    access: 0
+  - className: WindowPending
+    access: 0
+  - className: WindowResolve
+    access: 0
+  - className: WindowRevert
+    access: 0
+  - className: UnityConnectConsentView
+    access: 0
+  - className: UnityConnectEditorWindow
+    access: 0
+  - className: EndNameEditAction
+    access: 0
+  - className: DoCreateNewAsset
+    access: 0
+  - className: DoCreateFolder
+    access: 0
+  - className: DoCreateScene
+    access: 0
+  - className: DoCreateFolderWithTemplates
+    access: 0
+  - className: DoCreatePrefabVariant
+    access: 0
+  - className: DoCreateScriptAsset
+    access: 0
+  - className: DoCreateAssetWithContent
+    access: 0
+  - className: DoCreateAnimatorController
+    access: 0
+  - className: DoCreateAudioMixer
+    access: 0
+  - className: DoCreateSpritePolygon
+    access: 0
+  - className: EditorConnection
+    access: 0
+  - className: DefaultBuildProperties
+    access: 0
+  - className: WebScriptObject
+    access: 0
+  - className: EditorProjectAccess
+    access: 0
+  - className: WebViewEditorStaticWindow
+    access: 0
+  - className: WebViewEditorWindow
+    access: 0
+  - className: WebViewEditorWindowTabs
+    access: 0
+  - className: AddComponentWindow
+    access: 0
+  - className: TreeViewTestWindow
+    access: 0
+  - className: EditorTool
+    access: 0
+  - className: EditorToolContext
+    access: 0
+  - className: EditorToolCustomEditor
+    access: 0
+  - className: EditorToolWindow
+    access: 0
+  - className: AdvancedDropdownWindow
+    access: 0
+  - className: CollabPublishDialog
+    access: 0
+  - className: CollabCannotPublishDialog
+    access: 0
+  - className: BuildReport
+    access: 0
+  - className: PackedAssets
+    access: 0
+  - className: StrippingInfo
+    access: 0
+  - className: StrippingInfoWithSizeAnalysis
+    access: 0
+  - className: AudioMixerController
+    access: 0
+  - className: AudioMixerGroupController
+    access: 0
+  - className: AudioMixerEffectController
+    access: 0
+  - className: AudioMixerSnapshotController
+    access: 0
+  - className: SpriteAtlasInspector
+    access: 0
+  - className: SpriteShapeRendererInspector
+    access: 0
+  - className: PackerWindow
+    access: 0
+  - className: EditorWindowViewData
+    access: 0
+  - className: SerializableJsonDictionary
+    access: 0
+  - className: UIElementsViewImporter
+    access: 0
+  - className: VisualTreeAssetEditor
+    access: 0
+  - className: UIElementsEditorWindowCreator
+    access: 0
+  - className: UIElementsSamples
+    access: 0
+  - className: UIElementsSnippetAsset
+    access: 0
+  - className: PanelDebugger
+    access: 0
+  - className: UIElementsDebugger
+    access: 0
+  - className: UIElementsEventsDebugger
+    access: 0
+  - className: AllocatorDebugger
+    access: 0
+  - className: UIRDebugger
+    access: 0
+  - className: StageNavigationManager
+    access: 0
+  - className: MultiArtifactTestImporter
+    access: 0
+  - className: CreateTerrainTool
+    access: 0
+  - className: PaintDetailsTool
+    access: 0
+  - className: PaintHeightTool
+    access: 0
+  - className: PaintHolesTool
+    access: 0
+  - className: PaintTextureTool
+    access: 0
+  - className: PaintTreesTool
+    access: 0
+  - className: SetHeightTool
+    access: 0
+  - className: SmoothHeightTool
+    access: 0
+  - className: StampTool
+    access: 0
+  - className: TerrainPaintTool`1
+    access: 0
+  - className: SearchWindow
+    access: 0
+  - className: GraphViewUndoRedoSelection
+    access: 0
+  - className: GraphViewBlackboardWindow
+    access: 0
+  - className: GraphViewEditorWindow
+    access: 0
+  - className: GraphViewMinimapWindow
+    access: 0
+  - className: GraphViewToolWindow
+    access: 0
+  - className: AttachToPlayerPlayerIPWindow
+    access: 0
+  - className: AssetImporterEditor
+    access: 0
+  - className: ScriptedImporterEditor
+    access: 0
+  - className: ScriptedImporter
+    access: 0
+  - className: AnimatorController
+    access: 0
+  - className: BlendTree
+    access: 0
+  - className: AnimatorTransitionBase
+    access: 0
+  - className: AnimatorTransition
+    access: 0
+  - className: AnimatorStateTransition
+    access: 0
+  - className: AnimatorState
+    access: 0
+  - className: AnimatorStateMachine
+    access: 0
+  - className: GameObjectRecorder
+    access: 0
+  - className: AnimatorDefaultTransition
+    access: 0
+  - className: Graph
+    access: 0
+  - className: GroupNode
+    access: 0
+  - className: Node
+    access: 0
+  - className: ProxyNode
+    access: 0
+  - className: AnimatorControllerTool
+    access: 0
+  - className: LayerSettingsWindow
+    access: 0
+  - className: ParameterControllerEditor
+    access: 0
+  - className: GraphGUI
+    access: 0
+  - className: AddStateMachineBehaviourComponentWindow
+    access: 0
+  - className: AnimatorDefaultTransitionInspector
+    access: 0
+  - className: AnimatorStateTransitionInspector
+    access: 0
+  - className: AnimatorTransitionInspector
+    access: 0
+  - className: AnimatorTransitionInspectorBase
+    access: 0
+  - className: AnyStateNode
+    access: 0
+  - className: AnyStateNodeInspector
+    access: 0
+  - className: EntryNode
+    access: 0
+  - className: EntryNodeInspector
+    access: 0
+  - className: ExitNode
+    access: 0
+  - className: ExitNodeInspector
+    access: 0
+  - className: Graph
+    access: 0
+  - className: GraphGUI
+    access: 0
+  - className: Node
+    access: 0
+  - className: StateEditor
+    access: 0
+  - className: StateMachineBehaviourEditor
+    access: 0
+  - className: InvalidStateMachineBehaviour
+    access: 0
+  - className: InvalidStateMachineBehaviourEditor
+    access: 0
+  - className: StateMachineInspector
+    access: 0
+  - className: StateMachineNode
+    access: 0
+  - className: StateNode
+    access: 0
+  - className: Graph
+    access: 0
+  - className: GraphGUI
+    access: 0
+  - className: Node
+    access: 0
+  - className: AboutWindow
+    access: 0
+  - className: ConfigurationWindow
+    access: 0
+  - className: BlueprintData
+    access: 0
+  - className: GameCodebase
+    access: 0
+  - className: GameInterpreter
+    access: 0
+  - className: NewTest
+    access: 0
+  - className: RealTimeEditor
+    access: 0
+  - className: BlueprintComponent
+    access: 0
+  - className: BlueprintManager
+    access: 0
+  - className: NodeEditor
+    access: 0
+  - className: AudioPlayableAssetInspector
+    access: 0
+  - className: AudioTrackInspector
+    access: 0
+  - className: DirectorNamedColor
+    access: 0
+  - className: ActivationTrackInspector
+    access: 0
+  - className: ControlPlayableInspector
+    access: 0
+  - className: SequenceHierarchy
+    access: 0
+  - className: TimelineWindow
+    access: 0
+  - className: TimelineWindowTimeControl
+    access: 0
+  - className: TimelineAssetViewModel
+    access: 0
+  - className: AnimationPlayableAssetInspector
+    access: 0
+  - className: AnimationTrackInspector
+    access: 0
+  - className: BasicAssetInspector
+    access: 0
+  - className: ActivationPlayableAssetInspector
+    access: 0
+  - className: ClipInspector
+    access: 0
+  - className: DirectorNamedColorInspector
+    access: 0
+  - className: EditorClip
+    access: 0
+  - className: GroupTrackInspector
+    access: 0
+  - className: MarkerInspector
+    access: 0
+  - className: TimelineAssetInspector
+    access: 0
+  - className: TrackAssetInspector
+    access: 0
+  - className: SignalAssetInspector
+    access: 0
+  - className: SignalEmitterInspector
+    access: 0
+  - className: SignalReceiverInspector
+    access: 0
+  - className: DoCreateTimeline
+    access: 0
+  - className: DoCreateSignalAsset
+    access: 0
+  - className: UnityEventCloner
+    access: 0
+  - className: TMP_ProjectConversionUtility
+    access: 0
+  - className: TMP_PackageUtilities
+    access: 0
+  - className: TMP_SerializedPropertyHolder
+    access: 0
+  - className: TMP_SpriteAssetImporter
+    access: 0
+  - className: TMP_BaseEditorPanel
+    access: 0
+  - className: TMP_ColorGradientEditor
+    access: 0
+  - className: DropdownEditor
+    access: 0
+  - className: TMP_EditorPanel
+    access: 0
+  - className: TMP_FontAssetEditor
+    access: 0
+  - className: TMP_InputFieldEditor
+    access: 0
+  - className: TMP_SettingsEditor
+    access: 0
+  - className: TMP_SpriteAssetEditor
+    access: 0
+  - className: TMP_StyleEditor
+    access: 0
+  - className: TMP_SubMeshUI_Editor
+    access: 0
+  - className: TMP_SubMesh_Editor
+    access: 0
+  - className: TMP_UiEditorPanel
+    access: 0
+  - className: TMP_ContextMenus
+    access: 0
+  - className: TMPro_FontAssetCreatorWindow
+    access: 0
+  - className: TMPro_TextContainerEditor
+    access: 0
+  - className: Button
+    access: 0
+  - className: Dropdown
+    access: 0
+  - className: Graphic
+    access: 0
+  - className: GraphicRaycaster
+    access: 0
+  - className: Image
+    access: 0
+  - className: InputField
+    access: 0
+  - className: AspectRatioFitter
+    access: 0
+  - className: CanvasScaler
+    access: 0
+  - className: ContentSizeFitter
+    access: 0
+  - className: GridLayoutGroup
+    access: 0
+  - className: HorizontalLayoutGroup
+    access: 0
+  - className: HorizontalOrVerticalLayoutGroup
+    access: 0
+  - className: LayoutElement
+    access: 0
+  - className: LayoutGroup
+    access: 0
+  - className: VerticalLayoutGroup
+    access: 0
+  - className: Mask
+    access: 0
+  - className: MaskableGraphic
+    access: 0
+  - className: RawImage
+    access: 0
+  - className: RectMask2D
+    access: 0
+  - className: ScrollRect
+    access: 0
+  - className: Scrollbar
+    access: 0
+  - className: Selectable
+    access: 0
+  - className: Slider
+    access: 0
+  - className: Text
+    access: 0
+  - className: Toggle
+    access: 0
+  - className: ToggleGroup
+    access: 0
+  - className: BaseMeshEffect
+    access: 0
+  - className: Outline
+    access: 0
+  - className: PositionAsUV1
+    access: 0
+  - className: Shadow
+    access: 0
+  - className: EventSystem
+    access: 0
+  - className: EventTrigger
+    access: 0
+  - className: BaseInput
+    access: 0
+  - className: BaseInputModule
+    access: 0
+  - className: PointerInputModule
+    access: 0
+  - className: StandaloneInputModule
+    access: 0
+  - className: TouchInputModule
+    access: 0
+  - className: BaseRaycaster
+    access: 0
+  - className: Physics2DRaycaster
+    access: 0
+  - className: PhysicsRaycaster
+    access: 0
+  - className: UIBehaviour
+    access: 0
+  - className: DropdownItem
+    access: 0
+  - className: ActivationPlayableAsset
+    access: 0
+  - className: ActivationTrack
+    access: 0
+  - className: AnimationPlayableAsset
+    access: 0
+  - className: AnimationTrack
+    access: 0
+  - className: TimelineAsset
+    access: 0
+  - className: TrackAsset
+    access: 0
+  - className: AudioPlayableAsset
+    access: 0
+  - className: AudioTrack
+    access: 0
+  - className: ControlPlayableAsset
+    access: 0
+  - className: ControlTrack
+    access: 0
+  - className: Marker
+    access: 0
+  - className: MarkerTrack
+    access: 0
+  - className: SignalTrack
+    access: 0
+  - className: SignalAsset
+    access: 0
+  - className: SignalEmitter
+    access: 0
+  - className: SignalReceiver
+    access: 0
+  - className: GroupTrack
+    access: 0
+  - className: BasicPlayableBehaviour
+    access: 0
+  - className: PlayableTrack
+    access: 0
+  - className: ArmModel
+    access: 0
+  - className: SwingArmModel
+    access: 0
+  - className: TransitionArmModel
+    access: 0
+  - className: RemotePlayerLogController
+    access: 0
+  - className: RemoteTestRunController
+    access: 0
+  - className: EditModeRunnerCallback
+    access: 0
+  - className: RerunCallback
+    access: 0
+  - className: RerunCallbackData
+    access: 0
+  - className: TestRunnerCallback
+    access: 0
+  - className: EditModeRunner
+    access: 0
+  - className: TestListCacheData
+    access: 0
+  - className: TestRunnerWindow
+    access: 0
+  - className: UnityTestProtocolListener
+    access: 0
+  - className: TestJobDataHolder
+    access: 0
+  - className: ExitCallbacks
+    access: 0
+  - className: LogSavingCallbacks
+    access: 0
+  - className: ResultsSavingCallbacks
+    access: 0
+  - className: RunData
+    access: 0
+  - className: CallbacksDelegatorListener
+    access: 0
+  - className: CallbacksHolder
+    access: 0
+  - className: TestRunnerApi
+    access: 0
+  - className: BackgroundListener
+    access: 0
+  - className: TestRunCallbackListener
+    access: 0
+  - className: BeforeAfterTestCommandState
+    access: 0
+  - className: PlaymodeTestsController
+    access: 0
+  - className: PlayModeRunnerCallback
+    access: 0
+  - className: RemoteTestResultSender
+    access: 0
+  - className: TestResultRendererCallback
+    access: 0
+  - className: RiderScriptEditorData
+    access: 0
+  - className: CallbackData
+    access: 0
+  - className: TestsCallback
+    access: 0
+  - className: SpriteEditorMenuSetting
+    access: 0
+  - className: SpriteEditorMenu
+    access: 0
+  - className: SpriteEditorWindow
+    access: 0
+  - className: SpriteUtilityWindow
+    access: 0
+  - className: SpriteRectModel
+    access: 0
+  - className: SpriteOutlineModel
+    access: 0
+  - className: BoxTool
+    access: 0
+  - className: EraseTool
+    access: 0
+  - className: FillTool
+    access: 0
+  - className: MoveTool
+    access: 0
+  - className: PaintTool
+    access: 0
+  - className: PickingTool
+    access: 0
+  - className: SelectTool
+    access: 0
+  - className: TilemapEditorTool
+    access: 0
+  - className: GridBrush
+    access: 0
+  - className: GridBrushEditor
+    access: 0
+  - className: GridBrushEditorBase
+    access: 0
+  - className: GridPaintPaletteClipboard
+    access: 0
+  - className: GridPaintPaletteWindow
+    access: 0
+  - className: GridPaintingState
+    access: 0
+  - className: GridPaletteAddPopup
+    access: 0
+  - className: GridPaletteBrushes
+    access: 0
+  - className: GridPalettes
+    access: 0
+  - className: GridSelection
+    access: 0
+  - className: GridSelectionEditor
+    access: 0
+  - className: PaintableGrid
+    access: 0
+  - className: PaintableSceneViewGrid
+    access: 0
+  - className: SceneViewGridManager
+    access: 0
+  - className: TileDragAndDropManager
+    access: 0
+  - className: TrackedPoseDriverEditor
+    access: 0
+  - className: TrackedPoseDriver
+    access: 0
+  - className: BasePoseProvider
+    access: 0
+  - className: TMP_Asset
+    access: 0
+  - className: TMP_ColorGradient
+    access: 0
+  - className: TMP_Dropdown
+    access: 0
+  - className: TMP_FontAsset
+    access: 0
+  - className: TMP_InputField
+    access: 0
+  - className: TMP_InputValidator
+    access: 0
+  - className: TMP_PackageResourceImporterWindow
+    access: 0
+  - className: TMP_ScrollbarEventHandler
+    access: 0
+  - className: TMP_SelectionCaret
+    access: 0
+  - className: TMP_Settings
+    access: 0
+  - className: TMP_SpriteAnimator
+    access: 0
+  - className: TMP_SpriteAsset
+    access: 0
+  - className: TMP_StyleSheet
+    access: 0
+  - className: TMP_SubMesh
+    access: 0
+  - className: TMP_SubMeshUI
+    access: 0
+  - className: TMP_Text
+    access: 0
+  - className: TextMeshPro
+    access: 0
+  - className: TextMeshProUGUI
+    access: 0
+  - className: TextContainer
+    access: 0
+  - className: DropdownItem
+    access: 0
+  - className: DataPrivacyButton
+    access: 0
+  - className: ArmModelEditor
+    access: 0
+  - className: SwingArmModelEditor
+    access: 0
+  - className: TransitionArmModelEditor
+    access: 0
+  - className: AspectRatioFitterEditor
+    access: 0
+  - className: ButtonEditor
+    access: 0
+  - className: CanvasScalerEditor
+    access: 0
+  - className: ContentSizeFitterEditor
+    access: 0
+  - className: DropdownEditor
+    access: 0
+  - className: GraphicEditor
+    access: 0
+  - className: GridLayoutGroupEditor
+    access: 0
+  - className: HorizontalOrVerticalLayoutGroupEditor
+    access: 0
+  - className: ImageEditor
+    access: 0
+  - className: InputFieldEditor
+    access: 0
+  - className: LayoutElementEditor
+    access: 0
+  - className: MaskEditor
+    access: 0
+  - className: RawImageEditor
+    access: 0
+  - className: RectMask2DEditor
+    access: 0
+  - className: ScrollRectEditor
+    access: 0
+  - className: ScrollbarEditor
+    access: 0
+  - className: SelectableEditor
+    access: 0
+  - className: SelfControllerEditor
+    access: 0
+  - className: SliderEditor
+    access: 0
+  - className: TextEditor
+    access: 0
+  - className: ToggleEditor
+    access: 0
+  - className: EventSystemEditor
+    access: 0
+  - className: EventTriggerEditor
+    access: 0
+  - className: Physics2DRaycasterEditor
+    access: 0
+  - className: PhysicsRaycasterEditor
+    access: 0
+  - className: AnalyticsEventTrackerEditor
+    access: 0
+  - className: AnalyticsEventTracker
+    access: 0
+  - className: AnalyticsTracker
+    access: 0

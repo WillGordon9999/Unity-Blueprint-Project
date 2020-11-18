@@ -12,7 +12,9 @@ public enum NodeType { Entry_Point, Function, Constructor, Field_Get, Field_Set,
 public class Node
 {
     public Rect rect;
+    public Rect final; //drawing rect
     Rect fieldRect;
+    
     public Vector2 initPos;
     public Vector2 initDimensions;
     public string title;
@@ -33,7 +35,14 @@ public class Node
     public string input;
     public string type; //the type.ToString() of the class containing the method/member
     public string assemblyPath;
+    public string nameSpace;
     public int index; //The index of this overloaded function definition when GetMethods is called
+
+    //Generic Specific
+    public bool isGenericFunction;
+    Type[] genericTypes;
+    Assembly[] genericAsms;
+    Parameter genericParameterToSet;
 
     public Action<Node> OnRemoveNode;
 
@@ -52,7 +61,7 @@ public class Node
     public List<string> passInParams;
 
     //Operations Core    
-    public object actualTarget;        
+    //public object actualTarget;        
     public string varName; //The name of the target variable to execute member call on
     public bool isStatic;
     public string operatorStr;
@@ -66,26 +75,27 @@ public class Node
     public object returnObj; //The object which ideally will be accessible by next nodes    
 
     //None of these are being used
-    public enum ReturnVarType { None, Var, Field, Property }; //Deprecated
-    public ReturnVarType retType;
+    //public enum ReturnVarType { None, Var, Field, Property }; //Deprecated
+    //public ReturnVarType retType;
 
     public bool isSpecial = false; //Basically the target to call on is the BlueprintComponent
     
-    public string returnInput; // The variable to return to if the function returns
+    public string returnInput = ""; // The variable to return to if the function returns
 
-    public Parameter returnEntry;
+    //public Parameter returnEntry;
           
     //For setting fields or properties
-    public Parameter literalField; //Use a literal value
-    public Parameter varField; //Access a variable
-    public Parameter setMember;
-
-    public List<Expression> expressionBody;
-
+    //public Parameter literalField; //Use a literal value
+    //public Parameter varField; //Access a variable
+    //public Parameter setMember;
+    
     //Determining if you are using a literal or var is still a work in progress
-    public bool isVar { get; set; } //For when the node is a field set or property set, and the the value in question is being set to a variable
+    //public bool isVar { get; set; } //For when the node is a field set or property set, and the the value in question is being set to a variable
 
     public Blueprint blueprint; //With the primary idea being this is used for variable access
+
+    //Game Specific 
+    public bool hasCost = false;
 
     public bool isContextual = false;
 
@@ -100,7 +110,10 @@ public class Node
     public Node falseNode; //For conditionals
 
     string initField = "Init Field";
-    public Node() { }
+
+    //New GUI
+    public Vector2 startPos;
+    public Vector2 endPos;
            
     public Node(Vector2 position, float width, float height, GUIStyle nodeStyle, GUIStyle selectStyle, GUIStyle inStyle, GUIStyle outStyle, Action<ConnectionPoint> inAction, Action<ConnectionPoint> outAction, Action<Node> onRemove)
     {
@@ -119,17 +132,18 @@ public class Node
         isDefined = false;
         
         Vector2 lerp = new Vector2(Mathf.Lerp(rect.position.x, rect.position.x + rect.width, 0.125f), Mathf.Lerp(rect.position.y, rect.position.y + rect.height, 0.2f));
-        
+        startPos = new Vector2(Mathf.Lerp(rect.position.x, rect.position.x + rect.width, 0.25f), Mathf.Lerp(rect.position.y, rect.position.y + rect.height, 0.25f));
+        endPos = new Vector2(Mathf.Lerp(rect.position.x, rect.position.x + rect.width, 0.75f), Mathf.Lerp(rect.position.y, rect.position.y + rect.height, 0.75f));
+
         //The initial relative offset
         initPos = lerp - rect.position;                
         //Initial Label/Field dimensions for parameters
-        initDimensions = new Vector2(rect.width * 0.75f, rect.height * 0.45f);
-        expressionBody = new List<Expression>();
+        initDimensions = new Vector2(rect.width * 0.75f, rect.height * 0.45f);        
     }   
     
     public Node(NodeData data, Action<ConnectionPoint> inAction, Action<ConnectionPoint> outAction, Action<Node> removeNode)
     {
-        rect = data.rect;
+        rect = data.rect;        
         style = data.nodeStyle;
         initPos = data.initPos;
         initDimensions = data.initDimensions;
@@ -140,6 +154,8 @@ public class Node
         assemblyPath = data.assemblyPath;
         operatorStr = data.operatorStr;
         operatorMethodName = data.operatorMethodName;
+        nameSpace = data.nameSpace;
+        isGenericFunction = data.isGenericFunction;
 
         inPoint = new ConnectionPoint(data.inPoint, this, data.inStyle, inAction);
         outPoint = new ConnectionPoint(data.outPoint, this, data.outStyle, outAction);
@@ -155,25 +171,33 @@ public class Node
         isStatic = data.isStatic;
         isDefined = data.isDefined;
         isEntryPoint = data.isEntryPoint;
-        isVar = data.isVar;
+        //isVar = data.isVar;
 
         isReturning = data.isReturning;
         returnInput = data.returnInput;
         
         isSpecial = data.isSpecial;
         varName = data.varName;
-        retType = data.retType;
+        //retType = data.retType;
+        
+        hasCost = data.hasCost;
+
+        if (data.passInParams != null)
+        {
+            passInParams = new List<string>();
+
+            foreach (string str in data.passInParams)
+                passInParams.Add(str);
+        }
 
         if (isReturning)
             returnType = Interpreter.Instance.LoadVarType(data.returnType, data.returnAsmPath);
-
-        expressionBody = new List<Expression>();
-
-        if (data.literalField != null)
-            literalField = new Parameter(data.literalField.GetValue(), data.literalField.GetSystemType(), data.literalField.type, data.literalField.inputVar, data.literalField.varInput);
-
-        if (data.varField != null)
-            varField = new Parameter(data.varField.GetValue(), data.varField.GetSystemType(), data.varField.type, data.varField.inputVar, data.varField.varInput);
+        
+        //if (data.literalField != null)
+        //    literalField = new Parameter(data.literalField.GetValue(), data.literalField.GetSystemType(), data.literalField.type, data.literalField.inputVar, data.literalField.varInput);
+        //
+        //if (data.varField != null)
+        //    varField = new Parameter(data.varField.GetValue(), data.varField.GetSystemType(), data.varField.type, data.varField.inputVar, data.varField.varInput);
 
         if (isDefined)
         {
@@ -185,7 +209,8 @@ public class Node
             foreach(ParameterData par in data.paramList)
             {
                 //TO-DO: Add loading functionality                
-                paramList.Add(new Parameter(par.GetValue(), par.GetSystemType(), par.type, par.inputVar, par.varInput, par.name));
+                //paramList.Add(new Parameter(par.GetValue(), par.GetSystemType(), par.type, par.inputVar, par.varInput, par.shouldDraw, par.name, this, par.isGeneric, par.templateType));
+                paramList.Add(new Parameter(par, this));
             }
         }
 
@@ -196,35 +221,54 @@ public class Node
         rect.position += delta;
     }
    
-    public void Draw()
+    public void Draw(float zoomScale = 1.0f)
     {
         //Draw Connection Points
-        inPoint.Draw();
-        outPoint.Draw();
+        inPoint.Draw(zoomScale);
+        outPoint.Draw(zoomScale);
 
         //Draw False Point if you're a branch
         if (nodeType == NodeType.Conditional)
-            falsePoint.Draw();
+            falsePoint.Draw(zoomScale);
 
+        final = new Rect(rect.position * zoomScale, new Vector2(rect.width, rect.height) * zoomScale);
         //Draw the box
-        GUI.Box(rect, "", style);
+        if (!Application.isPlaying)
+            GUI.Box(rect, "", style);
+        else
+            GUI.Box(final, "");
 
         //Draw accordingly to whether node has definition or not
         if (!isDefined)
         {
+            
             GUI.SetNextControlName(initField);
-            input = EditorGUI.TextField(new Rect(rect.position + initPos, initDimensions), input);
-        }
-        else
-            EditorGUI.LabelField(new Rect(rect.position + initPos, initDimensions), input);
+            //input = GUI.TextField(new Rect(rect.position + initPos, initDimensions), input);
+            input = GUI.TextField(new Rect(final.position + initPos, initDimensions), input);
 
-        if (nodeType == NodeType.Entry_Point)
+            //GUILayout.BeginArea(rect, style);
+            //GUI.Box(rect, "", style);
+            //GUILayout.BeginArea(new Rect(startPos, new Vector2(endPos.x - startPos.x, endPos.y - startPos.y)));
+            //GUILayout.Box("", style);
+            //
+            //input = GUILayout.TextField(input);
+            //GUILayout.EndArea();
+        }
+        //else
+        //    //EditorGUI.LabelField(new Rect(rect.position + initPos, initDimensions), input);
+        //    GUI.Label(new Rect(rect.position + initPos, initDimensions), input);
+
+        if (nodeType == NodeType.Entry_Point && isDefined)
         {
+            //
+            GUI.Label(new Rect(final.position + initPos, initDimensions), input);
+
             if (passInParams != null)
             {
                 for (int i = 0; i < passInParams.Count; i++)
                 {
-                    Vector2 pos = rect.position + initPos;
+                    //Vector2 pos = rect.position + initPos;
+                    Vector2 pos = final.position + initPos;
                     pos.y += (initDimensions.y * (i + 1));
                     Rect entry = new Rect(pos, initDimensions);
                     GUI.Label(entry, passInParams[i]);                                        
@@ -237,71 +281,142 @@ public class Node
         {
             if (paramList.Count > 0)
             {
-                for (int i = 0; i < paramList.Count; i++)
-                {
-                    Vector2 pos = rect.position + initPos;
-                    pos.y += (initDimensions.y * (i + 1));
-                    Rect entry = new Rect(pos, initDimensions);
-                    paramList[i].rect = entry;
+                //
+                //GUILayout.BeginArea(new Rect(rect.position + initPos, new Vector2(rect.width - initPos.x, rect.height)));
+                GUILayout.BeginArea(new Rect(final.position + initPos, new Vector2(final.width - initPos.x, final.height)));
 
-                    //Equivalent to: if draw != null                
-                    paramList[i].draw?.Invoke();
+                GUILayout.BeginVertical();
+                                
+                GUILayout.Label(input);
+
+                for (int i = 0; i < paramList.Count; i++)
+                {                    
+                    paramList[i].draw?.Invoke(rect.width * 0.75f);
 
                     if (isReturning && i == paramList.Count - 1)
                     {
-                        pos.y += (initDimensions.y * (i + 1));
-                        entry = new Rect(pos, initDimensions);
-                        returnInput = GUI.TextField(entry, returnInput);
+                        GUILayout.Label("Return to:");
+                        //returnInput = GUILayout.TextField(returnInput, GUILayout.MaxWidth(rect.width * 0.75f));
+                        returnInput = GUILayout.TextField(returnInput, GUILayout.MaxWidth(final.width * 0.75f));
                     }
+                                                                   
+                    //Vector2 pos = rect.position + initPos;
+                    //
+                    //pos.y += (initDimensions.y * (i + 1));
+                    //Rect entry = new Rect(pos, initDimensions);
+                    //paramList[i].rect = entry;
+                    //
+                    ////Equivalent to: if draw != null                
+                    //paramList[i].draw?.Invoke();
+                    //
+                    //if (isReturning && i == paramList.Count - 1)
+                    //{
+                    //    pos.y += (initDimensions.y * (i + 1));
+                    //    entry = new Rect(pos, initDimensions);
+                    //    returnInput = GUI.TextField(entry, returnInput);
+                    //}
                 }
+
+                GUILayout.EndVertical();                
+                GUILayout.EndArea();
             }
         }
 
         if (nodeType == NodeType.Constructor)
         {
-            for (int i = 0; i < paramList.Count; i++)
+            if (paramList.Count > 0)
             {
-                Vector2 pos = rect.position + initPos;
-                pos.y += (initDimensions.y * (i + 1));
-                Rect entry = new Rect(pos, initDimensions);
-                paramList[i].rect = entry;
+                //GUILayout.BeginArea(new Rect(rect.position + initPos, new Vector2(rect.width - initPos.x, rect.height)));
+                GUILayout.BeginArea(new Rect(final.position + initPos, new Vector2(final.width - initPos.x, final.height)));
 
-                //Equivalent to: if draw != null                
-                paramList[i].draw?.Invoke();
+                GUILayout.BeginVertical();
 
-                if (isReturning && i == paramList.Count - 1)
+                GUILayout.Label(input);
+
+                for (int i = 0; i < paramList.Count; i++)
                 {
-                    pos.y += (initDimensions.y * (i + 1));
-                    entry = new Rect(pos, initDimensions);
-                    returnInput = GUI.TextField(entry, returnInput);
-                }
-            }
+                    //paramList[i].draw?.Invoke(rect.width * 0.75f);
+                    paramList[i].draw?.Invoke(final.width * 0.75f);
 
+                    if (isReturning && i == paramList.Count - 1)
+                    {
+                        GUILayout.Label("Return To");
+                        //returnInput = GUILayout.TextField(returnInput, GUILayout.MaxWidth(rect.width * 0.75f));
+                        returnInput = GUILayout.TextField(returnInput, GUILayout.MaxWidth(final.width * 0.75f));
+                    }
+
+
+                    //Vector2 pos = rect.position + initPos;
+                    //pos.y += (initDimensions.y * (i + 1));
+                    //Rect entry = new Rect(pos, initDimensions);
+                    //paramList[i].rect = entry;
+                    //
+                    ////Equivalent to: if draw != null                
+                    //paramList[i].draw?.Invoke();
+                    //
+                    //if (isReturning && i == paramList.Count - 1)
+                    //{
+                    //    pos.y += (initDimensions.y * (i + 1));
+                    //    entry = new Rect(pos, initDimensions);
+                    //    returnInput = GUI.TextField(entry, returnInput);
+                    //}
+                }
+
+                GUILayout.EndVertical();
+
+                GUILayout.EndArea();
+            }
+        
             //Vector2 pos = rect.position + initPos;
             //pos.y += (initDimensions.y);
             //Rect entry = new Rect(pos, initDimensions);
             //returnInput = GUI.TextField(entry, returnInput);
         }
-
+        
         //Get
         if (nodeType == NodeType.Field_Get || nodeType == NodeType.Property_Get)
         {
-            Vector2 pos = rect.position + initPos;
-            pos.y += initDimensions.y;
-            Rect entry = new Rect(pos, initDimensions);
-            returnInput = GUI.TextField(entry, returnInput);
-        }
+            //Vector2 pos = rect.position + initPos;
+            //pos.y += initDimensions.y;
+            //Rect entry = new Rect(pos, initDimensions);
+            //returnInput = GUI.TextField(entry, returnInput);
+            //GUILayout.BeginArea(new Rect(rect.position + initPos, new Vector2(rect.width - initPos.x, rect.height)));
+            GUILayout.BeginArea(new Rect(final.position + initPos, new Vector2(final.width - initPos.x, final.height)));
 
+            GUILayout.BeginVertical();
+
+            GUILayout.Label(input);
+
+            GUILayout.Label("Return to:");
+            //returnInput = GUILayout.TextField(returnInput, GUILayout.MaxWidth(rect.width * 0.75f));
+            returnInput = GUILayout.TextField(returnInput, GUILayout.MaxWidth(final.width * 0.75f));
+
+            GUILayout.EndVertical();
+
+            GUILayout.EndArea();
+        }
+        
         //Set        
         if (nodeType == NodeType.Field_Set || nodeType == NodeType.Property_Set)
         {
-            Vector2 pos = rect.position + initPos;
-            pos.y += initDimensions.y;
-            Rect entry = new Rect(pos, initDimensions);
-            paramList[0].rect = entry;
+            //GUILayout.BeginArea(new Rect(rect.position + initPos, new Vector2(rect.width - initPos.x, rect.height)));            
+            GUILayout.BeginArea(new Rect(final.position + initPos, new Vector2(final.width - initPos.x, final.height)));
+            GUILayout.BeginVertical();
 
-            //Equivalent to: if draw != null                
-            paramList[0].draw?.Invoke();
+            GUILayout.Label(input);
+            //paramList[0].draw?.Invoke(rect.width * 0.75f);
+            paramList[0].draw?.Invoke(final.width * 0.75f);
+
+            GUILayout.EndVertical();
+            GUILayout.EndArea();
+
+            //Vector2 pos = rect.position + initPos;
+            //pos.y += initDimensions.y;
+            //Rect entry = new Rect(pos, initDimensions);
+            //paramList[0].rect = entry;
+            //
+            ////Equivalent to: if draw != null                
+            //paramList[0].draw?.Invoke();
 
             //literalField.rect = entry;            
             //literalField.draw?.Invoke();
@@ -317,36 +432,70 @@ public class Node
         if (nodeType == NodeType.Conditional)
         {
             if (paramList.Count > 0)
-            {                
-                Vector2 pos = rect.position + initPos;
-                pos.y += (initDimensions.y * 2);
-                Rect entry = new Rect(pos, initDimensions);
-                paramList[0].rect = entry;
+            {
+                //GUILayout.BeginArea(new Rect(rect.position + initPos, new Vector2(rect.width - initPos.x, rect.height)));
+                GUILayout.BeginArea(new Rect(final.position + initPos, new Vector2(final.width - initPos.x, final.height)));
+                GUILayout.BeginVertical();
 
-                //Equivalent to: if draw != null                
-                paramList[0].draw?.Invoke();                              
+                GUILayout.Label(input);
+
+                //paramList[0].draw?.Invoke(rect.width * 0.75f);
+                paramList[0].draw?.Invoke(final.width * 0.75f);
+
+                GUILayout.EndVertical();
+                GUILayout.EndArea();
+
+                //Vector2 pos = rect.position + initPos;
+                //pos.y += (initDimensions.y * 2);
+                //Rect entry = new Rect(pos, initDimensions);
+                //paramList[0].rect = entry;
+                //
+                ////Equivalent to: if draw != null                
+                //paramList[0].draw?.Invoke();                              
             }
         }
-
+        
         if (nodeType == NodeType.Operation)
         {
+            //GUILayout.BeginArea(new Rect(rect.position + initPos, new Vector2(rect.width - initPos.x, rect.height)));
+            GUILayout.BeginArea(new Rect(final.position + initPos, new Vector2(final.width - initPos.x, final.height)));
+            GUILayout.BeginVertical();
+
+            GUILayout.Label(input);
+
             for (int i = 0; i < paramList.Count; i++)
             {
-                Vector2 pos = rect.position + initPos;
-                pos.y += (initDimensions.y * (i + 1));
-                Rect entry = new Rect(pos, initDimensions);
-                paramList[i].rect = entry;
-        
-                //Equivalent to: if draw != null                
-                paramList[i].draw?.Invoke();
-        
+                //paramList[i].draw?.Invoke(rect.width * 0.75f);
+                paramList[i].draw?.Invoke(final.width * 0.75f);
+
                 if (isReturning && i == paramList.Count - 1)
                 {
-                    pos.y += (initDimensions.y * (i + 1));
-                    entry = new Rect(pos, initDimensions);
-                    returnInput = GUI.TextField(entry, returnInput);
+                    GUILayout.Label("Return to:");
+                    //returnInput = GUILayout.TextField(returnInput, GUILayout.MaxWidth(rect.width * 0.75f));
+                    returnInput = GUILayout.TextField(returnInput, GUILayout.MaxWidth(final.width * 0.75f));
                 }
             }
+
+            GUILayout.EndVertical();
+            GUILayout.EndArea();
+
+            //for (int i = 0; i < paramList.Count; i++)
+            //{
+            //    Vector2 pos = rect.position + initPos;
+            //    pos.y += (initDimensions.y * (i + 1));
+            //    Rect entry = new Rect(pos, initDimensions);
+            //    paramList[i].rect = entry;
+            //
+            //    //Equivalent to: if draw != null                
+            //    paramList[i].draw?.Invoke();
+            //
+            //    if (isReturning && i == paramList.Count - 1)
+            //    {
+            //        pos.y += (initDimensions.y * (i + 1));
+            //        entry = new Rect(pos, initDimensions);
+            //        returnInput = GUI.TextField(entry, returnInput);
+            //    }
+            //}
         }
        
     }
@@ -363,7 +512,7 @@ public class Node
                         isDragged = true;
                         GUI.changed = true;
                         isSelected = true;                        
-                        style = selectedNodeStyle;
+                        style = selectedNodeStyle;                                              
                     }
 
                     else
@@ -377,9 +526,18 @@ public class Node
                 if (e.button == 1 && rect.Contains(e.mousePosition))
                 {                    
                     e.Use();
+
                     
                     if (!isDefined)
-                        Interpreter.Instance.Compile(input, NodeEditor.current, ref metaData, this);
+                    {
+#if UNITY_EDITOR
+                        if (!Application.isPlaying)
+                            Interpreter.Instance.Compile(input, NodeEditor.current, ref metaData, this);
+#endif
+                        if (Application.isPlaying)
+                            Interpreter.Instance.Compile(input, RealTimeEditor.Instance.current, ref metaData, this);
+                    }
+                                            
 
                     //if (isDefined && isReturning)
                     //    Interpreter.Instance.Compile(returnInput, NodeEditor.current, ref metaData, this);
@@ -401,56 +559,285 @@ public class Node
                 break;            
         }
 
-        //Check for Special Functions
-        if (e.keyCode == KeyCode.Return && GUI.GetNameOfFocusedControl() == initField)
-        {
-            //e.Use();
-            if (!isDefined)
-            {
-                Interpreter.Instance.ParseKeywords(input, this);
-
-                if (metaData != null)
-                {
-                    if (metaData.isOperator && metaData.methods?.Length == 0)
-                    {
-                        Debug.Log("Node changing to operator node");
-                        ChangeToOperation(null);
-                    }
-                }
-                return true;
-            }
-            
-        }
+        //Check for Special Functions - DOES NOT WORK WITH PASS IN PARAMS CHECK
+        //if (e.keyCode == KeyCode.Return && GUI.GetNameOfFocusedControl() == initField)
+        //{
+        //    //e.Use();
+        //    if (!isDefined)
+        //    {
+        //        //Questionable if we still want this
+        //        Interpreter.Instance.ParseKeywords(input, this, ref blueprint.dataRef);
+        //
+        //        if (metaData != null)
+        //        {
+        //            if (metaData.isOperator && metaData.methods?.Length == 0)
+        //            {
+        //                Debug.Log("Node changing to operator node");
+        //                ChangeToOperation(null);
+        //            }
+        //        }
+        //        return true;
+        //    }
+        //    
+        //}
 
         return false;
     }
 
     void ProcessContextMenu()
     {
-        GenericMenu menu = new GenericMenu();
-        menu.AddItem(new GUIContent("Remove node"), false, OnClickRemoveNode);
-        
+#if UNITY_EDITOR
+        if (!Application.isPlaying)
+        {
+            GenericMenu menu = new GenericMenu();
+            menu.AddItem(new GUIContent("Remove node"), false, OnClickRemoveNode);
+
+            if (isDefined)
+            {
+                if (nodeType == NodeType.Conditional)
+                {
+                    if (isContextual)
+                        menu.AddItem(new GUIContent("Change to use variable"), false, ToggleContext, false);
+                    else
+                        menu.AddItem(new GUIContent("Change to use result of previous node"), false, ToggleContext, true);
+                }
+
+                for (int i = 0; i < paramList.Count; i++)
+                {
+                    if (!paramList[i].isGeneric)
+                    {
+                        if (!paramList[i].inputVar)
+                            menu.AddItem(new GUIContent($"Change {paramList[i].name} to var"), false, ToggleParameterArg, i);
+                        else
+                            menu.AddItem(new GUIContent($"Change {paramList[i].name} to field"), false, ToggleParameterArg, i);
+                    }
+
+                    if (paramList[i].isGeneric)
+                    {
+                        menu.AddItem(new GUIContent("Search Types for " + paramList[i].name), false, SearchForType, paramList[i]);
+                    }
+                }
+
+                if (genericParameterToSet != null)
+                {
+                    foreach(Type t in genericTypes)
+                    {
+                        menu.AddItem(new GUIContent($"Set {genericParameterToSet} Type to {t.ToString()}"), false, ChangeGenericParameterToSelectedType, t);
+                    }
+                }
+
+                goto End;
+            }
+
+            if (metaData != null)
+            {
+                if (metaData.selectedType == null)
+                {
+                    if (metaData.isKeyWord)
+                    {
+                        isEntryPoint = true;
+                        return;
+                    }
+
+                    if (metaData.types != null)
+                    {
+                        if (metaData.types.Length > 1)
+                        {
+                            for (int i = 0; i < metaData.types.Length; i++)
+                            {
+                                menu.AddItem(new GUIContent(metaData.types[i].ToString()), false, SelectObjectType, i);
+                            }
+                        }
+                    }
+
+                }
+
+                else
+                {
+                    if (metaData.constructors != null)
+                    {
+                        foreach (ConstructorInfo c in metaData.constructors)
+                        {
+                            if (c != null)
+                            {
+                                ParameterInfo[] args = c.GetParameters();
+                                string final = c.Name + "(";
+
+                                for (int i = 0; i < args.Length; i++)
+                                {
+                                    final += " " + args[i].ParameterType.Name + " " + args[i].Name;
+
+                                    if (i < args.Length - 1)
+                                        final += ", ";
+
+                                }
+
+                                final += " )";
+
+                                menu.AddItem(new GUIContent(final), false, ChangeToConstructor, c);
+                            }
+                        }
+                    }
+
+                    if (metaData.methods != null)
+                    {
+                        foreach (MethodInfo m in metaData.methods)
+                        {
+                            if (m != null)
+                            {
+                                ParameterInfo[] args = m.GetParameters();
+                                string final = m.Name + "(";
+
+                                for (int i = 0; i < args.Length; i++)
+                                {
+                                    final += " " + args[i].ParameterType.Name + " " + args[i].Name;
+
+                                    if (i < args.Length - 1)
+                                        final += ", ";
+
+                                }
+
+                                final += " )";
+
+                                if (hasCost)
+                                    menu.AddItem(new GUIContent(final), false, ChangeToGameMethod, m);
+
+                                if (!metaData.isOperator)
+                                    menu.AddItem(new GUIContent(final), false, ChangeToMethod, m);
+                                else
+                                    menu.AddItem(new GUIContent(final), false, ChangeToOperation, m);
+                            }
+                        }
+                    }
+
+                    if (metaData.fields != null)
+                    {
+                        foreach (FieldInfo f in metaData.fields)
+                        {
+                            if (f != null)
+                            {
+                                if (metaData.access == InterpreterData.AccessType.Both)
+                                {
+                                    string final = "Get " + f.FieldType + " " + f.Name;
+
+                                    if (!isDefined && !isReturning)
+                                        menu.AddItem(new GUIContent(final), false, ChangeToField, "Get"); //This will be supported later
+
+                                    final = "Set " + f.FieldType + " " + f.Name;
+
+                                    if (!isDefined && !isReturning)
+                                        menu.AddItem(new GUIContent(final), false, ChangeToField, "Set");
+
+                                }
+                            }
+                        }
+                    }
+
+                    if (metaData.properties != null)
+                    {
+                        foreach (PropertyInfo p in metaData.properties)
+                        {
+                            if (p != null)
+                            {
+
+                                if (metaData.access == InterpreterData.AccessType.Both)
+                                {
+                                    string final = "Get " + p.PropertyType + " " + p.Name;
+
+                                    if (!isDefined && !isReturning)
+                                        menu.AddItem(new GUIContent(final), false, ChangeToProperty, "Get"); //This will be supported later
+
+                                    final = "Set " + p.PropertyType + " " + p.Name;
+
+                                    if (!isDefined && !isReturning)
+                                        menu.AddItem(new GUIContent(final), false, ChangeToProperty, "Set");
+
+                                }
+
+                                else if (metaData.access == InterpreterData.AccessType.Get)
+                                {
+                                    string final = "Get " + p.PropertyType + " " + p.Name;
+
+                                    if (!isDefined && !isReturning)
+                                        menu.AddItem(new GUIContent(final), false, ChangeToProperty, "Get"); //This will be supported later
+                                }
+
+                                else if (metaData.access == InterpreterData.AccessType.Set)
+                                {
+                                    string final = "Set " + p.PropertyType + " " + p.Name;
+
+                                    if (!isDefined && !isReturning)
+                                        menu.AddItem(new GUIContent(final), false, ChangeToProperty, "Set");
+
+                                }
+                            }
+                        }
+                    }
+
+                    if (metaData.isOperator && metaData.methods.Length == 0)
+                    {
+                        Debug.Log("Node changing to operator node");
+                        ChangeToOperation(null);
+                    }
+                }
+            }
+
+            End:
+
+            menu.ShowAsContext();
+        }
+#endif        
+        if (Application.isPlaying)
+            ProcessContextMenuRealTime();
+    }
+
+    void ProcessContextMenuRealTime()
+    {
+        //GenericMenu menu = new GenericMenu();
+        //menu.AddItem(new GUIContent("Remove node"), false, OnClickRemoveNode);
+        RealTimeEditor.Instance.contextMenu.StopDraw();
+        Rect menuRect = RealTimeEditor.Instance.contextMenu.rect;
+        menuRect.position = new Vector2(rect.x, rect.y + rect.height);
+        RealTimeEditor.Instance.contextMenu.rect = menuRect;
+
+        Debug.Log("In Process Context Menu Real Time");
+        RealTimeEditor.Instance.contextMenu.AddItem("Remove node", OnClickRemoveNode);
+
         if (isDefined)
         {
             if (nodeType == NodeType.Conditional)
             {
                 if (isContextual)
-                    menu.AddItem(new GUIContent("Change to use variable"), false, ToggleContext, false);
+                    RealTimeEditor.Instance.contextMenu.AddItem("Change to use variable", ToggleContext, false);
                 else
-                    menu.AddItem(new GUIContent("Change to use result of previous node"), false, ToggleContext, true);
+                    RealTimeEditor.Instance.contextMenu.AddItem("Change to use result of previous node", ToggleContext, true);
             }
 
             for (int i = 0; i < paramList.Count; i++)
             {
-                if (!paramList[i].inputVar)
-                    menu.AddItem(new GUIContent($"Change {paramList[i].name} to var"), false, ToggleParameterArg, i);
+                if (!paramList[i].isGeneric)
+                {
+                    if (!paramList[i].inputVar)
+                        RealTimeEditor.Instance.contextMenu.AddItem($"Change {paramList[i].name} to var", ToggleParameterArg, i);
+                    else
+                        RealTimeEditor.Instance.contextMenu.AddItem($"Change {paramList[i].name} to field", ToggleParameterArg, i);
+                }
+
                 else
-                    menu.AddItem(new GUIContent($"Change {paramList[i].name} to field"), false, ToggleParameterArg, i);
+                    RealTimeEditor.Instance.contextMenu.AddItem("Search Types for " + paramList[i].name, SearchForType, paramList[i]);
+            }
+
+            if (genericParameterToSet != null)
+            {
+                foreach (Type t in genericTypes)
+                {
+                    RealTimeEditor.Instance.contextMenu.AddItem($"Set {genericParameterToSet} Type to {t.ToString()}", ChangeGenericParameterToSelectedType, t);
+                }
             }
 
             goto End;
         }
-         
+
         if (metaData != null)
         {
             if (metaData.selectedType == null)
@@ -467,18 +854,18 @@ public class Node
                     {
                         for (int i = 0; i < metaData.types.Length; i++)
                         {
-                            menu.AddItem(new GUIContent(metaData.types[i].ToString()), false, SelectObjectType, i);
+                            RealTimeEditor.Instance.contextMenu.AddItem(metaData.types[i].ToString(), SelectObjectType, i);
                         }
                     }
                 }
-               
+
             }
 
             else
-            {               
+            {
                 if (metaData.constructors != null)
                 {
-                    foreach(ConstructorInfo c in metaData.constructors)
+                    foreach (ConstructorInfo c in metaData.constructors)
                     {
                         if (c != null)
                         {
@@ -496,7 +883,7 @@ public class Node
 
                             final += " )";
 
-                            menu.AddItem(new GUIContent(final), false, ChangeToConstructor, c);
+                            RealTimeEditor.Instance.contextMenu.AddItem(final, ChangeToConstructor, c);
                         }
                     }
                 }
@@ -520,18 +907,22 @@ public class Node
                             }
 
                             final += " )";
+
+                            if (hasCost)
+                                RealTimeEditor.Instance.contextMenu.AddItem(final, ChangeToGameMethod, m);
+
                             if (!metaData.isOperator)
-                                menu.AddItem(new GUIContent(final), false, ChangeToMethod, m);
+                                RealTimeEditor.Instance.contextMenu.AddItem(final, ChangeToMethod, m);
                             else
-                                menu.AddItem(new GUIContent(final), false, ChangeToOperation, m);
+                                RealTimeEditor.Instance.contextMenu.AddItem(final, ChangeToOperation, m);
                         }
-                    }                    
+                    }
                 }
-                
+
                 if (metaData.fields != null)
                 {
                     foreach (FieldInfo f in metaData.fields)
-                    {                        
+                    {
                         if (f != null)
                         {
                             if (metaData.access == InterpreterData.AccessType.Both)
@@ -539,22 +930,22 @@ public class Node
                                 string final = "Get " + f.FieldType + " " + f.Name;
 
                                 if (!isDefined && !isReturning)
-                                    menu.AddItem(new GUIContent(final), false, ChangeToField, "Get"); //This will be supported later
+                                    RealTimeEditor.Instance.contextMenu.AddItem(final, ChangeToField, "Get"); //This will be supported later
 
                                 final = "Set " + f.FieldType + " " + f.Name;
 
                                 if (!isDefined && !isReturning)
-                                    menu.AddItem(new GUIContent(final), false, ChangeToField, "Set");
-                               
+                                    RealTimeEditor.Instance.contextMenu.AddItem(final, ChangeToField, "Set");
+
                             }
                         }
                     }
                 }
-                
+
                 if (metaData.properties != null)
                 {
                     foreach (PropertyInfo p in metaData.properties)
-                    {                        
+                    {
                         if (p != null)
                         {
 
@@ -563,13 +954,13 @@ public class Node
                                 string final = "Get " + p.PropertyType + " " + p.Name;
 
                                 if (!isDefined && !isReturning)
-                                    menu.AddItem(new GUIContent(final), false, ChangeToProperty, "Get"); //This will be supported later
+                                    RealTimeEditor.Instance.contextMenu.AddItem(final, ChangeToProperty, "Get"); //This will be supported later
 
                                 final = "Set " + p.PropertyType + " " + p.Name;
 
                                 if (!isDefined && !isReturning)
-                                    menu.AddItem(new GUIContent(final), false, ChangeToProperty, "Set");
-                               
+                                    RealTimeEditor.Instance.contextMenu.AddItem(final, ChangeToProperty, "Set");
+
                             }
 
                             else if (metaData.access == InterpreterData.AccessType.Get)
@@ -577,7 +968,7 @@ public class Node
                                 string final = "Get " + p.PropertyType + " " + p.Name;
 
                                 if (!isDefined && !isReturning)
-                                    menu.AddItem(new GUIContent(final), false, ChangeToProperty, "Get"); //This will be supported later
+                                    RealTimeEditor.Instance.contextMenu.AddItem(final, ChangeToProperty, "Get"); //This will be supported later
                             }
 
                             else if (metaData.access == InterpreterData.AccessType.Set)
@@ -585,8 +976,8 @@ public class Node
                                 string final = "Set " + p.PropertyType + " " + p.Name;
 
                                 if (!isDefined && !isReturning)
-                                    menu.AddItem(new GUIContent(final), false, ChangeToProperty, "Set");
-                              
+                                    RealTimeEditor.Instance.contextMenu.AddItem(final, ChangeToProperty, "Set");
+
                             }
                         }
                     }
@@ -602,7 +993,26 @@ public class Node
 
         End:
 
-        menu.ShowAsContext();
+        RealTimeEditor.Instance.contextMenu.canDraw = true;
+    }
+
+    //TO-DO
+    void SearchForType(object input)
+    {
+        Parameter par = (Parameter)input;
+       
+        if (Interpreter.Instance.FindType(par.templateType, out genericTypes, out genericAsms))
+        {
+            genericParameterToSet = par;
+        }
+    }
+
+    void ChangeGenericParameterToSelectedType(object input)
+    {
+        Type type = (Type)input;
+        genericParameterToSet.templateType = type.ToString();
+        genericParameterToSet.templateTypeAsmPath = type.Assembly.Location;
+        genericParameterToSet = null;
     }
 
     void ToggleContext(object input)
@@ -636,14 +1046,14 @@ public class Node
             for (int i = 0; i < args.Length; i++)
             {
                 if (i > 0) //The first parameter should be the variable calling the operation
-                paramList.Add(new Parameter(args[i].ParameterType, args[i].Name));
+                paramList.Add(new Parameter(args[i].ParameterType, args[i].Name, this));
             }
 
             if (paramList.Count == 1)
                 rect = new Rect(rect.x, rect.y, rect.width, initHeight * (paramList.Count));
 
             else if (paramList.Count > 1)
-                rect = new Rect(rect.x, rect.y, rect.width, initHeight * (paramList.Count - 1));
+                rect = new Rect(rect.x, rect.y, rect.width, initHeight * (paramList.Count));
 
             foreach (Parameter p in paramList)
             {
@@ -655,7 +1065,7 @@ public class Node
                 isReturning = true;
                 returnType = info.ReturnType;
                 rect = new Rect(rect.x, rect.y, rect.width, initHeight * (paramList.Count + 1));
-                retType = ReturnVarType.Var;
+                //retType = ReturnVarType.Var;
             }
         }
 
@@ -664,7 +1074,7 @@ public class Node
             //Not performing var++ or var--
             if (!metaData.isIncrementOrDecrement)
             {
-                paramList.Add(new Parameter(metaData.selectedType, "other"));
+                paramList.Add(new Parameter(metaData.selectedType, "other", this));
                 //rect = new Rect(rect.x, rect.y, rect.width, rect.height * 2.0f);
 
                 //Not performing =, +=, -=, /=, *= etc
@@ -708,7 +1118,8 @@ public class Node
             varName = metaData.varName;
             this.input = metaData.input;
             type = metaData.selectedType.ToString();
-            assemblyPath = metaData.selectedType.Assembly.Location;            
+            assemblyPath = metaData.selectedType.Assembly.Location;
+            nameSpace = metaData.selectedType.Namespace;
 
             if (result == "Get")
             {
@@ -735,7 +1146,7 @@ public class Node
                 //varField.GetFieldType();
 
                 //setMember = new Parameter(fieldVar.FieldType);
-                paramList.Add(new Parameter(fieldVar.FieldType));
+                paramList.Add(new Parameter(fieldVar.FieldType, "", this));
 
                 //Prepare rect for new appearance
                 rect = new Rect(rect.x, rect.y, rect.width, rect.height * 3.0f);
@@ -755,7 +1166,8 @@ public class Node
             this.input = metaData.input;
             type = metaData.selectedType.ToString();
             assemblyPath = metaData.selectedType.Assembly.Location;
-            
+            nameSpace = metaData.selectedType.Namespace;
+
             if (result == "Get")
             {
                 nodeType = NodeType.Property_Get;
@@ -776,10 +1188,10 @@ public class Node
                 //
                 //varField = new Parameter(typeof(string));
                 //varField.GetFieldType();
-                paramList.Add(new Parameter(propertyVar.PropertyType));
+                paramList.Add(new Parameter(propertyVar.PropertyType, "", this));
 
                 //Prepare rect for new appearance
-                rect = new Rect(rect.x, rect.y, rect.width, rect.height * 3.0f);
+                rect = new Rect(rect.x, rect.y, rect.width, rect.height * 2.0f);
                 isDefined = true;
             }
         }
@@ -788,8 +1200,13 @@ public class Node
     void SelectObjectType(object index)
     {
         metaData.selectedType = metaData.types[(int)index];        
-        metaData.selectedAsm = metaData.selectedType.Assembly;       
-        Interpreter.Instance.Compile(input, NodeEditor.current, ref metaData);
+        metaData.selectedAsm = metaData.selectedType.Assembly;
+#if UNITY_EDITOR
+        if (!Application.isPlaying)
+            Interpreter.Instance.Compile(input, NodeEditor.current, ref metaData);
+#endif
+        if (Application.isPlaying)
+            Interpreter.Instance.Compile(input, RealTimeEditor.Instance.current, ref metaData);
     }
 
     void OnClickRemoveNode()
@@ -811,6 +1228,7 @@ public class Node
         {
             type = info.ReflectedType.ToString();
             assemblyPath = info.ReflectedType.Assembly.Location;
+            nameSpace = info.ReflectedType.Namespace;
         }
 
         float initHeight = rect.height;
@@ -818,7 +1236,7 @@ public class Node
         ParameterInfo[] args = info.GetParameters();
 
         foreach (ParameterInfo p in args)
-            paramList.Add(new Parameter(p.ParameterType, p.Name));
+            paramList.Add(new Parameter(p.ParameterType, p.Name, this));
 
         if (paramList.Count == 1)
             rect = new Rect(rect.x, rect.y, rect.width, initHeight * (paramList.Count + 1));
@@ -838,9 +1256,9 @@ public class Node
         if (returnType != typeof(void))
         {
             isReturning = true;
-            retType = ReturnVarType.Var;
+            //retType = ReturnVarType.Var;
             rect = new Rect(rect.x, rect.y, rect.width, initHeight * (paramList.Count + 1));
-            returnEntry = new Parameter(typeof(string));
+            //returnEntry = new Parameter(typeof(string));
         }
 
         else
@@ -851,11 +1269,83 @@ public class Node
 
     }
 
+    public void ChangeToGameMethod(object method)
+    {
+        nodeType = NodeType.Function;        
+        hasCost = true;
+        isSpecial = false;
+
+        MethodInfo info = (MethodInfo)method;
+
+        if (info != null)
+        {
+            type = info.ReflectedType.ToString();
+            assemblyPath = info.ReflectedType.Assembly.Location;
+            nameSpace = info.ReflectedType.Namespace;
+        }
+
+        float initHeight = rect.height;
+
+        ParameterInfo[] args = info.GetParameters();
+
+        
+        foreach (ParameterInfo p in args)
+        {
+            Parameter par = new Parameter(p.ParameterType, p.Name, this);
+
+            //if (p.ParameterType == typeof(ActionStatus))
+            //    par.shouldDraw = false;
+           
+            paramList.Add(par);
+        }
+
+        if (paramList.Count == 1)            
+            rect = new Rect(rect.x, rect.y, rect.width, initHeight * (paramList.Count + 1));
+
+
+        else if (paramList.Count > 1)
+            rect = new Rect(rect.x, rect.y, rect.width, initHeight * paramList.Count);
+
+        foreach (Parameter p in paramList)
+        {
+            p.GetFieldType();
+        }
+
+        returnType = info.ReturnType;
+        currentMethod = info;
+
+        if (metaData != null)
+        {
+            for (int i = 0; i < metaData.methods.Length; i++)
+            {
+                if (metaData.methods[i] == info)
+                {
+                    Debug.Log("Index found");
+                    index = i;
+                }
+            }
+        }
+
+        if (returnType != typeof(void))
+        {
+            isReturning = true;
+            //retType = ReturnVarType.Var;
+            rect = new Rect(rect.x, rect.y, rect.width, initHeight * (paramList.Count + 1));
+            //returnEntry = new Parameter(typeof(string));
+        }
+
+        else
+            isReturning = false;
+
+
+        isDefined = true;
+    }
+
     public void ChangeToConditional()
     {
         nodeType = NodeType.Conditional;
         rect = new Rect(rect.x, rect.y, rect.width, rect.height * 2.0f);
-        paramList.Add(new Parameter(typeof(string))); //should be a variable        
+        paramList.Add(new Parameter(typeof(string), "", this)); //should be a variable        
     }
 
     public void ChangeToMethod(object method)
@@ -872,21 +1362,38 @@ public class Node
             type = metaData.selectedType.ToString();
             isStatic = info.IsStatic;
             assemblyPath = metaData.selectedType.Assembly.Location;
+            nameSpace = metaData.selectedType.Namespace;
         }
 
         else
         {
             type = info.ReflectedType.ToString();
             isStatic = info.IsStatic;
-            assemblyPath = info.ReflectedType.Assembly.Location;            
+            assemblyPath = info.ReflectedType.Assembly.Location;
+            nameSpace = info.ReflectedType.Namespace;
         }
 
         float initHeight = rect.height;
 
+        if (info.IsGenericMethod)
+        {
+            isGenericFunction = true;
+            var genericArgs = info.GetGenericArguments();
+            
+            foreach(Type t in genericArgs)
+            {
+                Parameter p = new Parameter(t, t.Name, this, t.IsGenericParameter, true);                
+                paramList.Add(p);
+            }
+
+        }
+
         ParameterInfo[] args = info.GetParameters();
 
-        foreach(ParameterInfo p in args)                    
-            paramList.Add(new Parameter(p.ParameterType, p.Name));
+        foreach (ParameterInfo p in args)
+        {            
+            paramList.Add(new Parameter(p.ParameterType, p.Name, this, p.ParameterType.IsGenericParameter));
+        }
         
         if (paramList.Count == 1)                    
             rect = new Rect(rect.x, rect.y, rect.width, initHeight * (paramList.Count + 1));
@@ -895,10 +1402,10 @@ public class Node
         else if (paramList.Count > 1)
             rect = new Rect(rect.x, rect.y, rect.width, initHeight * (paramList.Count));
         
-        foreach(Parameter p in paramList)
-        {
-            p.GetFieldType();
-        }
+        //foreach(Parameter p in paramList)
+        //{
+        //    p.GetFieldType();
+        //}
 
         //for (int i = 0; i < methodDefinitions.Length; i++)
 
@@ -919,10 +1426,14 @@ public class Node
 
         if (returnType != typeof(void))
         {
-            isReturning = true;            
-            rect = new Rect(rect.x, rect.y, rect.width, initHeight * (paramList.Count + 1));
-            returnEntry = new Parameter(typeof(string));
-            retType = ReturnVarType.Var;
+            isReturning = true;
+            if (paramList.Count > 1)
+                rect = new Rect(rect.x, rect.y, rect.width, initHeight * (paramList.Count + 1));
+
+            if (paramList.Count == 1)
+                rect = new Rect(rect.x, rect.y, rect.width, initHeight * (paramList.Count + 2));
+            //returnEntry = new Parameter(typeof(string));
+            //retType = ReturnVarType.Var;
         }
 
         else        
@@ -946,6 +1457,7 @@ public class Node
             type = metaData.selectedType.ToString();
             isStatic = info.IsStatic;
             assemblyPath = metaData.selectedType.Assembly.Location;
+            nameSpace = metaData.selectedType.Namespace;
         }
 
         else
@@ -953,6 +1465,7 @@ public class Node
             type = info.ReflectedType.ToString();
             isStatic = info.IsStatic;
             assemblyPath = info.ReflectedType.Assembly.Location;
+            nameSpace = info.ReflectedType.Namespace;
         }
 
         float initHeight = rect.height;
@@ -960,7 +1473,7 @@ public class Node
         ParameterInfo[] args = info.GetParameters();
 
         foreach (ParameterInfo p in args)
-            paramList.Add(new Parameter(p.ParameterType, p.Name));
+            paramList.Add(new Parameter(p.ParameterType, p.Name, this));
 
         if (paramList.Count == 1)
             rect = new Rect(rect.x, rect.y, rect.width, initHeight * (paramList.Count + 1));
@@ -969,10 +1482,10 @@ public class Node
         else if (paramList.Count > 1)
             rect = new Rect(rect.x, rect.y, rect.width, initHeight * (paramList.Count));
 
-        foreach (Parameter p in paramList)
-        {
-            p.GetFieldType();
-        }
+        //foreach (Parameter p in paramList)
+        //{
+        //    p.GetFieldType();
+        //}
 
         //for (int i = 0; i < methodDefinitions.Length; i++)
 
@@ -995,8 +1508,8 @@ public class Node
         {
             isReturning = true;
             rect = new Rect(rect.x, rect.y, rect.width, initHeight * (paramList.Count + 1));
-            returnEntry = new Parameter(typeof(string));
-            retType = ReturnVarType.Var;
+            //returnEntry = new Parameter(typeof(string));
+            //retType = ReturnVarType.Var;
         }
 
         else

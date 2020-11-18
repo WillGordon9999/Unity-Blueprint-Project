@@ -14,23 +14,23 @@ public class BlueprintManager : MonoBehaviour
     [ExecuteAlways]
     private void OnValidate()
     {
-        print("In OnValidate");
+        //print("In OnValidate");
         if (blueprints == null)
         {
-            print("Instantiating new blueprint dictionary");
+            //print("Instantiating new blueprint dictionary");
             //blueprints = new Dictionary<string, Blueprint>();
             blueprints = new Dictionary<BlueprintData, Blueprint>();            
         }
 
-        else
-            print("Dictionary instantiated");              
+        //else
+        //    print("Dictionary instantiated");              
     }
    
     private void Update()
     {
         if (blueprints == null)
         {
-            print("Instantiating new blueprint dictionary at runtime");
+            //print("Instantiating new blueprint dictionary at runtime");
             //blueprints = new Dictionary<string, Blueprint>();
             blueprints = new Dictionary<BlueprintData, Blueprint>();
         }

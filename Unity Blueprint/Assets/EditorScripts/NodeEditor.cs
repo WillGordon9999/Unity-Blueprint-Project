@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEditor;
 
+#if UNITY_EDITOR
 public class NodeEditor : EditorWindow
 {
     GUIStyle resize;    
@@ -21,9 +22,13 @@ public class NodeEditor : EditorWindow
     Vector2 offset;
     Vector2 drag;
 
+    float zoomScale = 1.0f;
+    const float minZoom = 1.0f;
+    const float maxZoom = 2.0f;
+
     public static List<Node> nodes;
     public static List<Connection> connections;
-    public static List<Var> vars;
+    //public static List<Var> vars;
 
     //General sizing variables - no more hard-coding
     float nodeWidth = 300.0f;
@@ -38,7 +43,9 @@ public class NodeEditor : EditorWindow
     string text;
     BlueprintData loadData;
     bool isLoading = false;
+    bool isLoadingAssets = false;
     bool createNew = false;
+    bool createNewAsset = false;
     bool enterPressed = false;
     bool connectionRemoved = false;
     Rect createLoadRect;
@@ -101,12 +108,24 @@ public class NodeEditor : EditorWindow
 
     private void Update()
     {
+        //Debug.Log($"Scroll delta {Input.mouseScrollDelta}");
+        //zoomScale += Input.mouseScrollDelta.y;
+        
         
     }
 
     private void OnGUI()
     {
-       
+        //if (Event.current.type == EventType.ScrollWheel)
+        //    zoomScale += Event.current.delta.y * 0.1f;
+        //
+        //if (zoomScale < minZoom)
+        //    zoomScale = minZoom;
+        //
+        //if (zoomScale > maxZoom)
+        //    zoomScale = maxZoom;
+
+
         DrawGrid(20.0f, 0.2f, Color.gray);
         DrawGrid(100.0f, 0.4f, Color.gray);
 
@@ -129,11 +148,11 @@ public class NodeEditor : EditorWindow
 
             if (enterPressed)
             {                
-                current = Interpreter.Instance.LoadBlueprint(text);
+                //current = Interpreter.Instance.LoadBlueprint(text);
 
-                if (current == null && text != "")
-                {                    
-                    loadData = Interpreter.Instance.CreateAsset<BlueprintData>("Assets/" + text + ".asset");
+                if (text != "")
+                {
+                    loadData = Interpreter.Instance.CreateBlueprint(text);
 
                     current = ScriptableObject.CreateInstance<BlueprintData>();
 
@@ -154,15 +173,62 @@ public class NodeEditor : EditorWindow
 
         }
 
+        if (createNewAsset)
+        {
+            text = GUI.TextField(createLoadRect, text);
+
+            if (enterPressed)
+            {
+                current = Interpreter.Instance.LoadBlueprintAssets(text);
+
+                if (current == null && text != "")
+                {
+                    loadData = Interpreter.Instance.CreateAsset<BlueprintData>("Assets/" + text + ".asset");
+
+                    current = ScriptableObject.CreateInstance<BlueprintData>();
+
+                    current.ComponentName = text;
+                    blueprintName = text;
+                    current.ID_Count = 0; //just to be sure                    
+                    createNewAsset = false;
+                    enterPressed = false;
+                    text = "";
+                }
+
+                else
+                {
+                    Debug.Log("A file with that name exists");
+                }
+
+            }
+
+        }
+
         if (isLoading)
+        {
+            text = GUI.TextField(createLoadRect, text);
+
+            if (text != "" && enterPressed)
+                loadData = Interpreter.Instance.LoadBlueprint(text);
+
+            if (loadData != null && enterPressed)
+            {
+                Debug.Log("Found blueprint");                               
+                LoadBlueprint();
+                isLoading = false;
+                //varDisplay.current = current;
+            }
+        }
+
+        if (isLoadingAssets)
         {
             loadData = (BlueprintData)EditorGUI.ObjectField(createLoadRect, loadData, typeof(BlueprintData), true);
 
             if (loadData != null)
             {
-                Debug.Log("Found blueprint");                               
+                Debug.Log("Found blueprint");
                 LoadBlueprint();
-                isLoading = false;
+                isLoadingAssets = false;
                 //varDisplay.current = current;
             }
         }
@@ -313,22 +379,50 @@ public class NodeEditor : EditorWindow
         {            
             menu.AddItem(new GUIContent("Add node"), false, () => OnClickAddNode(mousePos));
             menu.AddItem(new GUIContent("Add Member node"), false, () => OnClickAddNode(mousePos, true));
-            menu.AddItem(new GUIContent("Save Blueprint"), false, () => SaveBlueprint());
-            menu.AddItem(new GUIContent("Load Blueprint"), false, () => ToggleLoadBlueprintUI(mousePos));
-            menu.AddItem(new GUIContent("New Blueprint"), false, () => ToggleNewBlueprintUI(mousePos));
-            menu.ShowAsContext();
+
+            menu.AddItem(new GUIContent("Save Blueprint"), false, () => SaveBlueprint(false));
+            menu.AddItem(new GUIContent("Save Blueprint Assets"), false, () => SaveBlueprint(true));
         }
 
-        else
-        {
-            menu.AddItem(new GUIContent("New Blueprint"), false, () => ToggleNewBlueprintUI(mousePos));
-            menu.AddItem(new GUIContent("Load Blueprint"), false, () => ToggleLoadBlueprintUI(mousePos));
-            menu.ShowAsContext();
-        }
+
+        menu.AddItem(new GUIContent("Load Blueprint"), false, () => ToggleLoadBlueprintUI(mousePos, false));
+        menu.AddItem(new GUIContent("Load Blueprint Assets"), false, () => ToggleLoadBlueprintUI(mousePos, true));
+
+        menu.AddItem(new GUIContent("New Blueprint"), false, () => ToggleNewBlueprintUI(mousePos, false));
+        menu.AddItem(new GUIContent("New Blueprint Assets"), false, () => ToggleNewBlueprintUI(mousePos, true));
+
+        menu.AddItem(new GUIContent("Compile Blueprint"), false, () => FullCompile());
+
+        menu.ShowAsContext();        
     }
 
-    void SaveBlueprint()
+    void FullCompile()
     {
+        Blueprint bp = new Blueprint();
+        bp.name = current.ComponentName;
+        bp.nodes = nodes;
+        bp.dataRef = current;
+
+        foreach(Node node in nodes)
+        {
+            if (node.isEntryPoint)
+                bp.entryPoints[node.input] = node;
+        }
+
+        foreach(Var v in current.variables)
+        {
+            v.type = Interpreter.Instance.LoadVarType(v.strType, v.asmPath);
+            bp.variables[v.name] = v;
+        }
+
+        Interpreter.Instance.FullCompile(bp, typeof(MonoBehaviour));
+    }
+
+    void SaveBlueprint(bool editorSave)
+    {
+        if (current.ComponentName == "")
+            current.ComponentName = blueprintName;
+
         //Save nodes
         if (current.nodes == null)
             current.nodes = new List<NodeData>();
@@ -363,35 +457,62 @@ public class NodeEditor : EditorWindow
 
         for (int i = 0; i < current.nodes.Count; i++)        
             current.connections.Add(new ConnectionData(current.nodes[i].inPoint, current.nodes[i].outPoint));
-        
+
+        if (current.compiledClassType != null)
+        {
+            loadData.compiledClassType = current.compiledClassType;            
+        }
+
+        if (current.compiledClassTypeAsmPath != null)
+        {
+            loadData.compiledClassTypeAsmPath = current.compiledClassTypeAsmPath;
+        }
+
+        loadData.ComponentName = current.ComponentName;
+
         //Actually pass it onto the real scriptable object
-        
-        loadData.ID_Count = current.ID_Count;
+        if (editorSave)
+        {
+            loadData.ID_Count = current.ID_Count;
+            
+            if (loadData.nodes == null)
+                loadData.nodes = new List<NodeData>();
+            else
+                loadData.nodes.Clear();
 
-        if (loadData.nodes == null)
-            loadData.nodes = new List<NodeData>();
+            loadData.connections = new List<ConnectionData>();
+
+            if (loadData.variables == null)
+                loadData.variables = new List<Var>();
+            else
+                loadData.variables.Clear();
+
+            if (loadData.passInParams == null)
+                loadData.passInParams = new List<Var>();
+            else
+                loadData.passInParams.Clear();
+
+            foreach (NodeData node in current.nodes)
+                loadData.nodes.Add(node);
+
+            foreach (ConnectionData con in current.connections)
+                loadData.connections.Add(con);
+
+            //Variables
+            foreach (Var v in current.variables)
+                loadData.variables.Add(v);
+
+            //Pass In Params
+            foreach (Var v in current.passInParams)
+                loadData.passInParams.Add(v);
+
+
+            EditorUtility.SetDirty(loadData);
+            AssetDatabase.Refresh();
+        }
+
         else
-            loadData.nodes.Clear();
-
-        //loadData.connections = new List<ConnectionData>();
-
-        if (loadData.variables == null)
-            loadData.variables = new List<Var>();
-        else
-            loadData.variables.Clear();
-
-        foreach (NodeData node in current.nodes)
-            loadData.nodes.Add(node);
-
-        //foreach (ConnectionData con in current.connections)
-        //    loadData.connections.Add(con);
-
-        //Variables
-        foreach (Var v in current.variables)            
-            loadData.variables.Add(v);
-        
-        EditorUtility.SetDirty(loadData);
-        AssetDatabase.Refresh();               
+            Interpreter.Instance.SaveBlueprint(current);
     }
 
     //TO-DO: Gotta finish this, but for now we need to focus on making sure code can in fact execute
@@ -408,9 +529,9 @@ public class NodeEditor : EditorWindow
             connections = new List<Connection>();
 
         //Need to make a copy of the loaded blueprintData, current will serve as this copy
-        if (current == null)        
+        if (current == null)
             current = ScriptableObject.CreateInstance<BlueprintData>();
-        
+
         current.ComponentName = loadData.ComponentName;
         current.ID_Count = loadData.ID_Count;
         current.nodes = new List<NodeData>();
@@ -428,7 +549,7 @@ public class NodeEditor : EditorWindow
             varDisplay.inputs = new List<string>();
 
         foreach (Var v in loadData.variables)
-        {           
+        {
             v.type = Interpreter.Instance.LoadVarType(v.strType, v.asmPath);
 
             //Add to VarDisplay
@@ -439,10 +560,22 @@ public class NodeEditor : EditorWindow
             current.variables.Add(v);
         }
 
+        if (current.passInParams == null)
+        {
+            Debug.Log("Current Pass In Params is null allocating");
+            current.passInParams = new List<Var>();
+        }
+
+        foreach(Var v in loadData.passInParams)
+        {
+            v.type = Interpreter.Instance.LoadVarType(v.strType, v.asmPath);
+            current.passInParams.Add(v);
+        }
+
         //Do stuff
 
         //Construct nodes
-        foreach(NodeData data in current.nodes)
+        foreach (NodeData data in current.nodes)
         {
             Node newNode = new Node(data, OnClickInPoint, OnClickOutPoint, OnClickRemoveNode);
             newNode.style = nodeStyle;
@@ -455,11 +588,11 @@ public class NodeEditor : EditorWindow
         //Construct Connections
 
         //Unfortunately I don't think we can assume the next node will be after the node in question
-        foreach(Node node in nodes)
+        foreach (Node node in nodes)
         {
             if (node.nextID != -1)
             {
-                foreach(Node node2 in nodes)
+                foreach (Node node2 in nodes)
                 {
                     if (node2.ID == node.nextID)
                     {
@@ -472,7 +605,7 @@ public class NodeEditor : EditorWindow
 
             if (node.falseID != -1)
             {
-                foreach(Node node2 in nodes)
+                foreach (Node node2 in nodes)
                 {
                     if (node2.ID == node.falseID)
                     {
@@ -482,7 +615,7 @@ public class NodeEditor : EditorWindow
                     }
                 }
             }
-        }            
+        }
     }
    
     //Not sure if this is really needed
@@ -498,19 +631,45 @@ public class NodeEditor : EditorWindow
         }                   
     }
 
-    void ToggleNewBlueprintUI(Vector2 mousePos)
+    void ToggleNewBlueprintUI(Vector2 mousePos, bool isAsset)
     {
         createLoadRect = new Rect(mousePos.x, mousePos.y, nodeWidth, nodeHeight);
-        createNew = true;
+
+        if (isAsset)
+        {
+            createNew = false;
+            createNewAsset = true;
+        }
+
+        else
+        {
+            createNew = true;
+            createNewAsset = false;
+        }
+        
         isLoading = false;
+        isLoadingAssets = false;
     }
 
-    void ToggleLoadBlueprintUI(Vector2 mousePos)
+    void ToggleLoadBlueprintUI(Vector2 mousePos, bool isAsset)
     {
         createLoadRect = new Rect(mousePos.x, mousePos.y, nodeWidth, nodeHeight);
         loadData = null;
-        isLoading = true;
+
+        if (isAsset)
+        {
+            isLoading = false;
+            isLoadingAssets = true;
+        }
+
+        else
+        {
+            isLoading = true;
+            isLoadingAssets = false;
+        }
+        
         createNew = false;
+        createNewAsset = false;
     }
 
     void OnClickAddNode(Vector2 mousePos, bool context = false)
@@ -631,3 +790,4 @@ public class NodeEditor : EditorWindow
         }
     }
 }
+#endif
