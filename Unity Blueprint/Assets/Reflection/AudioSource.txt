@@ -1,0 +1,209 @@
+.ctor( )
+get_panLevel( )
+set_panLevel( Single value )
+get_pan( )
+set_pan( Single value )
+get_volume( )
+set_volume( Single value )
+get_pitch( )
+set_pitch( Single value )
+get_time( )
+set_time( Single value )
+get_timeSamples( )
+set_timeSamples( Int32 value )
+get_clip( )
+set_clip( AudioClip value )
+get_outputAudioMixerGroup( )
+set_outputAudioMixerGroup( AudioMixerGroup value )
+Play( )
+Play( UInt64 delay )
+PlayDelayed( Single delay )
+PlayScheduled( Double time )
+PlayOneShot( AudioClip clip )
+PlayOneShot( AudioClip clip,  Single volumeScale )
+SetScheduledStartTime( Double time )
+SetScheduledEndTime( Double time )
+Stop( )
+Pause( )
+UnPause( )
+get_isPlaying( )
+get_isVirtual( )
+PlayClipAtPoint( AudioClip clip,  Vector3 position )
+PlayClipAtPoint( AudioClip clip,  Vector3 position,  Single volume )
+get_loop( )
+set_loop( Boolean value )
+get_ignoreListenerVolume( )
+set_ignoreListenerVolume( Boolean value )
+get_playOnAwake( )
+set_playOnAwake( Boolean value )
+get_ignoreListenerPause( )
+set_ignoreListenerPause( Boolean value )
+get_velocityUpdateMode( )
+set_velocityUpdateMode( AudioVelocityUpdateMode value )
+get_panStereo( )
+set_panStereo( Single value )
+get_spatialBlend( )
+set_spatialBlend( Single value )
+get_spatialize( )
+set_spatialize( Boolean value )
+get_spatializePostEffects( )
+set_spatializePostEffects( Boolean value )
+SetCustomCurve( AudioSourceCurveType type,  AnimationCurve curve )
+GetCustomCurve( AudioSourceCurveType type )
+get_reverbZoneMix( )
+set_reverbZoneMix( Single value )
+get_bypassEffects( )
+set_bypassEffects( Boolean value )
+get_bypassListenerEffects( )
+set_bypassListenerEffects( Boolean value )
+get_bypassReverbZones( )
+set_bypassReverbZones( Boolean value )
+get_dopplerLevel( )
+set_dopplerLevel( Single value )
+get_spread( )
+set_spread( Single value )
+get_priority( )
+set_priority( Int32 value )
+get_mute( )
+set_mute( Boolean value )
+get_minDistance( )
+set_minDistance( Single value )
+get_maxDistance( )
+set_maxDistance( Single value )
+get_rolloffMode( )
+set_rolloffMode( AudioRolloffMode value )
+GetOutputData( Int32 numSamples,  Int32 channel )
+GetOutputData( Single[] samples,  Int32 channel )
+GetSpectrumData( Int32 numSamples,  Int32 channel,  FFTWindow window )
+GetSpectrumData( Single[] samples,  Int32 channel,  FFTWindow window )
+get_minVolume( )
+set_minVolume( Single value )
+get_maxVolume( )
+set_maxVolume( Single value )
+get_rolloffFactor( )
+set_rolloffFactor( Single value )
+SetSpatializerFloat( Int32 index,  Single value )
+GetSpatializerFloat( Int32 index,  Single& value )
+GetAmbisonicDecoderFloat( Int32 index,  Single& value )
+SetAmbisonicDecoderFloat( Int32 index,  Single value )
+get_enabled( )
+set_enabled( Boolean value )
+get_isActiveAndEnabled( )
+get_transform( )
+get_gameObject( )
+GetComponent( Type type )
+GetComponent( )
+TryGetComponent( Type type,  Component& component )
+TryGetComponent( T& component )
+GetComponent( String type )
+GetComponentInChildren( Type t,  Boolean includeInactive )
+GetComponentInChildren( Type t )
+GetComponentInChildren( Boolean includeInactive )
+GetComponentInChildren( )
+GetComponentsInChildren( Type t,  Boolean includeInactive )
+GetComponentsInChildren( Type t )
+GetComponentsInChildren( Boolean includeInactive )
+GetComponentsInChildren( Boolean includeInactive,  List`1 result )
+GetComponentsInChildren( )
+GetComponentsInChildren( List`1 results )
+GetComponentInParent( Type t )
+GetComponentInParent( )
+GetComponentsInParent( Type t,  Boolean includeInactive )
+GetComponentsInParent( Type t )
+GetComponentsInParent( Boolean includeInactive )
+GetComponentsInParent( Boolean includeInactive,  List`1 results )
+GetComponentsInParent( )
+GetComponents( Type type )
+GetComponents( Type type,  List`1 results )
+GetComponents( List`1 results )
+get_tag( )
+set_tag( String value )
+GetComponents( )
+CompareTag( String tag )
+SendMessageUpwards( String methodName,  Object value,  SendMessageOptions options )
+SendMessageUpwards( String methodName,  Object value )
+SendMessageUpwards( String methodName )
+SendMessageUpwards( String methodName,  SendMessageOptions options )
+SendMessage( String methodName,  Object value )
+SendMessage( String methodName )
+SendMessage( String methodName,  Object value,  SendMessageOptions options )
+SendMessage( String methodName,  SendMessageOptions options )
+BroadcastMessage( String methodName,  Object parameter,  SendMessageOptions options )
+BroadcastMessage( String methodName,  Object parameter )
+BroadcastMessage( String methodName )
+BroadcastMessage( String methodName,  SendMessageOptions options )
+get_rigidbody( )
+get_rigidbody2D( )
+get_camera( )
+get_light( )
+get_animation( )
+get_constantForce( )
+get_renderer( )
+get_audio( )
+get_networkView( )
+get_collider( )
+get_collider2D( )
+get_hingeJoint( )
+get_particleSystem( )
+GetInstanceID( )
+GetHashCode( )
+Equals( Object other )
+get_name( )
+set_name( String value )
+get_hideFlags( )
+set_hideFlags( HideFlags value )
+ToString( )
+GetType( )
+System.Single panLevel
+System.Single pan
+System.Single volume
+System.Single pitch
+System.Single time
+System.Int32 timeSamples
+UnityEngine.AudioClip clip
+UnityEngine.Audio.AudioMixerGroup outputAudioMixerGroup
+System.Boolean isPlaying
+System.Boolean isVirtual
+System.Boolean loop
+System.Boolean ignoreListenerVolume
+System.Boolean playOnAwake
+System.Boolean ignoreListenerPause
+UnityEngine.AudioVelocityUpdateMode velocityUpdateMode
+System.Single panStereo
+System.Single spatialBlend
+System.Boolean spatialize
+System.Boolean spatializePostEffects
+System.Single reverbZoneMix
+System.Boolean bypassEffects
+System.Boolean bypassListenerEffects
+System.Boolean bypassReverbZones
+System.Single dopplerLevel
+System.Single spread
+System.Int32 priority
+System.Boolean mute
+System.Single minDistance
+System.Single maxDistance
+UnityEngine.AudioRolloffMode rolloffMode
+System.Single minVolume
+System.Single maxVolume
+System.Single rolloffFactor
+System.Boolean enabled
+System.Boolean isActiveAndEnabled
+UnityEngine.Transform transform
+UnityEngine.GameObject gameObject
+System.String tag
+UnityEngine.Component rigidbody
+UnityEngine.Component rigidbody2D
+UnityEngine.Component camera
+UnityEngine.Component light
+UnityEngine.Component animation
+UnityEngine.Component constantForce
+UnityEngine.Component renderer
+UnityEngine.Component audio
+UnityEngine.Component networkView
+UnityEngine.Component collider
+UnityEngine.Component collider2D
+UnityEngine.Component hingeJoint
+UnityEngine.Component particleSystem
+System.String name
+UnityEngine.HideFlags hideFlags

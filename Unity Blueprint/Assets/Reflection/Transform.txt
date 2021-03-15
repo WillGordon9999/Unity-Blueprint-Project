@@ -1,0 +1,177 @@
+get_position( )
+get_localPosition( )
+get_eulerAngles( )
+set_eulerAngles( Vector3 value )
+get_localEulerAngles( )
+set_localEulerAngles( Vector3 value )
+get_right( )
+set_right( Vector3 value )
+get_up( )
+set_up( Vector3 value )
+get_forward( )
+set_forward( Vector3 value )
+get_rotation( )
+set_rotation( Quaternion value )
+get_localRotation( )
+set_localRotation( Quaternion value )
+get_localScale( )
+set_localScale( Vector3 value )
+get_parent( )
+set_parent( Transform value )
+SetParent( Transform p )
+SetParent( Transform parent,  Boolean worldPositionStays )
+get_worldToLocalMatrix( )
+get_localToWorldMatrix( )
+SetPositionAndRotation( Vector3 position,  Quaternion rotation )
+Translate( Vector3 translation,  Space relativeTo )
+Translate( Vector3 translation )
+Translate( Single x,  Single y,  Single z,  Space relativeTo )
+Translate( Single x,  Single y,  Single z )
+Translate( Vector3 translation,  Transform relativeTo )
+Translate( Single x,  Single y,  Single z,  Transform relativeTo )
+Rotate( Vector3 eulers,  Space relativeTo )
+Rotate( Vector3 eulers )
+Rotate( Single xAngle,  Single yAngle,  Single zAngle,  Space relativeTo )
+Rotate( Single xAngle,  Single yAngle,  Single zAngle )
+Rotate( Vector3 axis,  Single angle,  Space relativeTo )
+Rotate( Vector3 axis,  Single angle )
+RotateAround( Vector3 point,  Vector3 axis,  Single angle )
+LookAt( Transform target,  Vector3 worldUp )
+LookAt( Transform target )
+LookAt( Vector3 worldPosition,  Vector3 worldUp )
+LookAt( Vector3 worldPosition )
+TransformDirection( Vector3 direction )
+TransformDirection( Single x,  Single y,  Single z )
+InverseTransformDirection( Vector3 direction )
+InverseTransformDirection( Single x,  Single y,  Single z )
+TransformVector( Vector3 vector )
+TransformVector( Single x,  Single y,  Single z )
+InverseTransformVector( Vector3 vector )
+InverseTransformVector( Single x,  Single y,  Single z )
+TransformPoint( Vector3 position )
+TransformPoint( Single x,  Single y,  Single z )
+InverseTransformPoint( Vector3 position )
+InverseTransformPoint( Single x,  Single y,  Single z )
+get_root( )
+get_childCount( )
+DetachChildren( )
+SetAsFirstSibling( )
+SetAsLastSibling( )
+SetSiblingIndex( Int32 index )
+GetSiblingIndex( )
+Find( String n )
+get_lossyScale( )
+IsChildOf( Transform parent )
+get_hasChanged( )
+set_hasChanged( Boolean value )
+FindChild( String n )
+GetEnumerator( )
+RotateAround( Vector3 axis,  Single angle )
+RotateAroundLocal( Vector3 axis,  Single angle )
+GetChild( Int32 index )
+GetChildCount( )
+get_hierarchyCapacity( )
+set_hierarchyCapacity( Int32 value )
+get_hierarchyCount( )
+get_transform( )
+get_gameObject( )
+GetComponent( Type type )
+GetComponent( )
+TryGetComponent( Type type,  Component& component )
+TryGetComponent( T& component )
+GetComponent( String type )
+GetComponentInChildren( Type t,  Boolean includeInactive )
+GetComponentInChildren( Type t )
+GetComponentInChildren( Boolean includeInactive )
+GetComponentInChildren( )
+GetComponentsInChildren( Type t,  Boolean includeInactive )
+GetComponentsInChildren( Type t )
+GetComponentsInChildren( Boolean includeInactive )
+GetComponentsInChildren( Boolean includeInactive,  List`1 result )
+GetComponentsInChildren( )
+GetComponentsInChildren( List`1 results )
+GetComponentInParent( Type t )
+GetComponentInParent( )
+GetComponentsInParent( Type t,  Boolean includeInactive )
+GetComponentsInParent( Type t )
+GetComponentsInParent( Boolean includeInactive )
+GetComponentsInParent( Boolean includeInactive,  List`1 results )
+GetComponentsInParent( )
+GetComponents( Type type )
+GetComponents( Type type,  List`1 results )
+GetComponents( List`1 results )
+get_tag( )
+set_tag( String value )
+GetComponents( )
+CompareTag( String tag )
+SendMessageUpwards( String methodName,  Object value,  SendMessageOptions options )
+SendMessageUpwards( String methodName,  Object value )
+SendMessageUpwards( String methodName )
+SendMessageUpwards( String methodName,  SendMessageOptions options )
+SendMessage( String methodName,  Object value )
+SendMessage( String methodName )
+SendMessage( String methodName,  Object value,  SendMessageOptions options )
+SendMessage( String methodName,  SendMessageOptions options )
+BroadcastMessage( String methodName,  Object parameter,  SendMessageOptions options )
+BroadcastMessage( String methodName,  Object parameter )
+BroadcastMessage( String methodName )
+BroadcastMessage( String methodName,  SendMessageOptions options )
+get_rigidbody( )
+get_rigidbody2D( )
+get_camera( )
+get_light( )
+get_animation( )
+get_constantForce( )
+get_renderer( )
+get_audio( )
+get_networkView( )
+get_collider( )
+get_collider2D( )
+get_hingeJoint( )
+get_particleSystem( )
+GetInstanceID( )
+GetHashCode( )
+Equals( Object other )
+get_name( )
+set_name( String value )
+get_hideFlags( )
+set_hideFlags( HideFlags value )
+ToString( )
+GetType( )
+UnityEngine.Vector3 position
+UnityEngine.Vector3 localPosition
+UnityEngine.Vector3 eulerAngles
+UnityEngine.Vector3 localEulerAngles
+UnityEngine.Vector3 right
+UnityEngine.Vector3 up
+UnityEngine.Vector3 forward
+UnityEngine.Quaternion rotation
+UnityEngine.Quaternion localRotation
+UnityEngine.Vector3 localScale
+UnityEngine.Transform parent
+UnityEngine.Matrix4x4 worldToLocalMatrix
+UnityEngine.Matrix4x4 localToWorldMatrix
+UnityEngine.Transform root
+System.Int32 childCount
+UnityEngine.Vector3 lossyScale
+System.Boolean hasChanged
+System.Int32 hierarchyCapacity
+System.Int32 hierarchyCount
+UnityEngine.Transform transform
+UnityEngine.GameObject gameObject
+System.String tag
+UnityEngine.Component rigidbody
+UnityEngine.Component rigidbody2D
+UnityEngine.Component camera
+UnityEngine.Component light
+UnityEngine.Component animation
+UnityEngine.Component constantForce
+UnityEngine.Component renderer
+UnityEngine.Component audio
+UnityEngine.Component networkView
+UnityEngine.Component collider
+UnityEngine.Component collider2D
+UnityEngine.Component hingeJoint
+UnityEngine.Component particleSystem
+System.String name
+UnityEngine.HideFlags hideFlags

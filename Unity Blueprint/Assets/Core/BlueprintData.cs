@@ -7,6 +7,7 @@ public class BlueprintData : ScriptableObject
 {
     public string ComponentName;
     public List<NodeData> nodes;
+    public List<NodeData> entryPoints;
     public List<Var> variables;
     public List<Var> passInParams; //For functions
     public int ID_Count = 0; //This will contain the max number of ids for each node    
@@ -22,6 +23,7 @@ public class BlueprintFile
 {
     public string ComponentName;
     public List<NodeData> nodes;
+    public List<NodeData> entryPoints;
     public List<Var> variables;
     public List<Var> passInParams;
     public int ID_Count = 0; //This will contain the max number of ids for each node    

@@ -155,7 +155,8 @@ public class NodeEditor : EditorWindow
                     loadData = Interpreter.Instance.CreateBlueprint(text);
 
                     current = ScriptableObject.CreateInstance<BlueprintData>();
-
+                    if (nodes != null) nodes.Clear();
+                    if (connections != null) connections.Clear();
                     current.ComponentName = text;
                     blueprintName = text;
                     current.ID_Count = 0; //just to be sure                    
@@ -186,7 +187,8 @@ public class NodeEditor : EditorWindow
                     loadData = Interpreter.Instance.CreateAsset<BlueprintData>("Assets/" + text + ".asset");
 
                     current = ScriptableObject.CreateInstance<BlueprintData>();
-
+                    if (nodes != null) nodes.Clear();
+                    if (connections != null) connections.Clear();
                     current.ComponentName = text;
                     blueprintName = text;
                     current.ID_Count = 0; //just to be sure                    
@@ -415,7 +417,10 @@ public class NodeEditor : EditorWindow
             bp.variables[v.name] = v;
         }
 
-        Interpreter.Instance.FullCompile(bp, typeof(MonoBehaviour));
+        if (!Interpreter.Instance.UseGameCompile)
+            Interpreter.Instance.FullCompile(bp, typeof(MonoBehaviour));
+        else
+            Interpreter.Instance.FullCompile(bp, typeof(GameComponent));
     }
 
     void SaveBlueprint(bool editorSave)
@@ -457,7 +462,7 @@ public class NodeEditor : EditorWindow
 
         for (int i = 0; i < current.nodes.Count; i++)        
             current.connections.Add(new ConnectionData(current.nodes[i].inPoint, current.nodes[i].outPoint));
-
+       
         if (current.compiledClassType != null)
         {
             loadData.compiledClassType = current.compiledClassType;            
@@ -475,6 +480,7 @@ public class NodeEditor : EditorWindow
         {
             loadData.ID_Count = current.ID_Count;
             
+            //Nodes
             if (loadData.nodes == null)
                 loadData.nodes = new List<NodeData>();
             else
@@ -482,19 +488,31 @@ public class NodeEditor : EditorWindow
 
             loadData.connections = new List<ConnectionData>();
 
+            //Variables
             if (loadData.variables == null)
                 loadData.variables = new List<Var>();
             else
                 loadData.variables.Clear();
 
+            //Pass In Params
             if (loadData.passInParams == null)
                 loadData.passInParams = new List<Var>();
             else
                 loadData.passInParams.Clear();
 
+            //Entry Points
+            if (loadData.entryPoints == null)
+                loadData.entryPoints = new List<NodeData>();
+            else
+                loadData.entryPoints.Clear();
+
+            //Writing starts here
+
+            //Nodes
             foreach (NodeData node in current.nodes)
                 loadData.nodes.Add(node);
 
+            //Connections
             foreach (ConnectionData con in current.connections)
                 loadData.connections.Add(con);
 
@@ -506,6 +524,9 @@ public class NodeEditor : EditorWindow
             foreach (Var v in current.passInParams)
                 loadData.passInParams.Add(v);
 
+            //Entry Points
+            foreach (NodeData nodeData in current.entryPoints)
+                loadData.entryPoints.Add(nodeData);
 
             EditorUtility.SetDirty(loadData);
             AssetDatabase.Refresh();
@@ -528,6 +549,9 @@ public class NodeEditor : EditorWindow
         else
             connections = new List<Connection>();
 
+        if (current != null)
+            current = null;
+
         //Need to make a copy of the loaded blueprintData, current will serve as this copy
         if (current == null)
             current = ScriptableObject.CreateInstance<BlueprintData>();
@@ -535,12 +559,15 @@ public class NodeEditor : EditorWindow
         current.ComponentName = loadData.ComponentName;
         current.ID_Count = loadData.ID_Count;
         current.nodes = new List<NodeData>();
+        current.entryPoints = new List<NodeData>();
         current.connections = new List<ConnectionData>();
         current.variables = new List<Var>();
-
+        current.passInParams = new List<Var>();
+        //Nodes
         foreach (NodeData node in loadData.nodes)
             current.nodes.Add(node);
 
+        //Connections
         foreach (ConnectionData con in loadData.connections)
             current.connections.Add(con);
 
@@ -548,6 +575,7 @@ public class NodeEditor : EditorWindow
         if (varDisplay.inputs == null)
             varDisplay.inputs = new List<string>();
 
+        //Load Variables
         foreach (Var v in loadData.variables)
         {
             v.type = Interpreter.Instance.LoadVarType(v.strType, v.asmPath);
@@ -560,16 +588,24 @@ public class NodeEditor : EditorWindow
             current.variables.Add(v);
         }
 
-        if (current.passInParams == null)
-        {
-            Debug.Log("Current Pass In Params is null allocating");
-            current.passInParams = new List<Var>();
-        }
 
-        foreach(Var v in loadData.passInParams)
+        //if (current.passInParams == null)
+        //{
+        //    Debug.Log("Current Pass In Params is null allocating");
+        //    current.passInParams = new List<Var>();
+        //}
+
+        //Load Pass In Params
+        foreach (Var v in loadData.passInParams)
         {
             v.type = Interpreter.Instance.LoadVarType(v.strType, v.asmPath);
             current.passInParams.Add(v);
+        }
+
+        //Load Entry Points
+        foreach(NodeData nodeData in loadData.entryPoints)
+        {
+            current.entryPoints.Add(nodeData);
         }
 
         //Do stuff

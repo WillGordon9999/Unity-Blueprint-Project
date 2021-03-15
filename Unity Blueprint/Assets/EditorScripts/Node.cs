@@ -34,10 +34,16 @@ public class Node
     //Reflection Specific Stuff
     public string input;
     public string type; //the type.ToString() of the class containing the method/member
+
     public string assemblyPath;
+    public string declaringTypeAsmPath;
+    public string declaringBaseTypeAsmPath;
+    public string reflectedTypeAsmPath;
+    public string reflectedTypeBaseAsmPath;
+
     public string nameSpace;
     public int index; //The index of this overloaded function definition when GetMethods is called
-
+    public bool isVirtual = false;
     //Generic Specific
     public bool isGenericFunction;
     Type[] genericTypes;
@@ -175,11 +181,17 @@ public class Node
 
         isReturning = data.isReturning;
         returnInput = data.returnInput;
-        
+
+        declaringTypeAsmPath = data.declaringTypeAsmPath;
+        declaringBaseTypeAsmPath = data.declaringBaseTypeAsmPath;
+        reflectedTypeAsmPath = data.reflectedTypeAsmPath;
+        reflectedTypeBaseAsmPath = data.reflectedTypeBaseAsmPath;
+
         isSpecial = data.isSpecial;
         varName = data.varName;
         //retType = data.retType;
-        
+        isVirtual = data.isVirtual;
+
         hasCost = data.hasCost;
 
         if (data.passInParams != null)
@@ -192,13 +204,7 @@ public class Node
 
         if (isReturning)
             returnType = Interpreter.Instance.LoadVarType(data.returnType, data.returnAsmPath);
-        
-        //if (data.literalField != null)
-        //    literalField = new Parameter(data.literalField.GetValue(), data.literalField.GetSystemType(), data.literalField.type, data.literalField.inputVar, data.literalField.varInput);
-        //
-        //if (data.varField != null)
-        //    varField = new Parameter(data.varField.GetValue(), data.varField.GetSystemType(), data.varField.type, data.varField.inputVar, data.varField.varInput);
-
+               
         if (isDefined)
         {
             if (paramList == null)
@@ -213,6 +219,29 @@ public class Node
                 paramList.Add(new Parameter(par, this));
             }
         }
+
+        //switch(nodeType)
+        //{
+        //    case NodeType.Function:
+        //        currentMethod = Interpreter.Instance.LoadMethod(input, type, assemblyPath, index, isContextual);
+        //        break;
+        //    case NodeType.Constructor:
+        //        constructorMethod = Interpreter.Instance.LoadConstructor(input, type, assemblyPath, index, isContextual);
+        //        break;
+        //    case NodeType.Field_Get:
+        //        fieldVar = Interpreter.Instance.LoadField(input, type, assemblyPath, isContextual);
+        //        break;
+        //    case NodeType.Field_Set:
+        //        fieldVar = Interpreter.Instance.LoadField(input, type, assemblyPath, isContextual);
+        //        break;
+        //    case NodeType.Property_Get:
+        //        propertyVar = Interpreter.Instance.LoadProperty(input, type, assemblyPath, isContextual);
+        //        break;
+        //    case NodeType.Property_Set:
+        //        propertyVar = Interpreter.Instance.LoadProperty(input, type, assemblyPath, isContextual);
+        //        break;
+        //
+        //}
 
     }
 
@@ -293,12 +322,12 @@ public class Node
                 {                    
                     paramList[i].draw?.Invoke(rect.width * 0.75f);
 
-                    if (isReturning && i == paramList.Count - 1)
-                    {
-                        GUILayout.Label("Return to:");
-                        //returnInput = GUILayout.TextField(returnInput, GUILayout.MaxWidth(rect.width * 0.75f));
-                        returnInput = GUILayout.TextField(returnInput, GUILayout.MaxWidth(final.width * 0.75f));
-                    }
+                    //if (isReturning && i == paramList.Count - 1)
+                    //{
+                    //    GUILayout.Label("Return to:");
+                    //    //returnInput = GUILayout.TextField(returnInput, GUILayout.MaxWidth(rect.width * 0.75f));
+                    //    returnInput = GUILayout.TextField(returnInput, GUILayout.MaxWidth(final.width * 0.75f));
+                    //}
                                                                    
                     //Vector2 pos = rect.position + initPos;
                     //
@@ -317,7 +346,26 @@ public class Node
                     //}
                 }
 
+                if (isReturning)
+                {
+                    GUILayout.Label("Return to:");
+                    //returnInput = GUILayout.TextField(returnInput, GUILayout.MaxWidth(rect.width * 0.75f));
+                    returnInput = GUILayout.TextField(returnInput, GUILayout.MaxWidth(final.width * 0.75f));
+                }
+
                 GUILayout.EndVertical();                
+                GUILayout.EndArea();
+            }
+
+            else
+            {
+                GUILayout.BeginArea(new Rect(final.position + initPos, new Vector2(final.width - initPos.x, final.height)));
+
+                GUILayout.BeginVertical();
+
+                GUILayout.Label(input + "Call");
+
+                GUILayout.EndVertical();
                 GUILayout.EndArea();
             }
         }
@@ -338,12 +386,12 @@ public class Node
                     //paramList[i].draw?.Invoke(rect.width * 0.75f);
                     paramList[i].draw?.Invoke(final.width * 0.75f);
 
-                    if (isReturning && i == paramList.Count - 1)
-                    {
-                        GUILayout.Label("Return To");
-                        //returnInput = GUILayout.TextField(returnInput, GUILayout.MaxWidth(rect.width * 0.75f));
-                        returnInput = GUILayout.TextField(returnInput, GUILayout.MaxWidth(final.width * 0.75f));
-                    }
+                    //if (isReturning && i == paramList.Count - 1)
+                    //{
+                    //    GUILayout.Label("Return To");
+                    //    //returnInput = GUILayout.TextField(returnInput, GUILayout.MaxWidth(rect.width * 0.75f));
+                    //    returnInput = GUILayout.TextField(returnInput, GUILayout.MaxWidth(final.width * 0.75f));
+                    //}
 
 
                     //Vector2 pos = rect.position + initPos;
@@ -360,6 +408,13 @@ public class Node
                     //    entry = new Rect(pos, initDimensions);
                     //    returnInput = GUI.TextField(entry, returnInput);
                     //}
+                }
+
+                if (isReturning)
+                {
+                    GUILayout.Label("Return to:");
+                    //returnInput = GUILayout.TextField(returnInput, GUILayout.MaxWidth(rect.width * 0.75f));
+                    returnInput = GUILayout.TextField(returnInput, GUILayout.MaxWidth(final.width * 0.75f));
                 }
 
                 GUILayout.EndVertical();
@@ -1119,6 +1174,17 @@ public class Node
             this.input = metaData.input;
             type = metaData.selectedType.ToString();
             assemblyPath = metaData.selectedType.Assembly.Location;
+            //if (metaData.selectedType.DeclaringType.Assembly.Location != null)
+            //    declaringTypeAsmPath = metaData.selectedType.DeclaringType.Assembly.Location;
+            //
+            //if (metaData.selectedType.DeclaringType.BaseType.Assembly.Location != null)
+            //    declaringBaseTypeAsmPath = metaData.selectedType.DeclaringType.BaseType.Assembly.Location;
+            //
+            //if (metaData.selectedType.ReflectedType.Assembly.Location != null)
+            //    reflectedTypeAsmPath = metaData.selectedType.ReflectedType.Assembly.Location;
+            //
+            //if (metaData.selectedType.ReflectedType.BaseType.Assembly.Location != null)
+            //    reflectedTypeBaseAsmPath = metaData.selectedType.ReflectedType.BaseType.Assembly.Location;
             nameSpace = metaData.selectedType.Namespace;
 
             if (result == "Get")
@@ -1166,6 +1232,17 @@ public class Node
             this.input = metaData.input;
             type = metaData.selectedType.ToString();
             assemblyPath = metaData.selectedType.Assembly.Location;
+            //if (metaData.selectedType.DeclaringType.Assembly.Location != null)
+            //    declaringTypeAsmPath = metaData.selectedType.DeclaringType.Assembly.Location;
+            //
+            //if (metaData.selectedType.DeclaringType.BaseType.Assembly.Location != null)
+            //    declaringBaseTypeAsmPath = metaData.selectedType.DeclaringType.BaseType.Assembly.Location;
+            //
+            //if (metaData.selectedType.ReflectedType.Assembly.Location != null)
+            //    reflectedTypeAsmPath = metaData.selectedType.ReflectedType.Assembly.Location;
+            //
+            //if (metaData.selectedType.ReflectedType.BaseType.Assembly.Location != null)
+            //    reflectedTypeBaseAsmPath = metaData.selectedType.ReflectedType.BaseType.Assembly.Location;
             nameSpace = metaData.selectedType.Namespace;
 
             if (result == "Get")
@@ -1361,7 +1438,21 @@ public class Node
             input = metaData.input;
             type = metaData.selectedType.ToString();
             isStatic = info.IsStatic;
+            isVirtual = info.IsVirtual;
             assemblyPath = metaData.selectedType.Assembly.Location;
+            
+            //if (metaData.selectedType.DeclaringType.Assembly.Location != null)
+            //declaringTypeAsmPath = metaData.selectedType.DeclaringType.Assembly.Location;
+
+            //if (metaData.selectedType.DeclaringType.BaseType.Assembly.Location != null)
+            //declaringBaseTypeAsmPath = metaData.selectedType.DeclaringType.BaseType.Assembly.Location;
+
+            //if (metaData.selectedType.ReflectedType.Assembly.Location != null)
+            //reflectedTypeAsmPath = metaData.selectedType.ReflectedType.Assembly.Location;
+
+            //if (metaData.selectedType.ReflectedType.BaseType.Assembly.Location != null)
+            //reflectedTypeBaseAsmPath = metaData.selectedType.ReflectedType.BaseType.Assembly.Location;
+
             nameSpace = metaData.selectedType.Namespace;
         }
 
@@ -1369,10 +1460,24 @@ public class Node
         {
             type = info.ReflectedType.ToString();
             isStatic = info.IsStatic;
+            isVirtual = info.IsVirtual;
             assemblyPath = info.ReflectedType.Assembly.Location;
+
+            if (info.DeclaringType.Assembly.Location != null)
+                declaringTypeAsmPath = info.DeclaringType.Assembly.Location;
+
+            if (info.DeclaringType.BaseType.Assembly.Location != null)
+                declaringBaseTypeAsmPath = info.DeclaringType.BaseType.Assembly.Location;
+
+            if (info.ReflectedType.Assembly.Location != null)
+                reflectedTypeAsmPath = info.ReflectedType.Assembly.Location;
+
+            if (info.ReflectedType.BaseType.Assembly.Location != null)
+                reflectedTypeBaseAsmPath = info.ReflectedType.BaseType.Assembly.Location;
+
             nameSpace = info.ReflectedType.Namespace;
         }
-
+        
         float initHeight = rect.height;
 
         if (info.IsGenericMethod)
@@ -1430,7 +1535,7 @@ public class Node
             if (paramList.Count > 1)
                 rect = new Rect(rect.x, rect.y, rect.width, initHeight * (paramList.Count + 1));
 
-            if (paramList.Count == 1)
+            if (paramList.Count <= 1)
                 rect = new Rect(rect.x, rect.y, rect.width, initHeight * (paramList.Count + 2));
             //returnEntry = new Parameter(typeof(string));
             //retType = ReturnVarType.Var;
@@ -1457,6 +1562,17 @@ public class Node
             type = metaData.selectedType.ToString();
             isStatic = info.IsStatic;
             assemblyPath = metaData.selectedType.Assembly.Location;
+            //if (metaData.selectedType.DeclaringType.Assembly.Location != null)
+            //    declaringTypeAsmPath = metaData.selectedType.DeclaringType.Assembly.Location;
+            //
+            //if (metaData.selectedType.DeclaringType.BaseType.Assembly.Location != null)
+            //    declaringBaseTypeAsmPath = metaData.selectedType.DeclaringType.BaseType.Assembly.Location;
+            //
+            //if (metaData.selectedType.ReflectedType.Assembly.Location != null)
+            //    reflectedTypeAsmPath = metaData.selectedType.ReflectedType.Assembly.Location;
+            //
+            //if (metaData.selectedType.ReflectedType.BaseType.Assembly.Location != null)
+            //    reflectedTypeBaseAsmPath = metaData.selectedType.ReflectedType.BaseType.Assembly.Location;
             nameSpace = metaData.selectedType.Namespace;
         }
 
@@ -1465,10 +1581,35 @@ public class Node
             type = info.ReflectedType.ToString();
             isStatic = info.IsStatic;
             assemblyPath = info.ReflectedType.Assembly.Location;
+
+            //if (info.DeclaringType.Assembly.Location != null)
+            //    declaringTypeAsmPath = info.DeclaringType.Assembly.Location;
+            //if (info.DeclaringType.BaseType.Assembly.Location != null)
+            //    declaringBaseTypeAsmPath = info.DeclaringType.BaseType.Assembly.Location;
+            //
+            //if (info.ReflectedType.Assembly.Location != null)
+            //    reflectedTypeAsmPath = info.ReflectedType.Assembly.Location;
+            //
+            //if (info.ReflectedType.BaseType.Assembly.Location != null)
+            //    reflectedTypeBaseAsmPath = info.ReflectedType.BaseType.Assembly.Location;
+
             nameSpace = info.ReflectedType.Namespace;
         }
 
         float initHeight = rect.height;
+
+        if (info.IsGenericMethod)
+        {
+            isGenericFunction = true;
+            var genericArgs = info.GetGenericArguments();
+
+            foreach (Type t in genericArgs)
+            {
+                Parameter p = new Parameter(t, t.Name, this, t.IsGenericParameter, true);
+                paramList.Add(p);
+            }
+
+        }
 
         ParameterInfo[] args = info.GetParameters();
 

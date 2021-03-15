@@ -1,0 +1,60 @@
+.ctor( Single r,  Single g,  Single b,  Single a )
+.ctor( Single r,  Single g,  Single b )
+ToString( )
+ToString( String format )
+GetHashCode( )
+Equals( Object other )
+Equals( Color other )
+op_Addition( Color a,  Color b )
+op_Subtraction( Color a,  Color b )
+op_Multiply( Color a,  Color b )
+op_Multiply( Color a,  Single b )
+op_Multiply( Single b,  Color a )
+op_Division( Color a,  Single b )
+op_Equality( Color lhs,  Color rhs )
+op_Inequality( Color lhs,  Color rhs )
+Lerp( Color a,  Color b,  Single t )
+LerpUnclamped( Color a,  Color b,  Single t )
+get_red( )
+get_green( )
+get_blue( )
+get_white( )
+get_black( )
+get_yellow( )
+get_cyan( )
+get_magenta( )
+get_gray( )
+get_grey( )
+get_clear( )
+get_grayscale( )
+get_linear( )
+get_gamma( )
+get_maxColorComponent( )
+op_Implicit( Color c )
+op_Implicit( Vector4 v )
+get_Item( Int32 index )
+set_Item( Int32 index,  Single value )
+RGBToHSV( Color rgbColor,  Single& H,  Single& S,  Single& V )
+HSVToRGB( Single H,  Single S,  Single V )
+HSVToRGB( Single H,  Single S,  Single V,  Boolean hdr )
+GetType( )
+System.Single r
+System.Single g
+System.Single b
+System.Single a
+UnityEngine.Color red
+UnityEngine.Color green
+UnityEngine.Color blue
+UnityEngine.Color white
+UnityEngine.Color black
+UnityEngine.Color yellow
+UnityEngine.Color cyan
+UnityEngine.Color magenta
+UnityEngine.Color gray
+UnityEngine.Color grey
+UnityEngine.Color clear
+System.Single grayscale
+UnityEngine.Color linear
+UnityEngine.Color gamma
+System.Single maxColorComponent
+System.Single Item

@@ -9,6 +9,7 @@ public class Parameter
 {
     public string name { get; set; }
     public object arg;
+    
     float[] numFields; //For managing vectors, I hope this approach will allow for value editing during play mode
     public Type type;
     public Rect rect;
@@ -29,8 +30,7 @@ public class Parameter
     public bool isGenericDef = false; //If the thing is only in the < > so SomeFunc<x>(y), this is x if this is true
     public string templateType;
     public string templateTypeAsmPath;
-
-
+    
     public Node nodeRef; //Reference to node
 
     public Parameter() { }
@@ -580,7 +580,9 @@ public class Parameter
 
                     GUILayout.Label(name);
                     //GUILayout.FlexibleSpace();
-                    arg = RealTimeEditor.EnumPopup(nodeRef.final, (System.Enum)arg, width);
+                    //arg = RealTimeEditor.EnumPopup(nodeRef.final, (System.Enum)arg, width);
+                    RealTimeEditor.EnumPopup(nodeRef.final, this, width);
+                    //arg = RealTimeEditor.EnumPopup(rect, (System.Enum)arg, width);
 
                     //GUILayout.EndHorizontal();
                 };

@@ -23,7 +23,13 @@ public class NodeData
     public List<ParameterData> paramList;
     public string input; //the raw input - can probably be used to activate the reflection
     public string type; //The stored type from original reflection    
+
     public string assemblyPath; //The path for the assembly
+    public string declaringTypeAsmPath;
+    public string declaringBaseTypeAsmPath;
+    public string reflectedTypeAsmPath;
+    public string reflectedTypeBaseAsmPath;
+
     public string operatorStr;
     public string operatorMethodName;
     public string nameSpace;
@@ -38,6 +44,7 @@ public class NodeData
     public string returnAsmPath;
     public bool isReturning;
     public bool isSpecial;
+    public bool isVirtual;
     //public string returnVarName;
     //public Node.ReturnVarType retType;
 
@@ -88,6 +95,11 @@ public class NodeData
         nameSpace = node.nameSpace;
         isGenericFunction = node.isGenericFunction;
 
+        declaringTypeAsmPath = node.declaringTypeAsmPath;
+        declaringBaseTypeAsmPath = node.declaringBaseTypeAsmPath;
+        reflectedTypeAsmPath = node.reflectedTypeAsmPath;
+        reflectedTypeBaseAsmPath = node.reflectedTypeBaseAsmPath;
+
         operatorStr = node.operatorStr;
         operatorMethodName = node.operatorMethodName;
         //target = node.target;
@@ -98,6 +110,7 @@ public class NodeData
 
         isReturning = node.isReturning;
         isSpecial = node.isSpecial;
+        isVirtual = node.isVirtual;
 
         if (node.returnType != null)
         {

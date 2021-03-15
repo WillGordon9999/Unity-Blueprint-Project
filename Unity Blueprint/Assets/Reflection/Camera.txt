@@ -1,0 +1,346 @@
+.ctor( )
+get_nearClipPlane( )
+set_nearClipPlane( Single value )
+get_farClipPlane( )
+set_farClipPlane( Single value )
+get_fieldOfView( )
+set_fieldOfView( Single value )
+get_renderingPath( )
+set_renderingPath( RenderingPath value )
+get_actualRenderingPath( )
+Reset( )
+get_allowHDR( )
+set_allowHDR( Boolean value )
+get_allowMSAA( )
+set_allowMSAA( Boolean value )
+get_allowDynamicResolution( )
+set_allowDynamicResolution( Boolean value )
+get_forceIntoRenderTexture( )
+set_forceIntoRenderTexture( Boolean value )
+get_orthographicSize( )
+set_orthographicSize( Single value )
+get_orthographic( )
+set_orthographic( Boolean value )
+get_opaqueSortMode( )
+set_opaqueSortMode( OpaqueSortMode value )
+get_transparencySortMode( )
+set_transparencySortMode( TransparencySortMode value )
+get_transparencySortAxis( )
+set_transparencySortAxis( Vector3 value )
+ResetTransparencySortSettings( )
+get_depth( )
+set_depth( Single value )
+get_aspect( )
+set_aspect( Single value )
+ResetAspect( )
+get_velocity( )
+get_cullingMask( )
+set_cullingMask( Int32 value )
+get_eventMask( )
+set_eventMask( Int32 value )
+get_layerCullSpherical( )
+set_layerCullSpherical( Boolean value )
+get_cameraType( )
+set_cameraType( CameraType value )
+get_overrideSceneCullingMask( )
+set_overrideSceneCullingMask( UInt64 value )
+get_layerCullDistances( )
+set_layerCullDistances( Single[] value )
+get_useOcclusionCulling( )
+set_useOcclusionCulling( Boolean value )
+get_cullingMatrix( )
+set_cullingMatrix( Matrix4x4 value )
+ResetCullingMatrix( )
+get_backgroundColor( )
+set_backgroundColor( Color value )
+get_clearFlags( )
+set_clearFlags( CameraClearFlags value )
+get_depthTextureMode( )
+set_depthTextureMode( DepthTextureMode value )
+get_clearStencilAfterLightingPass( )
+set_clearStencilAfterLightingPass( Boolean value )
+SetReplacementShader( Shader shader,  String replacementTag )
+ResetReplacementShader( )
+get_usePhysicalProperties( )
+set_usePhysicalProperties( Boolean value )
+get_sensorSize( )
+set_sensorSize( Vector2 value )
+get_lensShift( )
+set_lensShift( Vector2 value )
+get_focalLength( )
+set_focalLength( Single value )
+get_gateFit( )
+set_gateFit( GateFitMode value )
+GetGateFittedFieldOfView( )
+GetGateFittedLensShift( )
+get_rect( )
+set_rect( Rect value )
+get_pixelRect( )
+set_pixelRect( Rect value )
+get_pixelWidth( )
+get_pixelHeight( )
+get_scaledPixelWidth( )
+get_scaledPixelHeight( )
+get_targetTexture( )
+set_targetTexture( RenderTexture value )
+get_activeTexture( )
+get_targetDisplay( )
+set_targetDisplay( Int32 value )
+SetTargetBuffers( RenderBuffer colorBuffer,  RenderBuffer depthBuffer )
+SetTargetBuffers( RenderBuffer[] colorBuffer,  RenderBuffer depthBuffer )
+get_cameraToWorldMatrix( )
+get_worldToCameraMatrix( )
+set_worldToCameraMatrix( Matrix4x4 value )
+get_projectionMatrix( )
+set_projectionMatrix( Matrix4x4 value )
+get_nonJitteredProjectionMatrix( )
+set_nonJitteredProjectionMatrix( Matrix4x4 value )
+get_useJitteredProjectionMatrixForTransparentRendering( )
+set_useJitteredProjectionMatrixForTransparentRendering( Boolean value )
+get_previousViewProjectionMatrix( )
+ResetWorldToCameraMatrix( )
+ResetProjectionMatrix( )
+CalculateObliqueMatrix( Vector4 clipPlane )
+WorldToScreenPoint( Vector3 position,  MonoOrStereoscopicEye eye )
+WorldToViewportPoint( Vector3 position,  MonoOrStereoscopicEye eye )
+ViewportToWorldPoint( Vector3 position,  MonoOrStereoscopicEye eye )
+ScreenToWorldPoint( Vector3 position,  MonoOrStereoscopicEye eye )
+WorldToScreenPoint( Vector3 position )
+WorldToViewportPoint( Vector3 position )
+ViewportToWorldPoint( Vector3 position )
+ScreenToWorldPoint( Vector3 position )
+ScreenToViewportPoint( Vector3 position )
+ViewportToScreenPoint( Vector3 position )
+ViewportPointToRay( Vector3 pos,  MonoOrStereoscopicEye eye )
+ViewportPointToRay( Vector3 pos )
+ScreenPointToRay( Vector3 pos,  MonoOrStereoscopicEye eye )
+ScreenPointToRay( Vector3 pos )
+CalculateFrustumCorners( Rect viewport,  Single z,  MonoOrStereoscopicEye eye,  Vector3[] outCorners )
+CalculateProjectionMatrixFromPhysicalProperties( Matrix4x4& output,  Single focalLength,  Vector2 sensorSize,  Vector2 lensShift,  Single nearClip,  Single farClip,  GateFitParameters gateFitParameters )
+FocalLengthToFieldOfView( Single focalLength,  Single sensorSize )
+FieldOfViewToFocalLength( Single fieldOfView,  Single sensorSize )
+HorizontalToVerticalFieldOfView( Single horizontalFieldOfView,  Single aspectRatio )
+VerticalToHorizontalFieldOfView( Single verticalFieldOfView,  Single aspectRatio )
+get_main( )
+get_current( )
+get_scene( )
+set_scene( Scene value )
+get_stereoEnabled( )
+get_stereoSeparation( )
+set_stereoSeparation( Single value )
+get_stereoConvergence( )
+set_stereoConvergence( Single value )
+get_areVRStereoViewMatricesWithinSingleCullTolerance( )
+get_stereoTargetEye( )
+set_stereoTargetEye( StereoTargetEyeMask value )
+get_stereoActiveEye( )
+GetStereoNonJitteredProjectionMatrix( StereoscopicEye eye )
+GetStereoViewMatrix( StereoscopicEye eye )
+CopyStereoDeviceProjectionMatrixToNonJittered( StereoscopicEye eye )
+GetStereoProjectionMatrix( StereoscopicEye eye )
+SetStereoProjectionMatrix( StereoscopicEye eye,  Matrix4x4 matrix )
+ResetStereoProjectionMatrices( )
+SetStereoViewMatrix( StereoscopicEye eye,  Matrix4x4 matrix )
+ResetStereoViewMatrices( )
+get_allCamerasCount( )
+get_allCameras( )
+GetAllCameras( Camera[] cameras )
+RenderToCubemap( Cubemap cubemap,  Int32 faceMask )
+RenderToCubemap( Cubemap cubemap )
+RenderToCubemap( RenderTexture cubemap,  Int32 faceMask )
+RenderToCubemap( RenderTexture cubemap )
+RenderToCubemap( RenderTexture cubemap,  Int32 faceMask,  MonoOrStereoscopicEye stereoEye )
+Render( )
+RenderWithShader( Shader shader,  String replacementTag )
+RenderDontRestore( )
+SetupCurrent( Camera cur )
+CopyFrom( Camera other )
+get_commandBufferCount( )
+RemoveCommandBuffers( CameraEvent evt )
+RemoveAllCommandBuffers( )
+AddCommandBuffer( CameraEvent evt,  CommandBuffer buffer )
+AddCommandBufferAsync( CameraEvent evt,  CommandBuffer buffer,  ComputeQueueType queueType )
+RemoveCommandBuffer( CameraEvent evt,  CommandBuffer buffer )
+GetCommandBuffers( CameraEvent evt )
+TryGetCullingParameters( ScriptableCullingParameters& cullingParameters )
+TryGetCullingParameters( Boolean stereoAware,  ScriptableCullingParameters& cullingParameters )
+get_isOrthoGraphic( )
+set_isOrthoGraphic( Boolean value )
+GetScreenWidth( )
+GetScreenHeight( )
+get_mainCamera( )
+DoClear( )
+get_near( )
+set_near( Single value )
+get_far( )
+set_far( Single value )
+get_fov( )
+set_fov( Single value )
+ResetFieldOfView( )
+get_hdr( )
+set_hdr( Boolean value )
+get_stereoMirrorMode( )
+set_stereoMirrorMode( Boolean value )
+SetStereoViewMatrices( Matrix4x4 leftMatrix,  Matrix4x4 rightMatrix )
+SetStereoProjectionMatrices( Matrix4x4 leftMatrix,  Matrix4x4 rightMatrix )
+GetStereoViewMatrices( )
+GetStereoProjectionMatrices( )
+get_enabled( )
+set_enabled( Boolean value )
+get_isActiveAndEnabled( )
+get_transform( )
+get_gameObject( )
+GetComponent( Type type )
+GetComponent( )
+TryGetComponent( Type type,  Component& component )
+TryGetComponent( T& component )
+GetComponent( String type )
+GetComponentInChildren( Type t,  Boolean includeInactive )
+GetComponentInChildren( Type t )
+GetComponentInChildren( Boolean includeInactive )
+GetComponentInChildren( )
+GetComponentsInChildren( Type t,  Boolean includeInactive )
+GetComponentsInChildren( Type t )
+GetComponentsInChildren( Boolean includeInactive )
+GetComponentsInChildren( Boolean includeInactive,  List`1 result )
+GetComponentsInChildren( )
+GetComponentsInChildren( List`1 results )
+GetComponentInParent( Type t )
+GetComponentInParent( )
+GetComponentsInParent( Type t,  Boolean includeInactive )
+GetComponentsInParent( Type t )
+GetComponentsInParent( Boolean includeInactive )
+GetComponentsInParent( Boolean includeInactive,  List`1 results )
+GetComponentsInParent( )
+GetComponents( Type type )
+GetComponents( Type type,  List`1 results )
+GetComponents( List`1 results )
+get_tag( )
+set_tag( String value )
+GetComponents( )
+CompareTag( String tag )
+SendMessageUpwards( String methodName,  Object value,  SendMessageOptions options )
+SendMessageUpwards( String methodName,  Object value )
+SendMessageUpwards( String methodName )
+SendMessageUpwards( String methodName,  SendMessageOptions options )
+SendMessage( String methodName,  Object value )
+SendMessage( String methodName )
+SendMessage( String methodName,  Object value,  SendMessageOptions options )
+SendMessage( String methodName,  SendMessageOptions options )
+BroadcastMessage( String methodName,  Object parameter,  SendMessageOptions options )
+BroadcastMessage( String methodName,  Object parameter )
+BroadcastMessage( String methodName )
+BroadcastMessage( String methodName,  SendMessageOptions options )
+get_rigidbody( )
+get_rigidbody2D( )
+get_camera( )
+get_light( )
+get_animation( )
+get_constantForce( )
+get_renderer( )
+get_audio( )
+get_networkView( )
+get_collider( )
+get_collider2D( )
+get_hingeJoint( )
+get_particleSystem( )
+GetInstanceID( )
+GetHashCode( )
+Equals( Object other )
+get_name( )
+set_name( String value )
+get_hideFlags( )
+set_hideFlags( HideFlags value )
+ToString( )
+GetType( )
+UnityEngine.Camera+CameraCallback onPreCull
+UnityEngine.Camera+CameraCallback onPreRender
+UnityEngine.Camera+CameraCallback onPostRender
+System.Single nearClipPlane
+System.Single farClipPlane
+System.Single fieldOfView
+UnityEngine.RenderingPath renderingPath
+UnityEngine.RenderingPath actualRenderingPath
+System.Boolean allowHDR
+System.Boolean allowMSAA
+System.Boolean allowDynamicResolution
+System.Boolean forceIntoRenderTexture
+System.Single orthographicSize
+System.Boolean orthographic
+UnityEngine.Rendering.OpaqueSortMode opaqueSortMode
+UnityEngine.TransparencySortMode transparencySortMode
+UnityEngine.Vector3 transparencySortAxis
+System.Single depth
+System.Single aspect
+UnityEngine.Vector3 velocity
+System.Int32 cullingMask
+System.Int32 eventMask
+System.Boolean layerCullSpherical
+UnityEngine.CameraType cameraType
+System.UInt64 overrideSceneCullingMask
+System.Single[] layerCullDistances
+System.Boolean useOcclusionCulling
+UnityEngine.Matrix4x4 cullingMatrix
+UnityEngine.Color backgroundColor
+UnityEngine.CameraClearFlags clearFlags
+UnityEngine.DepthTextureMode depthTextureMode
+System.Boolean clearStencilAfterLightingPass
+System.Boolean usePhysicalProperties
+UnityEngine.Vector2 sensorSize
+UnityEngine.Vector2 lensShift
+System.Single focalLength
+UnityEngine.Camera+GateFitMode gateFit
+UnityEngine.Rect rect
+UnityEngine.Rect pixelRect
+System.Int32 pixelWidth
+System.Int32 pixelHeight
+System.Int32 scaledPixelWidth
+System.Int32 scaledPixelHeight
+UnityEngine.RenderTexture targetTexture
+UnityEngine.RenderTexture activeTexture
+System.Int32 targetDisplay
+UnityEngine.Matrix4x4 cameraToWorldMatrix
+UnityEngine.Matrix4x4 worldToCameraMatrix
+UnityEngine.Matrix4x4 projectionMatrix
+UnityEngine.Matrix4x4 nonJitteredProjectionMatrix
+System.Boolean useJitteredProjectionMatrixForTransparentRendering
+UnityEngine.Matrix4x4 previousViewProjectionMatrix
+UnityEngine.Camera main
+UnityEngine.Camera current
+UnityEngine.SceneManagement.Scene scene
+System.Boolean stereoEnabled
+System.Single stereoSeparation
+System.Single stereoConvergence
+System.Boolean areVRStereoViewMatricesWithinSingleCullTolerance
+UnityEngine.StereoTargetEyeMask stereoTargetEye
+UnityEngine.Camera+MonoOrStereoscopicEye stereoActiveEye
+System.Int32 allCamerasCount
+UnityEngine.Camera[] allCameras
+System.Int32 commandBufferCount
+System.Boolean isOrthoGraphic
+UnityEngine.Camera mainCamera
+System.Single near
+System.Single far
+System.Single fov
+System.Boolean hdr
+System.Boolean stereoMirrorMode
+System.Boolean enabled
+System.Boolean isActiveAndEnabled
+UnityEngine.Transform transform
+UnityEngine.GameObject gameObject
+System.String tag
+UnityEngine.Component rigidbody
+UnityEngine.Component rigidbody2D
+UnityEngine.Component camera
+UnityEngine.Component light
+UnityEngine.Component animation
+UnityEngine.Component constantForce
+UnityEngine.Component renderer
+UnityEngine.Component audio
+UnityEngine.Component networkView
+UnityEngine.Component collider
+UnityEngine.Component collider2D
+UnityEngine.Component hingeJoint
+UnityEngine.Component particleSystem
+System.String name
+UnityEngine.HideFlags hideFlags

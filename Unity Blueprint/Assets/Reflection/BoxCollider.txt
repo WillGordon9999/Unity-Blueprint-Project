@@ -1,0 +1,103 @@
+get_center( )
+get_size( )
+get_extents( )
+get_enabled( )
+get_attachedRigidbody( )
+get_isTrigger( )
+get_contactOffset( )
+ClosestPoint( Vector3 position )
+get_bounds( )
+get_sharedMaterial( )
+get_material( )
+Raycast( Ray ray,  RaycastHit& hitInfo,  Single maxDistance )
+ClosestPointOnBounds( Vector3 position )
+get_transform( )
+get_gameObject( )
+GetComponent( Type type )
+GetComponent( )
+TryGetComponent( Type type,  Component& component )
+TryGetComponent( T& component )
+GetComponent( String type )
+GetComponentInChildren( Type t,  Boolean includeInactive )
+GetComponentInChildren( Type t )
+GetComponentInChildren( Boolean includeInactive )
+GetComponentInChildren( )
+GetComponentsInChildren( Type t,  Boolean includeInactive )
+GetComponentsInChildren( Type t )
+GetComponentsInChildren( Boolean includeInactive )
+GetComponentsInChildren( Boolean includeInactive,  List`1 result )
+GetComponentsInChildren( )
+GetComponentsInChildren( List`1 results )
+GetComponentInParent( Type t )
+GetComponentInParent( )
+GetComponentsInParent( Type t,  Boolean includeInactive )
+GetComponentsInParent( Type t )
+GetComponentsInParent( Boolean includeInactive )
+GetComponentsInParent( Boolean includeInactive,  List`1 results )
+GetComponentsInParent( )
+GetComponents( Type type )
+GetComponents( Type type,  List`1 results )
+GetComponents( List`1 results )
+get_tag( )
+GetComponents( )
+CompareTag( String tag )
+SendMessageUpwards( String methodName,  Object value,  SendMessageOptions options )
+SendMessageUpwards( String methodName,  Object value )
+SendMessageUpwards( String methodName )
+SendMessageUpwards( String methodName,  SendMessageOptions options )
+SendMessage( String methodName,  Object value )
+SendMessage( String methodName )
+SendMessage( String methodName,  Object value,  SendMessageOptions options )
+SendMessage( String methodName,  SendMessageOptions options )
+BroadcastMessage( String methodName,  Object parameter,  SendMessageOptions options )
+BroadcastMessage( String methodName,  Object parameter )
+BroadcastMessage( String methodName )
+BroadcastMessage( String methodName,  SendMessageOptions options )
+get_rigidbody( )
+get_rigidbody2D( )
+get_camera( )
+get_light( )
+get_animation( )
+get_constantForce( )
+get_renderer( )
+get_audio( )
+get_networkView( )
+get_collider( )
+get_collider2D( )
+get_hingeJoint( )
+get_particleSystem( )
+GetInstanceID( )
+GetHashCode( )
+Equals( Object other )
+get_name( )
+get_hideFlags( )
+ToString( )
+GetType( )
+UnityEngine.Vector3 center
+UnityEngine.Vector3 size
+UnityEngine.Vector3 extents
+System.Boolean enabled
+UnityEngine.Rigidbody attachedRigidbody
+System.Boolean isTrigger
+System.Single contactOffset
+UnityEngine.Bounds bounds
+UnityEngine.PhysicMaterial sharedMaterial
+UnityEngine.PhysicMaterial material
+UnityEngine.Transform transform
+UnityEngine.GameObject gameObject
+System.String tag
+UnityEngine.Component rigidbody
+UnityEngine.Component rigidbody2D
+UnityEngine.Component camera
+UnityEngine.Component light
+UnityEngine.Component animation
+UnityEngine.Component constantForce
+UnityEngine.Component renderer
+UnityEngine.Component audio
+UnityEngine.Component networkView
+UnityEngine.Component collider
+UnityEngine.Component collider2D
+UnityEngine.Component hingeJoint
+UnityEngine.Component particleSystem
+System.String name
+UnityEngine.HideFlags hideFlags

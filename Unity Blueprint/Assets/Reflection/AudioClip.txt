@@ -1,0 +1,41 @@
+get_length( )
+get_samples( )
+get_channels( )
+get_frequency( )
+get_isReadyToPlay( )
+get_loadType( )
+LoadAudioData( )
+UnloadAudioData( )
+get_preloadAudioData( )
+get_ambisonic( )
+get_loadInBackground( )
+get_loadState( )
+GetData( Single[] data,  Int32 offsetSamples )
+SetData( Single[] data,  Int32 offsetSamples )
+Create( String name,  Int32 lengthSamples,  Int32 channels,  Int32 frequency,  Boolean _3D,  Boolean stream )
+Create( String name,  Int32 lengthSamples,  Int32 channels,  Int32 frequency,  Boolean _3D,  Boolean stream,  PCMReaderCallback pcmreadercallback )
+Create( String name,  Int32 lengthSamples,  Int32 channels,  Int32 frequency,  Boolean _3D,  Boolean stream,  PCMReaderCallback pcmreadercallback,  PCMSetPositionCallback pcmsetpositioncallback )
+Create( String name,  Int32 lengthSamples,  Int32 channels,  Int32 frequency,  Boolean stream )
+Create( String name,  Int32 lengthSamples,  Int32 channels,  Int32 frequency,  Boolean stream,  PCMReaderCallback pcmreadercallback )
+Create( String name,  Int32 lengthSamples,  Int32 channels,  Int32 frequency,  Boolean stream,  PCMReaderCallback pcmreadercallback,  PCMSetPositionCallback pcmsetpositioncallback )
+GetInstanceID( )
+GetHashCode( )
+Equals( Object other )
+get_name( )
+set_name( String value )
+get_hideFlags( )
+set_hideFlags( HideFlags value )
+ToString( )
+GetType( )
+System.Single length
+System.Int32 samples
+System.Int32 channels
+System.Int32 frequency
+System.Boolean isReadyToPlay
+UnityEngine.AudioClipLoadType loadType
+System.Boolean preloadAudioData
+System.Boolean ambisonic
+System.Boolean loadInBackground
+UnityEngine.AudioDataLoadState loadState
+System.String name
+UnityEngine.HideFlags hideFlags

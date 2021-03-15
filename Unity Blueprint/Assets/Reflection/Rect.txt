@@ -1,0 +1,69 @@
+.ctor( Single x,  Single y,  Single width,  Single height )
+.ctor( Vector2 position,  Vector2 size )
+.ctor( Rect source )
+get_zero( )
+MinMaxRect( Single xmin,  Single ymin,  Single xmax,  Single ymax )
+Set( Single x,  Single y,  Single width,  Single height )
+get_x( )
+set_x( Single value )
+get_y( )
+set_y( Single value )
+get_position( )
+set_position( Vector2 value )
+get_center( )
+set_center( Vector2 value )
+get_min( )
+set_min( Vector2 value )
+get_max( )
+set_max( Vector2 value )
+get_width( )
+set_width( Single value )
+get_height( )
+set_height( Single value )
+get_size( )
+set_size( Vector2 value )
+get_xMin( )
+set_xMin( Single value )
+get_yMin( )
+set_yMin( Single value )
+get_xMax( )
+set_xMax( Single value )
+get_yMax( )
+set_yMax( Single value )
+Contains( Vector2 point )
+Contains( Vector3 point )
+Contains( Vector3 point,  Boolean allowInverse )
+Overlaps( Rect other )
+Overlaps( Rect other,  Boolean allowInverse )
+NormalizedToPoint( Rect rectangle,  Vector2 normalizedRectCoordinates )
+PointToNormalized( Rect rectangle,  Vector2 point )
+op_Inequality( Rect lhs,  Rect rhs )
+op_Equality( Rect lhs,  Rect rhs )
+GetHashCode( )
+Equals( Object other )
+Equals( Rect other )
+ToString( )
+ToString( String format )
+get_left( )
+get_right( )
+get_top( )
+get_bottom( )
+GetType( )
+UnityEngine.Rect zero
+System.Single x
+System.Single y
+UnityEngine.Vector2 position
+UnityEngine.Vector2 center
+UnityEngine.Vector2 min
+UnityEngine.Vector2 max
+System.Single width
+System.Single height
+UnityEngine.Vector2 size
+System.Single xMin
+System.Single yMin
+System.Single xMax
+System.Single yMax
+System.Single left
+System.Single right
+System.Single top
+System.Single bottom

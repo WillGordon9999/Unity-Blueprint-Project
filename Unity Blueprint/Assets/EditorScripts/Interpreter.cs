@@ -14,7 +14,7 @@ using System.Text;
 
 /*
  CRITICAL INFO: 
- IN ORDER TO USE SYSTEM.REFLECTION.EMIT FOR UNITY
+ IN ORDER TO USE CSharpCodeProvider Class FOR UNITY
  GO INTO PROJECT SETTINGS > PLAYER > OTHER SETTINGS > API COMPATIBILITY AND SET IT TO .NET 4.X
  SOURCE: https://answers.unity.com/questions/1585741/the-type-or-namespace-name-ilgenerator-could-not-b.html
  */
@@ -187,6 +187,55 @@ public class Interpreter
     static Interpreter mInstance;
 
     public bool UseGameCompile = false;
+    public bool UseUnlocks = false;
+
+
+    //public Dictionary<string, AppDomain> appDomains = new Dictionary<string, AppDomain>();
+    List<Node> referenceNodes;
+    List<Parameter> refParams;
+
+    Node GetNode(int id)
+    {
+        if (referenceNodes != null)
+        {
+            foreach (Node node in referenceNodes)
+                if (node.ID == id)
+                    return node;
+        }
+
+        return null;
+    }
+   
+    void PrintParameters()
+    {
+        string final = "";
+
+        if (refParams != null)
+        {
+            foreach(Parameter p in refParams)
+            {
+                final += $"node input: {p.nodeRef.input} name: {p.name} arg: {p.arg} inputVar: {p.inputVar} varInput {p.varInput} \n";
+            }
+
+            Debug.Log(final);
+        }
+    }
+
+    void PrintNodeParameters(Node node)
+    {
+        string final = "";
+
+        if (node != null)
+        {
+            foreach(Parameter p in node.paramList)
+            {
+                final += $"name: {p.name} arg: {p.arg} inputVar: {p.inputVar} varInput: {p.varInput} \n";
+            }
+
+            Debug.Log($"Node {node.input} ID: {node.ID} parameters: \n" + final);
+        }
+
+    }
 
     Interpreter() {}
 
@@ -243,32 +292,62 @@ public class Interpreter
     public BlueprintData CreateBlueprint(string name)
     {
         BlueprintData bp = ScriptableObject.CreateInstance<BlueprintData>();        
-        FileStream file = File.Create(Application.persistentDataPath + "/" + name + ".asset");
+        //FileStream file = File.Create(Application.persistentDataPath + "/" + name + ".asset");
         return bp;
     }
 
     public void SaveBlueprint(BlueprintData data)
-    {        
-        BinaryFormatter bf = new BinaryFormatter();
-        string json = JsonUtility.ToJson(data);
-        FileStream file = File.Create(Application.persistentDataPath + "/" + data.ComponentName + ".asset");
-        //FileStream file = File.Open(Application.persistentDataPath + "/" + data.ComponentName + ".asset", FileMode.Open);
-        bf.Serialize(file, json);        
-        file.Close();
+    {
+        //BinaryFormatter bf = new BinaryFormatter();
+        //string json = JsonUtility.ToJson(data);
+        //FileStream file = File.Create(Application.persistentDataPath + "/" + data.ComponentName + ".asset");
+        ////FileStream file = File.Open(Application.persistentDataPath + "/" + data.ComponentName + ".asset", FileMode.Open);
+        //bf.Serialize(file, json);        
+        //file.Close();
+        BlueprintFile bp = new BlueprintFile();
+
+        bp.ComponentName = data.ComponentName;
+        
+        bp.nodes = data.nodes;
+        bp.entryPoints = data.entryPoints;
+        bp.variables = data.variables;
+        bp.passInParams = data.passInParams;
+        bp.ID_Count = data.ID_Count;    
+        bp.connections = data.connections;
+
+        bp.compiledClassType = data.compiledClassType;
+        bp.compiledClassTypeAsmPath = data.compiledClassTypeAsmPath;
+
+        string json = JsonUtility.ToJson(bp);
+        System.IO.File.WriteAllText(Application.persistentDataPath + "/" + $"{data.ComponentName}.asset", json);
     }
 
     public BlueprintData LoadBlueprint(string name)
     {
-        BinaryFormatter bf = new BinaryFormatter();
-        FileStream file = File.Open(Application.persistentDataPath + "/" + name + ".asset", FileMode.Open);
-        string json = (string)bf.Deserialize(file);
-        file.Close();
+        //BinaryFormatter bf = new BinaryFormatter();
+        //FileStream file = File.Open(Application.persistentDataPath + "/" + name + ".asset", FileMode.Open);
+        //string json = (string)bf.Deserialize(file);
+        //file.Close();
 
-        BlueprintFile bp = JsonUtility.FromJson<BlueprintFile>(json);
-
+        //BlueprintFile bp = JsonUtility.FromJson<BlueprintFile>(json);
+        //
         BlueprintData data = ScriptableObject.CreateInstance<BlueprintData>();
+        string json = "";
 
+        try
+        {
+            json = System.IO.File.ReadAllText(Application.persistentDataPath + "/" + $"{name}.asset");
+        }
+
+        catch
+        {
+            return null;
+        }
+        
+        BlueprintFile bp = JsonUtility.FromJson<BlueprintFile>(json);
+                
         data.ComponentName = bp.ComponentName;
+        data.entryPoints = bp.entryPoints;
         data.nodes = bp.nodes;
         data.variables = bp.variables;
         data.passInParams = bp.passInParams;
@@ -300,6 +379,10 @@ public class Interpreter
             }
         }
 
+        var gameFlags = BindingFlags.DeclaredOnly | BindingFlags.Instance | BindingFlags.Public | BindingFlags.Static;
+        var gameFlagsInstance = BindingFlags.DeclaredOnly | BindingFlags.Instance | BindingFlags.Public;
+        var gameFlagsStatic = BindingFlags.DeclaredOnly | BindingFlags.Public | BindingFlags.Static;
+
         if (data == null)
         {
             data = new InterpreterData();
@@ -319,30 +402,80 @@ public class Interpreter
 
             else
             {
-                if (ParseGameFunctions(args[0], node, ref data))
-                    return;
-
-
                 if (ParseKeywords(args[0], ref node, ref blueprint))
                 {
                     return;
                 }
 
+                //CHECKING WHETHER A TYPE IS PART OF THE GAME NAMESPACE IS HANDLED IN FINDTYPE
+             
                 //Check for inherited members
-                FieldInfo field = typeof(MonoBehaviour).GetField(input);
-                PropertyInfo prop = typeof(MonoBehaviour).GetProperty(input);
-                MethodInfo[] methodInfos = typeof(MonoBehaviour).GetMethods();
+
+                FieldInfo field;
+                PropertyInfo prop;
+                MethodInfo[] methodInfos;
+
+                if (UseGameCompile)
+                {
+                    field = typeof(GameComponent).GetField(input, gameFlags);
+                    prop = typeof(GameComponent).GetProperty(input, gameFlags);
+                    methodInfos = typeof(GameComponent).GetMethods(gameFlags);
+
+                    if (UseUnlocks)
+                    {
+                        //if (field != null)
+                        //    if (field.GetCustomAttribute<UnlockStatus>() != null)
+                        //        if (!field.GetCustomAttribute<UnlockStatus>().unlocked)
+                        //            field = null;
+
+                        if (field != null)
+                            if (!GameUnlockManager.Instance.CheckUnlock(field))
+                                field = null;
+
+                        //if (prop != null)
+                        //    if (prop.GetCustomAttribute<UnlockStatus>() != null)
+                        //        if (!prop.GetCustomAttribute<UnlockStatus>().unlocked)
+                        //            prop = null;
+
+                        if (prop != null)
+                            if (!GameUnlockManager.Instance.CheckUnlock(prop))
+                                prop = null;
+                    }
+                }
+
+                else
+                {
+                    field = typeof(MonoBehaviour).GetField(input);
+                    prop = typeof(MonoBehaviour).GetProperty(input);
+                    methodInfos = typeof(MonoBehaviour).GetMethods();
+                }
+                
                 List<MethodInfo> baseMethods = new List<MethodInfo>();
 
                 foreach(MethodInfo m in methodInfos)
                 {
                     if (m.Name == input)
-                        baseMethods.Add(m);
+                    {
+                        if (UseUnlocks && UseGameCompile)
+                        {
+                           //if (m.GetCustomAttribute<UnlockStatus>() != null)
+                           //    if (m.GetCustomAttribute<UnlockStatus>().unlocked)                                  
+                           //        baseMethods.Add(m);                                
+                           if (GameUnlockManager.Instance.CheckUnlock(m))
+                               baseMethods.Add(m);                            
+                        }
+                        else
+                            baseMethods.Add(m);
+                    }
                 }
-
+                //May want to re-work how a base class is selected
                 if (field != null || prop != null || baseMethods.Count > 0)
                 {
-                    data.selectedType = typeof(MonoBehaviour);
+                    if (!UseGameCompile)
+                        data.selectedType = typeof(MonoBehaviour);
+                    else
+                        data.selectedType = typeof(GameComponent);
+
                     data.fields = new FieldInfo[] { field };
                     data.properties = new PropertyInfo[] { prop };
                     data.methods = baseMethods.ToArray();
@@ -384,7 +517,7 @@ public class Interpreter
                         }
                     }
                 }
-
+                
                 //If no variable is found, find the type if it exists
                 if (varType == null)
                 {
@@ -416,6 +549,18 @@ public class Interpreter
         //If type selected
         //TypeSelected:
         
+        //if (UseGameCompile)
+        //{
+        //    //int result = ParseGameFunctions(args, ref node, ref data, ref blueprint);
+        //    //
+        //    //if (result == 1) //Not Allowed
+        //    //    return;
+        //    //
+        //    //if (result == 2) //Get Access only
+        //    //    getAccessOnly = true;
+        //}
+
+
         if (data.selectedType != null && !data.isBaseClass)
         {            
             string name = "";
@@ -425,28 +570,85 @@ public class Interpreter
             else
                 name = args[1];
 
+            if (UseGameCompile && data.selectedType.Namespace == "Game" && data.selectedType.BaseType == typeof(Component))
+            {
+                Debug.Log("Skipping constructors");
+                goto SkipConstructors;
+            }
+
             ConstructorInfo[] constructors = data.selectedType.GetConstructors();
             
             if (args.Length > 1)
             {
                 if (args[0] == args[1])
-                    data.constructors = constructors;
-            }          
+                {
+                    if (UseGameCompile && UseUnlocks)
+                    {
+                        List<ConstructorInfo> infos = new List<ConstructorInfo>();
 
-            MethodInfo[] methods = data.selectedType.GetMethods();
+                        foreach (ConstructorInfo info in constructors)
+                        {
+                            //if (info.GetCustomAttribute<UnlockStatus>() != null)
+                            //    if (info.GetCustomAttribute<UnlockStatus>().unlocked)
+                            //        infos.Add(info);                                
+                            if (GameUnlockManager.Instance.CheckUnlock(info))
+                                infos.Add(info);
+                        }
+
+                        data.constructors = infos.ToArray();
+                    }
+
+                    else
+                        data.constructors = constructors;
+                }
+            }
+
+            SkipConstructors:
+
+            MethodInfo[] methods;
+
+            if (UseGameCompile)
+                methods = data.selectedType.GetMethods(gameFlags);
+            else
+                methods = data.selectedType.GetMethods();
             List<MethodInfo> methodInfo = new List<MethodInfo>();
 
             foreach (MethodInfo m in methods)
             {
                  if (data.isStatic)
                  {
-                     if (m.Name == name && m.IsStatic)
-                         methodInfo.Add(m);
+                    if (m.Name == name && m.IsStatic)
+                    {
+                        if (UseGameCompile && UseUnlocks)
+                        {
+                            //if (m.GetCustomAttribute<UnlockStatus>() != null)
+                            //    if (m.GetCustomAttribute<UnlockStatus>().unlocked)
+                            //        methodInfo.Add(m);                            
+                                if (GameUnlockManager.Instance.CheckUnlock(m))
+                                    methodInfo.Add(m);
+                        }
+
+                        else
+                            methodInfo.Add(m);  
+                    }
                  }
                  else
                  {
-                     if (m.Name == name && !m.IsStatic)
-                         methodInfo.Add(m);
+                    if (m.Name == name && !m.IsStatic)
+                    {
+                        if (UseGameCompile && UseUnlocks)
+                        {
+                            //if (m.GetCustomAttribute<UnlockStatus>() != null)
+                            //    if (m.GetCustomAttribute<UnlockStatus>().unlocked)
+                            //        methodInfo.Add(m);
+                            
+                                if (GameUnlockManager.Instance.CheckUnlock(m))
+                                    methodInfo.Add(m);
+                        }
+
+                        else
+                            methodInfo.Add(m);
+                    }
                  }                              
             }
 
@@ -476,16 +678,54 @@ public class Interpreter
                     return;
                 }
 
-                data.fields = new FieldInfo[1];                
-                FieldInfo result = data.selectedType.GetField(name);                
+                data.fields = new FieldInfo[1];
+                FieldInfo result;
+
+                if (UseGameCompile)
+                {
+                    result = data.selectedType.GetField(name, gameFlagsStatic);
+
+                    if (UseUnlocks)
+                    {
+                        //if (result != null)
+                        //    if (result.GetCustomAttribute<UnlockStatus>() != null)
+                        //        if (!result.GetCustomAttribute<UnlockStatus>().unlocked)
+                        //            result = null;
+                        if (result != null)
+                            if (!GameUnlockManager.Instance.CheckUnlock(result))
+                                result = null;
+                    }
+
+                }
+                else
+                    result = data.selectedType.GetField(name);
+
                 if (result != null && result.IsPublic)
                 {
                     data.fields[0] = result;
                     data.access = InterpreterData.AccessType.Both;
                 }
 
-                data.properties = new PropertyInfo[1];                
-                PropertyInfo prop = data.selectedType.GetProperty(name);
+                data.properties = new PropertyInfo[1];
+                PropertyInfo prop;
+                if (UseGameCompile)
+                {
+                    prop = data.selectedType.GetProperty(name, gameFlagsStatic);
+
+                    if (UseUnlocks)
+                    {
+                        //if (prop != null)
+                        //    if (prop.GetCustomAttribute<UnlockStatus>() != null)
+                        //        if (!prop.GetCustomAttribute<UnlockStatus>().unlocked)
+                        //            prop = null;
+
+                        if (prop != null)
+                            if (!GameUnlockManager.Instance.CheckUnlock(prop))
+                                prop = null;
+                    }
+                }
+                else
+                    prop = data.selectedType.GetProperty(name);
 
                 if (prop != null && (prop.CanRead || prop.CanWrite))
                 {
@@ -505,7 +745,26 @@ public class Interpreter
             else
             {
                 data.fields = new FieldInfo[1];
-                FieldInfo result = data.selectedType.GetField(name);
+                FieldInfo result;
+
+                if (UseGameCompile)
+                {
+                    result = data.selectedType.GetField(name, gameFlagsInstance);
+
+                    if (UseUnlocks)
+                    {
+                        //if (result != null)
+                        //    if (result.GetCustomAttribute<UnlockStatus>() != null)
+                        //        if (!result.GetCustomAttribute<UnlockStatus>().unlocked)
+                        //            result = null;
+
+                        if (result != null)
+                            if (!GameUnlockManager.Instance.CheckUnlock(result))
+                                result = null;
+                    }
+                }
+                else
+                    result = data.selectedType.GetField(name);
 
                 if (result != null && result.IsPublic)
                 {
@@ -514,7 +773,27 @@ public class Interpreter
                 }
 
                 data.properties = new PropertyInfo[1];
-                PropertyInfo prop = data.selectedType.GetProperty(name);
+
+                PropertyInfo prop;
+
+                if (UseGameCompile)
+                {
+                    prop = data.selectedType.GetProperty(name, gameFlagsInstance);
+
+                    if (UseUnlocks)
+                    {
+                        //if (prop != null)
+                        //    if (prop.GetCustomAttribute<UnlockStatus>() != null)
+                        //        if (!prop.GetCustomAttribute<UnlockStatus>().unlocked)
+                        //            prop = null;
+
+                        if (prop != null)
+                            if (!GameUnlockManager.Instance.CheckUnlock(prop))
+                                prop = null;
+                    }
+                }
+                else
+                    prop = data.selectedType.GetProperty(name);
 
                 if (prop != null && (prop.CanRead || prop.CanWrite))
                 {
@@ -532,7 +811,10 @@ public class Interpreter
 
                     data.properties[0] = prop;
                 }
-            }  
+            }
+
+            //if (getAccessOnly)
+            //    data.access = InterpreterData.AccessType.Get;
         }                
     }
 
@@ -1056,36 +1338,285 @@ public class Interpreter
         }
 
         return null;
-    }
-
-    public bool ParseGameFunctions(string text, Node node, ref InterpreterData data)
+    }   
+    public int ParseGameFunctions(string[] args, ref Node node, ref InterpreterData data, ref BlueprintData bp)
     {
-        Type type = typeof(GameFramework);
-        //data.selectedType = typeof(GameFramework);
-        //data.selectedAsm = data.selectedType.Assembly;
-        //node.hasCost = true;
-        //data.isStatic = true;
+        /*
+         Status Codes are as follows: 
+         0: No issues
+         1: Not Allowed or not found
+         2: Get Access only
+         */
+
+        Type type = typeof(GameFramework);        
         MethodInfo[] methods = type.GetMethods();
         List<MethodInfo> methodInfo = new List<MethodInfo>();
-
+        
         foreach (MethodInfo m in methods)
         {
-            if (m.Name == text && m.IsStatic)
-                methodInfo.Add(m);           
+            if (m.Name == args[0] && m.IsStatic)
+                methodInfo.Add(m);
         }
-
+        
         data.methods = methodInfo.ToArray();
-
+        
         if (data.methods != null && data.methods.Length > 0)
         {
             data.selectedType = typeof(GameFramework);
             data.selectedAsm = data.selectedType.Assembly;
             node.hasCost = true;
             data.isStatic = true;
-            return true;
+            return 0;
         }
-        else
-            return false;
+        
+        GameCodebase code = GameManager.Instance.codebase;
+        
+        //Determine whether this node is contextual or using a variable
+        bool isVar = false;
+        Type varType = null;
+        
+        foreach(Var v in bp.variables)
+        {
+            if (v.name == args[0])
+            {
+                isVar = true;
+                varType = v.type;
+                //data.selectedType = v.type;
+                //data.selectedAsm = v.type.Assembly;                
+            }
+        }
+
+        //Eject if operation
+
+        //if (args[0] == "=")
+        //    return 0;      
+        //if (args[0] == "++")
+        //    return 0;      
+        //if (args[0] == "--")
+        //    return 0;      
+        //if (args[0] == "+")
+        //    return 0;      
+        //if (args[0] == "-")
+        //    return 0;      
+        //if (args[0] == "*")
+        //    return 0;      
+        //if (args[0] == "/")
+        //    return 0;      
+        //if (args[0] == "%")
+        //    return 0;      
+        //if (args[0] == "==")
+        //    return 0;      
+        //if (args[0] == "<" )
+        //    return 0;      
+        //if (args[0] == ">" )
+        //    return 0;      
+        //if (args[0] == "<=")
+        //    return 0;      
+        //if (args[0] == ">=")
+        //    return 0;      
+        //if (args[0] == "!=")
+        //    return 0;      
+        //if (args[0] == "&&")
+        //    return 0;      
+        //if (args[0] == "||")
+        //    return 0;
+
+        if (args.Length > 1)
+        {
+            if (args[1] == "=")
+                return 0;
+            if (args[1] == "++")
+                return 0;
+            if (args[1] == "--")
+                return 0;
+            if (args[1] == "+")
+                return 0;
+            if (args[1] == "-")
+                return 0;
+            if (args[1] == "*")
+                return 0;
+            if (args[1] == "/")
+                return 0;
+            if (args[1] == "%")
+                return 0;
+            if (args[1] == "==")
+                return 0;
+            if (args[1] == "<")
+                return 0;
+            if (args[1] == ">")
+                return 0;
+            if (args[1] == "<=")
+                return 0;
+            if (args[1] == ">=")
+                return 0;
+            if (args[1] == "!=")
+                return 0;
+            if (args[1] == "&&")
+                return 0;
+            if (args[1] == "||")
+                return 0;
+        }
+
+
+        foreach (GameClass typeName in code.classes)
+        {
+            if (isVar)
+            {
+                if (typeName.className == varType.Name)
+                {                    
+                    foreach (MemberData member in typeName.members)
+                    {
+                        if (member.name.Split(' ')[1] == args[1])
+                        {                           
+                            data.selectedType = varType;
+                            data.selectedAsm = varType.Assembly;
+                            Debug.Log("Member Found in Game for Variable");
+
+                            if (member.memberType == MemberData.MemberType.Field || member.memberType == MemberData.MemberType.Property)
+                            {
+                                if (member.access == MemberData.AccessType.Get)
+                                    return 2;
+                                if (member.access == MemberData.AccessType.Both)
+                                    return 0;
+                            }
+
+                            return 0;
+                        }
+
+                        if (member.name.Split('(')[0] == args[1])
+                        {
+                            data.selectedType = varType;
+                            data.selectedAsm = varType.Assembly;
+                            Debug.Log("Member Found in Game for Variable");
+                            return 0;
+                        }
+                    }
+                }
+            }
+
+            if (node.isContextual)
+            {
+                if (typeName.className == data.selectedType.Name)
+                {                    
+                    foreach (MemberData member in typeName.members)
+                    {
+                        if (member.access == MemberData.AccessType.Both)
+                        {
+                            if (args[0] == "=")
+                                return 0;
+                            if (args[0] == "++")
+                                return 0;
+                            if (args[0] == "--")
+                                return 0;
+                            if (args[0] == "+")
+                                return 0;
+                            if (args[0] == "-")
+                                return 0;
+                            if (args[0] == "*")
+                                return 0;
+                            if (args[0] == "/")
+                                return 0;
+                            if (args[0] == "%")
+                                return 0;
+                            if (args[0] == "==")
+                                return 0;
+                            if (args[0] == "<")
+                                return 0;
+                            if (args[0] == ">")
+                                return 0;
+                            if (args[0] == "<=")
+                                return 0;
+                            if (args[0] == ">=")
+                                return 0;
+                            if (args[0] == "!=")
+                                return 0;
+                            if (args[0] == "&&")
+                                return 0;
+                            if (args[0] == "||")
+                                return 0;
+                        }
+
+                        if (member.name.Split(' ')[1] == args[0])
+                        {
+                            Debug.Log("Member found in Game for Contextual");
+
+                            if (member.memberType == MemberData.MemberType.Field || member.memberType == MemberData.MemberType.Property)
+                            {
+                                if (member.access == MemberData.AccessType.Get)
+                                    return 2;
+                                if (member.access == MemberData.AccessType.Both)
+                                    return 0;
+                            }
+                            
+                            return 0;
+                        }
+
+                        if (member.name.Split('(')[0] == args[0])
+                        {
+                            Debug.Log("Member found in Game for Contextual");
+                            return 0;
+                        }
+                    }
+
+                    //It failed disable it
+                    Debug.Log("Not found in Game Code Base");
+                    data.selectedType = null;
+                    data.selectedAsm = null;
+                    return 1;
+                }
+            }
+
+            //If static
+            if (typeName.className == args[0])
+            {
+                foreach (MemberData member in typeName.members)
+                {                    
+                    if (member.name.Split(' ')[1] == args[1])
+                    {
+                        Type newType = FindType(args[0]);
+
+                        if (newType != null)
+                        {
+                            data.selectedType = newType;
+                            data.selectedAsm = newType.Assembly;
+                            Debug.Log("Member found for Static in Game");
+                            if (member.memberType == MemberData.MemberType.Field || member.memberType == MemberData.MemberType.Property)
+                            {
+                                if (member.access == MemberData.AccessType.Get)
+                                    return 2;
+                                if (member.access == MemberData.AccessType.Both)
+                                    return 0;
+                            }
+
+                            return 0;
+                        }
+
+                        else
+                            return 1;
+                        
+                    }
+
+                    if (member.name.Split('(')[0] == args[1])
+                    {
+                        Type newType = FindType(args[0]);
+
+                        if (newType != null)
+                        {
+                            data.selectedType = newType;
+                            data.selectedAsm = newType.Assembly;
+                            Debug.Log("Member found for Static in Game");
+                            return 0;
+                        }
+
+                        else
+                            return 1;
+                    }
+                }
+            }
+        }
+
+        Debug.Log("No class found in Game");
+        return 1;       
     }
 
     public bool ParseKeywords(string text, ref Node node, ref BlueprintData data)
@@ -1107,8 +1638,8 @@ public class Interpreter
         //}
 
         try
-        {
-            info = typeof(BlueprintComponent).GetMethod(text);
+        {            
+             info = typeof(BlueprintComponent).GetMethod(text);                        
         }
 
         catch
@@ -1130,6 +1661,23 @@ public class Interpreter
             }            
             
             Debug.Log($"Method found for {text}");
+
+            //Check if it already exists - so it can be called           
+
+            if (data.entryPoints == null)
+                data.entryPoints = new List<NodeData>();
+
+            foreach(NodeData nodeData in data.entryPoints)
+            {
+                if (nodeData.input == text && nodeData.isEntryPoint)
+                {
+                    Debug.Log("Message Function is defined");
+                    //node.isSpecial = true;
+                    //node.input = text;
+                    //node.ChangeToSpecialMethod(info);                    
+                    return false;
+                }
+            }
 
             ParameterInfo[] pars = info.GetParameters();
             
@@ -1163,6 +1711,16 @@ public class Interpreter
 
             node.isDefined = true;
             node.isEntryPoint = true;
+            node.isVirtual = info.IsVirtual;
+
+            if (node.isVirtual)
+                Debug.Log("NODE IS CONFIRMED VIRTUAL");
+
+            if (data.entryPoints == null)
+                data.entryPoints = new List<NodeData>();
+
+            data.entryPoints.Add(new NodeData(node));
+
             return true;
         }
 
@@ -1274,6 +1832,24 @@ public class Interpreter
         return null;
     }
     
+    public Type FindType(string input)
+    {
+        foreach (Assembly asm in AppDomain.CurrentDomain.GetAssemblies())
+        {
+            Type[] types = asm.GetTypes();
+
+            foreach (Type t in types)
+            {
+                if (t.Name == input)
+                {
+                    return t;
+                }
+            }
+        }
+
+        return null;
+    }
+
     //Return true if multiple types are found
     public bool FindType(string input, out Type[] type, out Assembly[] ASM)
     {
@@ -1284,6 +1860,203 @@ public class Interpreter
         int matchCount = 0;
         List<Type> typeList = new List<Type>();
         List<Assembly> asms = new List<Assembly>();
+
+        if (UseGameCompile)
+        {
+            //This should return the Assembly Assembly C-Sharp that the game framework is defined in
+            Assembly assembly = this.GetType().Assembly;
+            bool found = false;
+
+            type = null;
+            ASM = null;
+
+            //Custom class searching
+            if (Application.isPlaying)
+            {
+                Type t = GameManager.Instance.SearchClass(input);
+
+                if (t != null)
+                {
+                    type = new Type[] { t };
+                    ASM = new Assembly[] { t.Assembly };
+                    return true;
+                }
+            }
+
+            //Support primitive types + Unity standard types
+            switch(input)
+            {
+                case "bool":
+                    type = new Type[] { typeof(bool) };
+                    ASM = new Assembly[] { type[0].Assembly };
+                    found = true;
+                    break;
+
+                case "byte":
+                    type = new Type[] { typeof(byte) };
+                    ASM = new Assembly[] { type[0].Assembly };
+                    found = true;
+                    break;
+
+                case "char":
+                    type = new Type[] { typeof(char) };
+                    ASM = new Assembly[] { type[0].Assembly };
+                    found = true;
+                    break;
+
+                case "short":
+                    type = new Type[] { typeof(short) };
+                    ASM = new Assembly[] { type[0].Assembly };
+                    found = true;
+                    break;
+
+                case "ushort":
+                    type = new Type[] { typeof(ushort) };
+                    ASM = new Assembly[] { type[0].Assembly };
+                    found = true;
+                    break;
+
+                case "int":
+                    type = new Type[] { typeof(int) };
+                    ASM = new Assembly[] { type[0].Assembly };
+                    found = true;
+                    break;
+
+                case "uint":
+                    type = new Type[] { typeof(uint) };
+                    ASM = new Assembly[] { type[0].Assembly };
+                    found = true;
+                    break;
+
+                case "long":
+                    type = new Type[] { typeof(long) };
+                    ASM = new Assembly[] { type[0].Assembly };
+                    found = true;
+                    break;
+
+                case "ulong":
+                    type = new Type[] { typeof(ulong) };
+                    ASM = new Assembly[] { type[0].Assembly };
+                    found = true;
+                    break;
+
+                case "float":
+                    type = new Type[] { typeof(float) };
+                    ASM = new Assembly[] { type[0].Assembly };
+                    found = true;
+                    break;
+
+                case "double":
+                    type =  new Type[] { typeof(double) };
+                    ASM = new Assembly[] { type[0].Assembly };
+                    found = true;
+                    break;
+
+                case "string":
+                    type = new Type[] { typeof(string) };
+                    ASM = new Assembly[] { type[0].Assembly };
+                    found = true;
+                    break;
+
+                case "Vector2":
+                    type = new Type[] { typeof(Vector2) };
+                    ASM = new Assembly[] { type[0].Assembly };
+                    found = true;
+                    break;
+
+                case "Vector3":
+                    type = new Type[] { typeof(Vector3) };
+                    ASM = new Assembly[] { type[0].Assembly };
+                    found = true;
+                    break;
+
+                case "Vector4":
+                    type = new Type[] { typeof(Vector4) };
+                    ASM = new Assembly[] { type[0].Assembly };
+                    found = true;
+                    break;
+
+                case "Quaternion":
+                    type = new Type[] { typeof(Quaternion) };
+                    ASM = new Assembly[] { type[0].Assembly };
+                    found = true;
+                    break;
+
+                case "Rect":
+                    type = new Type[] { typeof(Rect) };
+                    ASM = new Assembly[] { type[0].Assembly };
+                    found = true;
+                    break;
+
+                case "Color":
+                    type = new Type[] { typeof(Color) };
+                    ASM = new Assembly[] { type[0].Assembly };
+                    found = true;
+                    break;
+
+                case "Mathf":
+                    type = new Type[] { typeof(Mathf) };
+                    ASM = new Assembly[] { type[0].Assembly };
+                    found = true;
+                    break;
+
+                case "Random":
+                    type = new Type[] { typeof(UnityEngine.Random) };
+                    ASM = new Assembly[] { type[0].Assembly };
+                    found = true;
+                    break;
+
+                case "LayerMask":
+                    type = new Type[] { typeof(UnityEngine.LayerMask) };
+                    ASM = new Assembly[] { type[0].Assembly };
+                    found = true;
+                    break;
+            }
+            
+            if (found)
+                return true;
+
+            foreach(Type t in assembly.GetTypes())
+            {
+                //Support references to other custom components?
+                if (t.Name == input && (t.Namespace == "Game" || t.BaseType == typeof(GameComponent)))
+                {
+                    type = new Type[] { t };
+                    ASM = new Assembly[] { t.Assembly };
+
+                    if (UseUnlocks)
+                    {
+                        //UnlockStatus status = t.GetCustomAttribute<UnlockStatus>();
+                        //
+                        //if (status != null)
+                        //    if (!status.unlocked)
+                        //    {
+                        //        type = null;
+                        //        ASM = null;
+                        //        return false;
+                        //    }
+
+                        if (!GameUnlockManager.Instance.CheckUnlock(t))
+                        {
+                            type = null;
+                            ASM = null;
+                            return false;
+                        }
+                    }
+
+                    else
+                        return true;
+                }
+            }
+
+            if (!found)
+            {
+                type = null;
+                ASM = null;
+                return false;
+            }
+        }
+
 
         foreach (Assembly asm in AppDomain.CurrentDomain.GetAssemblies())
         {
@@ -1356,7 +2129,7 @@ public class Interpreter
 
             bool isPrimitive = false;
 
-            //Primitive Check + string
+            //Primitive Check + string + Standard Unity Classes
             switch(raw[0])
             {
                 case "bool":
@@ -1416,6 +2189,36 @@ public class Interpreter
 
                 case "string":
                     meta.selectedType = typeof(string);
+                    isPrimitive = true;
+                    break;
+
+                case "Vector2":
+                    meta.selectedType = typeof(Vector2);
+                    isPrimitive = true;
+                    break;
+
+                case "Vector3":
+                    meta.selectedType = typeof(Vector3);
+                    isPrimitive = true;
+                    break;
+
+                case "Vector4":
+                    meta.selectedType = typeof(Vector4);
+                    isPrimitive = true;
+                    break;
+
+                case "Quaternion":
+                    meta.selectedType = typeof(Quaternion);
+                    isPrimitive = true;
+                    break;
+
+                case "Rect":
+                    meta.selectedType = typeof(Rect);
+                    isPrimitive = true;
+                    break;
+
+                case "Color":
+                    meta.selectedType = typeof(Color);
                     isPrimitive = true;
                     break;
             }
@@ -1782,14 +2585,19 @@ public class Interpreter
             return $"new UnityEngine.Color({c.r}f, {c.g}f, {c.b}f, {c.a}f)";
         }
 
-        if (type == typeof(System.Enum))
+        if (type.BaseType == typeof(System.Enum))
         {
-            return obj.GetType().ToString() + "." + obj.ToString();
-        }
+            string debug = obj.GetType().ToString();
 
+            debug = debug.Replace('+', '.');
+
+            string debug2 = obj.ToString();
+            return debug + "." + obj.ToString();
+        }
+        
         return "";
     }
-
+    
     public Type FullCompile(Blueprint data, Type baseClass)
     {
         if (data == null)
@@ -1800,14 +2608,17 @@ public class Interpreter
         CompilerParameters parameters = new CompilerParameters();
         parameters.GenerateExecutable = false;
         parameters.GenerateInMemory = false;
+        parameters.ReferencedAssemblies.Add(typeof(MonoBehaviour).Assembly.Location);
 
         StringBuilder classFile = new StringBuilder();
 
+        //referenceNodes = data.nodes;
+        //refParams = new List<Parameter>();
+        //uint compileID = 1;
         //Setup the using directives
         
         foreach (Node node in data.nodes)
         {
-
             if (!parameters.ReferencedAssemblies.Contains(node.assemblyPath))
             {
                 parameters.ReferencedAssemblies.Add(node.assemblyPath);
@@ -1815,79 +2626,27 @@ public class Interpreter
 
             foreach(Parameter p in node.paramList)
             {
+                //p.compileID = compileID;
+                //refParams.Add(p);
+                //compileID++;
+
                 if (p.isGeneric)
                 {
                     parameters.ReferencedAssemblies.Add(p.templateTypeAsmPath);
                 }
-            }
-
-            //if (node.nodeType == NodeType.Function)
-            //{
-            //    if (!node.isSpecial)
-            //        node.currentMethod = LoadMethod(node.input, node.type, node.assemblyPath, node.index, node.isContextual);
-            //    else
-            //        node.currentMethod = GetSpecialFunction(node.input, node.hasCost);
-            //
-            //    //string asmPath = node.currentMethod.DeclaringType.Assembly.Location;
-            //
-            //    //if (!parameters.ReferencedAssemblies.Contains(asmPath))
-            //    if (!parameters.ReferencedAssemblies.Contains(node.assemblyPath))
-            //    {
-            //        //parameters.ReferencedAssemblies.Add(asmPath);
-            //        parameters.ReferencedAssemblies.Add(node.assemblyPath);
-            //
-            //        //if (node.currentMethod.DeclaringType.Namespace != null)
-            //        //    classFile.Append("using " + node.currentMethod.DeclaringType.Namespace + ";\n");
-            //    }
-            //}
-            //
-            //if (node.nodeType == NodeType.Constructor)
-            //{
-            //    node.constructorMethod = LoadConstructor(node.input, node.type, node.assemblyPath, node.index, node.isContextual);
-            //
-            //    string asmPath = node.constructorMethod.DeclaringType.Assembly.Location;
-            //
-            //    if (!parameters.ReferencedAssemblies.Contains(asmPath))
-            //    {
-            //        parameters.ReferencedAssemblies.Add(asmPath);
-            //
-            //        //if (node.constructorMethod.DeclaringType.Namespace != null)
-            //        //    classFile.Append("using " + node.constructorMethod.DeclaringType.Namespace + ";\n");
-            //    }
-            //}
-            //
-            //if (node.nodeType == NodeType.Field_Get || node.nodeType == NodeType.Field_Set)
-            //{
-            //    node.fieldVar = LoadField(node.input, node.type, node.assemblyPath, node.isContextual);
-            //    string asmPath = node.fieldVar.FieldType.Assembly.Location;
-            //
-            //    if (!parameters.ReferencedAssemblies.Contains(asmPath))
-            //    {
-            //        parameters.ReferencedAssemblies.Add(asmPath);
-            //
-            //        //if (node.fieldVar.FieldType.Namespace != null)
-            //        //    classFile.Append("using " + node.fieldVar.FieldType.Namespace + ";\n");
-            //    }
-            //}
-            //
-            //if (node.nodeType == NodeType.Property_Get || node.nodeType == NodeType.Property_Set)
-            //{
-            //    node.propertyVar = LoadProperty(node.input, node.type, node.assemblyPath, node.isContextual);
-            //    string asmPath = node.propertyVar.PropertyType.Assembly.Location;
-            //
-            //    if (!parameters.ReferencedAssemblies.Contains(asmPath))
-            //    {
-            //        parameters.ReferencedAssemblies.Add(asmPath);
-            //
-            //        //if (node.propertyVar.PropertyType.Namespace != null)
-            //        //    classFile.Append("using " + node.propertyVar.PropertyType.Namespace + ";\n");
-            //    }
-            //}
+            }            
         }
+
+        //Debug.Log("Initial Parameters");
+        //PrintParameters();
+
 
         //classFile.Append("using UnityEngine;\n");
         //classFile.Append("using System.Collections;\n");
         //classFile.Append("using System.Collections.Generic;\n");
+
+        if (UseGameCompile)
+            classFile.Append("using Game;");
 
         //Declare the Type
         if (baseClass != null)
@@ -1899,11 +2658,28 @@ public class Interpreter
 
         //Add variable declarations
 
+        if (UseGameCompile)
+        {
+            parameters.ReferencedAssemblies.Add(this.GetType().Assembly.Location);
+            parameters.ReferencedAssemblies.Add(typeof(Input).Assembly.Location);
+            parameters.ReferencedAssemblies.Add(typeof(Rigidbody).Assembly.Location);
+            parameters.ReferencedAssemblies.Add(typeof(Physics).Assembly.Location);
+            parameters.ReferencedAssemblies.Add(typeof(Time).Assembly.Location);
+            parameters.ReferencedAssemblies.Add(typeof(Collider).Assembly.Location);
+            parameters.ReferencedAssemblies.Add(typeof(Camera).Assembly.Location);
+            parameters.ReferencedAssemblies.Add(typeof(GameObject).Assembly.Location);
+            parameters.ReferencedAssemblies.Add(typeof(Color).Assembly.Location);
+            parameters.ReferencedAssemblies.Add(typeof(Vector3).Assembly.Location);
+            parameters.ReferencedAssemblies.Add(typeof(Quaternion).Assembly.Location);
+            parameters.ReferencedAssemblies.Add(typeof(Renderer).Assembly.Location);
+            parameters.ReferencedAssemblies.Add(typeof(UnityEngine.Random).Assembly.Location);
+            parameters.ReferencedAssemblies.Add(typeof(Mathf).Assembly.Location);
+        }
         foreach (string varName in data.variables.Keys)
         {
             Var v = data.variables[varName];
             parameters.ReferencedAssemblies.Add(v.type.Assembly.Location);
-            string declare = $"{v.type.ToString()} {v.name};\n";
+            string declare = $"public {v.type.ToString()} {v.name};\n";
             classFile.Append(declare);
         }
 
@@ -1927,7 +2703,13 @@ public class Interpreter
             }
 
             StringBuilder funcBuilder = new StringBuilder();
-            string funcDeclaration = $"public void {entryName}(" + passInParams + ")\n{\n";
+
+            string funcDeclaration = "";
+
+            if (!node.isVirtual)
+                funcDeclaration = $"public void {entryName}(" + passInParams + ")\n{\n";
+            else
+                funcDeclaration = $"public override void {entryName}(" + passInParams + ")\n{\n";
 
             funcBuilder.Append(funcDeclaration);
 
@@ -1946,7 +2728,12 @@ public class Interpreter
 
                     List<Parameter> generics = new List<Parameter>();
 
+                    parameters.ReferencedAssemblies.Add(node.assemblyPath);
+                  
                     //Set up the parameters
+                    //Debug.Log("Function node parameters in initial compile");
+                    //PrintNodeParameters(node);
+
                     if (node.paramList != null)
                     {
                         for (int i = 0; i < node.paramList.Count; i++)
@@ -2222,6 +3009,8 @@ public class Interpreter
 
                     List<Parameter> generics = new List<Parameter>();
 
+                    parameters.ReferencedAssemblies.Add(node.assemblyPath);
+                    
                     for (int i = 0; i < node.paramList.Count; i++)
                     {
                         if (node.paramList[i].isGeneric)
@@ -2277,6 +3066,9 @@ public class Interpreter
                 {
                     string[] split = node.input.Split(' ');
 
+                    parameters.ReferencedAssemblies.Add(node.assemblyPath);
+                    
+
                     if (node.isContextual)
                     {
                         string prevLine = baseLines[baseLines.Count - 1];
@@ -2303,7 +3095,12 @@ public class Interpreter
                             newLine = $"{node.type}.{split[1]}";
                         }
                         else
-                            newLine = $"{split[0]}.{split[1]}";
+                        {
+                            if (split.Length > 1)
+                                newLine = $"{split[0]}.{split[1]}";
+                            else
+                                newLine = $"{split[0]}";
+                        }
 
                         baseLines.Add(newLine);
 
@@ -2317,6 +3114,8 @@ public class Interpreter
                 if (node.nodeType == NodeType.Field_Set)
                 {
                     string[] split = node.input.Split(' ');
+
+                    parameters.ReferencedAssemblies.Add(node.assemblyPath);                   
 
                     if (node.isContextual)
                     {
@@ -2342,7 +3141,12 @@ public class Interpreter
                                 lines.Add($"{node.type}.{split[1]} = {node.paramList[0].varInput};");
                             }
                             else
-                                lines.Add($"{split[0]}.{split[1]} = {node.paramList[0].varInput};");
+                            {
+                                if (split.Length > 1)
+                                    lines.Add($"{split[0]}.{split[1]} = {node.paramList[0].varInput};");
+                                else
+                                    lines.Add($"{split[0]} = {node.paramList[0].varInput};");
+                            }
                         }
                         else
                         {
@@ -2354,7 +3158,12 @@ public class Interpreter
                                 lines.Add($"{node.type}.{split[1]} = {GetLiteral(node.paramList[0].arg)};");
                             }
                             else
-                                lines.Add($"{split[0]}.{split[1]} = {GetLiteral(node.paramList[0].arg)};");
+                            {
+                                if (split.Length > 1)
+                                    lines.Add($"{split[0]}.{split[1]} = {GetLiteral(node.paramList[0].arg)};");
+                                else
+                                    lines.Add($"{split[0]} = {GetLiteral(node.paramList[0].arg)};");
+                            }
                         }
                     }
 
@@ -2363,6 +3172,9 @@ public class Interpreter
                 if (node.nodeType == NodeType.Property_Get)
                 {
                     string[] split = node.input.Split(' ');
+
+                    parameters.ReferencedAssemblies.Add(node.assemblyPath);
+                    
 
                     if (node.isContextual)
                     {
@@ -2388,7 +3200,12 @@ public class Interpreter
                             newLine = $"{node.type}.{split[1]}";
                         }
                         else
-                            newLine = $"{split[0]}.{split[1]}";
+                        {
+                            if (split.Length > 1)
+                                newLine = $"{split[0]}.{split[1]}";
+                            else
+                                newLine = $"{split[0]}";
+                        }
 
                         baseLines.Add(newLine);
 
@@ -2403,6 +3220,8 @@ public class Interpreter
                 {
                     string[] split = node.input.Split(' ');
 
+                    parameters.ReferencedAssemblies.Add(node.assemblyPath);
+                   
                     if (node.isContextual)
                     {
                         string prevLine = baseLines[baseLines.Count - 1];
@@ -2427,7 +3246,12 @@ public class Interpreter
                                 lines.Add($"{node.type}.{split[1]} = {node.paramList[0].varInput};");
                             }
                             else
-                                lines.Add($"{split[0]}.{split[1]} = {node.paramList[0].varInput};");
+                            {
+                                if (split.Length > 1)
+                                    lines.Add($"{split[0]}.{split[1]} = {node.paramList[0].varInput};");
+                                else
+                                    lines.Add($"{split[0]} = {node.paramList[0].varInput};");
+                            }
                         }
                         else
                         {
@@ -2439,7 +3263,12 @@ public class Interpreter
                                 lines.Add($"{node.type}.{split[1]} = {GetLiteral(node.paramList[0].arg)};");
                             }
                             else
-                                lines.Add($"{split[0]}.{split[1]} = {GetLiteral(node.paramList[0].arg)};");
+                            {
+                                if (split.Length > 1)
+                                    lines.Add($"{split[0]}.{split[1]} = {GetLiteral(node.paramList[0].arg)};");
+                                else
+                                    lines.Add($"{split[0]}.{split[1]} = {GetLiteral(node.paramList[0].arg)};");
+                            }
                         }
                     }
                 }
@@ -2465,7 +3294,10 @@ public class Interpreter
                             lines.Add("{");
                         }
 
-                        List<string> result = FullCompileConditional(node.nextNode, true);
+                        //Debug.Log("Parameters in initial compile right before true");
+                        //PrintParameters();
+
+                        List<string> result = FullCompileConditional(node.nextNode, true, parameters);
 
                         foreach (string line in result)
                         {
@@ -2480,7 +3312,10 @@ public class Interpreter
                         lines.Add("else");
                         lines.Add("{");
 
-                        List<string> result = FullCompileConditional(node.nextNode, false);
+                        //Debug.Log("Parameters in initial compile right before false");
+                        //PrintParameters();
+
+                        List<string> result = FullCompileConditional(node.falseNode, false, parameters);
 
                         foreach (string line in result)
                         {
@@ -2631,11 +3466,73 @@ public class Interpreter
 
         //Add actual Compiling here        
         //parameters.OutputAssembly = "NewAssembly.dll";
-        parameters.OutputAssembly = $"{data.name}.dll";
+                
+        //Game/Realtime-specific
+        if (File.Exists($"{data.name}.dll"))
+        {
+            if (Application.isPlaying)
+            {
+                Debug.Log("File exists attempting rename");
+                //File.Move($"{data.name}.dll", $"{data.name}-old.dll");
+
+                bool rename = false;
+                string newName = $"{data.name}";
+                
+                while (!rename)
+                {                    
+                    try
+                    {
+                        
+                        int length = (int)UnityEngine.Random.Range(10, 20);
+                        for (int i = 0; i < length; i++)
+                        {
+                            newName += $"{(int)UnityEngine.Random.Range(0, 10000)}";
+                        }
+                
+                        //File.Move($"{data.name}.dll", $"{data.name} ");
+                        File.Move($"{data.name}.dll", newName + ".dll");
+                        Debug.Log("Setting rename to true");
+                        rename = true;
+                    }
+                
+                    catch
+                    {
+                        Debug.Log("Failed to rename, trying again");
+                        rename = false;
+                    }
+                }
+
+                //string time = System.DateTime.Now.ToString();
+                //time = time.Replace('/', '-');
+                //string[] parts = time.Split(' ');
+                //
+                //string finalTime = "";
+                //foreach (string str in parts)
+                //    finalTime += str;
+                //
+                //string newName = $"{data.name}{finalTime}.dll";
+                //File.Move($"{data.name}.dll", newName);
+                
+                ComponentInventory.Instance.RemoveClass(data.name);
+                GameManager.Instance.RemoveClass(data.name);
+                //RealTimeEditor.Instance.deleteAsmPath.Add($"{data.name}-old.dll");
+                GameManager.Instance.AddOldClass(newName + ".dll");
+                parameters.OutputAssembly = $"{data.name}.dll";
+            }
+
+            else
+            {
+                File.Delete($"{data.name}.dll");
+                parameters.OutputAssembly = $"{data.name}.dll";
+            }
+        }
+        else
+            parameters.OutputAssembly = $"{data.name}.dll";
 
         string final = classFile.ToString();
 
         CompilerResults compile = compiler.CompileAssemblyFromSource(parameters, final);
+        
 
         if (compile.Errors.Count > 0)
         {
@@ -2652,6 +3549,11 @@ public class Interpreter
         data.dataRef.compiledClassType = type.ToString();
         data.dataRef.compiledClassTypeAsmPath = type.Assembly.Location;
 
+        if (Application.isPlaying)        
+            GameManager.Instance.AddClass(type);
+        
+
+
 #if UNITY_EDITOR
         EditorUtility.SetDirty(data.dataRef);
         AssetDatabase.Refresh();
@@ -2660,15 +3562,20 @@ public class Interpreter
         return type;
     }
 
-    List<string> FullCompileConditional(Node node, bool truePath)
+    List<string> FullCompileConditional(Node node, bool truePath, CompilerParameters parameters)
     {
         List<string> lines = new List<string>();
         List<string> baseLines = new List<string>();
-        
+
+        //Debug.Log($"Parameters in conditional on {truePath} path");
+        //PrintParameters();
+
         while (node != null)
         {
+            //node = GetNode(node.ID);
+
             if (node.nodeType == NodeType.Function)
-            {
+            {                
                 string[] split = node.input.Split(' ');
 
                 string passInArgs = "";
@@ -2676,13 +3583,18 @@ public class Interpreter
 
                 List<Parameter> generics = new List<Parameter>();
 
+                parameters.ReferencedAssemblies.Add(node.assemblyPath);
+               
+                //Debug.Log($"Function node parameters in conditional on {truePath} path");
+                //PrintNodeParameters(node);
+
                 //Set up the parameters
                 if (node.paramList != null)
                 {
                     for (int i = 0; i < node.paramList.Count; i++)
                     {
                         //Add Generics
-                        if (node.paramList[i].isGeneric)
+                        if (node.paramList[i].isGeneric)                        
                         {
                             generics.Add(node.paramList[i]);
                             continue;
@@ -2693,7 +3605,7 @@ public class Interpreter
                             passInArgs += node.paramList[i].varInput;
                         else
                             passInArgs += GetLiteral(node.paramList[i].arg);
-
+                       
                         if (i < node.paramList.Count - 1)
                             passInArgs += ", ";
                     }
@@ -2950,6 +3862,8 @@ public class Interpreter
                 string passInArgs = "";
                 string genericDefine = "";
 
+                parameters.ReferencedAssemblies.Add(node.assemblyPath);               
+
                 List<Parameter> generics = new List<Parameter>();
 
                 for (int i = 0; i < node.paramList.Count; i++)
@@ -3009,6 +3923,7 @@ public class Interpreter
             {
                 string[] split = node.input.Split(' ');
 
+                parameters.ReferencedAssemblies.Add(node.assemblyPath);               
                 if (node.isContextual)
                 {
                     string prevLine = baseLines[baseLines.Count - 1];
@@ -3035,7 +3950,12 @@ public class Interpreter
                         newLine = $"{node.type}.{split[1]}";
                     }
                     else
-                        newLine = $"{split[0]}.{split[1]}";
+                    {
+                        if (split.Length > 1)
+                            newLine = $"{split[0]}.{split[1]}";
+                        else
+                            newLine = $"{split[0]}";
+                    }
 
                     baseLines.Add(newLine);
 
@@ -3050,6 +3970,7 @@ public class Interpreter
             {
                 string[] split = node.input.Split(' ');
 
+                parameters.ReferencedAssemblies.Add(node.assemblyPath);                
                 if (node.isContextual)
                 {
                     string prevLine = baseLines[baseLines.Count - 1];
@@ -3074,7 +3995,12 @@ public class Interpreter
                             lines.Add($"{node.type}.{split[1]} = {node.paramList[0].varInput};");
                         }
                         else
-                            lines.Add($"{split[0]}.{split[1]} = {node.paramList[0].varInput};");
+                        {
+                            if (split.Length > 1)
+                                lines.Add($"{split[0]}.{split[1]} = {node.paramList[0].varInput};");
+                            else
+                                lines.Add($"{split[0]} = {node.paramList[0].varInput};");
+                        }
                     }
                     else
                     {
@@ -3086,7 +4012,12 @@ public class Interpreter
                             lines.Add($"{node.type}.{split[1]} = {GetLiteral(node.paramList[0].arg)};");
                         }
                         else
-                            lines.Add($"{split[0]}.{split[1]} = {GetLiteral(node.paramList[0].arg)};");
+                        {
+                            if (split.Length > 1)
+                                lines.Add($"{split[0]}.{split[1]} = {GetLiteral(node.paramList[0].arg)};");
+                            else
+                                lines.Add($"{split[0]} = {GetLiteral(node.paramList[0].arg)};");
+                        }
                     }
                 }
 
@@ -3096,6 +4027,8 @@ public class Interpreter
             {
                 string[] split = node.input.Split(' ');
 
+                parameters.ReferencedAssemblies.Add(node.assemblyPath);
+                
                 if (node.isContextual)
                 {
                     string prevLine = baseLines[baseLines.Count - 1];
@@ -3107,7 +4040,7 @@ public class Interpreter
                     else
                         lines.Add(newLine + ";");
                 }
-
+                
                 else
                 {
                     string newLine = "";
@@ -3120,7 +4053,12 @@ public class Interpreter
                         newLine = $"{node.type}.{split[1]}";
                     }
                     else
-                        newLine = $"{split[0]}.{split[1]}";
+                    {
+                        if (split.Length > 1)
+                            newLine = $"{split[0]}.{split[1]}";
+                        else
+                            newLine = $"{split[0]}";
+                    }
 
                     baseLines.Add(newLine);
 
@@ -3135,6 +4073,8 @@ public class Interpreter
             {
                 string[] split = node.input.Split(' ');
 
+                parameters.ReferencedAssemblies.Add(node.assemblyPath);
+                
                 if (node.isContextual)
                 {
                     string prevLine = baseLines[baseLines.Count - 1];
@@ -3197,7 +4137,10 @@ public class Interpreter
                         lines.Add("{");
                     }
 
-                    List<string> result = FullCompileConditional(node.nextNode, true);
+                    //Debug.Log("Parameters in conditional compile right before entering true path");
+                    //PrintParameters();
+
+                    List<string> result = FullCompileConditional(node.nextNode, true, parameters);
 
                     foreach(string line in result)
                     {
@@ -3212,7 +4155,10 @@ public class Interpreter
                     lines.Add("else");
                     lines.Add("{");
 
-                    List<string> result = FullCompileConditional(node.nextNode, false);
+                    //Debug.Log("Parameters in conditional compile right before entering false path");
+                    //PrintParameters();
+
+                    List<string> result = FullCompileConditional(node.falseNode, false, parameters);
 
                     foreach (string line in result)
                     {
@@ -3282,8 +4228,8 @@ public class Interpreter
 
                         if (node.returnInput != "")
                             lines.Add($"{node.returnInput} = " + newLine + ";");
-                        //else
-                        //    lines.Add(newLine + ";");
+                        else
+                            lines.Add(newLine + ";");
                     }
 
                     else
@@ -3293,8 +4239,8 @@ public class Interpreter
 
                         if (node.returnInput != "")
                             lines.Add($"{node.returnInput} = " + newLine + ";");
-                        //else
-                        //    lines.Add(newLine + ";");
+                        else
+                            lines.Add(newLine + ";");
                     }
                 }
             }

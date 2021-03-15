@@ -1,0 +1,83 @@
+.ctor( Single x,  Single y,  Single z )
+.ctor( Single x,  Single y )
+Slerp( Vector3 a,  Vector3 b,  Single t )
+SlerpUnclamped( Vector3 a,  Vector3 b,  Single t )
+OrthoNormalize( Vector3& normal,  Vector3& tangent )
+OrthoNormalize( Vector3& normal,  Vector3& tangent,  Vector3& binormal )
+RotateTowards( Vector3 current,  Vector3 target,  Single maxRadiansDelta,  Single maxMagnitudeDelta )
+Lerp( Vector3 a,  Vector3 b,  Single t )
+LerpUnclamped( Vector3 a,  Vector3 b,  Single t )
+MoveTowards( Vector3 current,  Vector3 target,  Single maxDistanceDelta )
+SmoothDamp( Vector3 current,  Vector3 target,  Vector3& currentVelocity,  Single smoothTime,  Single maxSpeed )
+SmoothDamp( Vector3 current,  Vector3 target,  Vector3& currentVelocity,  Single smoothTime )
+SmoothDamp( Vector3 current,  Vector3 target,  Vector3& currentVelocity,  Single smoothTime,  Single maxSpeed,  Single deltaTime )
+get_Item( Int32 index )
+set_Item( Int32 index,  Single value )
+Set( Single newX,  Single newY,  Single newZ )
+Scale( Vector3 a,  Vector3 b )
+Scale( Vector3 scale )
+Cross( Vector3 lhs,  Vector3 rhs )
+GetHashCode( )
+Equals( Object other )
+Equals( Vector3 other )
+Reflect( Vector3 inDirection,  Vector3 inNormal )
+Normalize( Vector3 value )
+Normalize( )
+get_normalized( )
+Dot( Vector3 lhs,  Vector3 rhs )
+Project( Vector3 vector,  Vector3 onNormal )
+ProjectOnPlane( Vector3 vector,  Vector3 planeNormal )
+Angle( Vector3 from,  Vector3 to )
+SignedAngle( Vector3 from,  Vector3 to,  Vector3 axis )
+Distance( Vector3 a,  Vector3 b )
+ClampMagnitude( Vector3 vector,  Single maxLength )
+Magnitude( Vector3 vector )
+get_magnitude( )
+SqrMagnitude( Vector3 vector )
+get_sqrMagnitude( )
+Min( Vector3 lhs,  Vector3 rhs )
+Max( Vector3 lhs,  Vector3 rhs )
+get_zero( )
+get_one( )
+get_forward( )
+get_back( )
+get_up( )
+get_down( )
+get_left( )
+get_right( )
+get_positiveInfinity( )
+get_negativeInfinity( )
+op_Addition( Vector3 a,  Vector3 b )
+op_Subtraction( Vector3 a,  Vector3 b )
+op_UnaryNegation( Vector3 a )
+op_Multiply( Vector3 a,  Single d )
+op_Multiply( Single d,  Vector3 a )
+op_Division( Vector3 a,  Single d )
+op_Equality( Vector3 lhs,  Vector3 rhs )
+op_Inequality( Vector3 lhs,  Vector3 rhs )
+ToString( )
+ToString( String format )
+get_fwd( )
+AngleBetween( Vector3 from,  Vector3 to )
+Exclude( Vector3 excludeThis,  Vector3 fromThat )
+GetType( )
+System.Single kEpsilon
+System.Single kEpsilonNormalSqrt
+System.Single x
+System.Single y
+System.Single z
+System.Single Item
+UnityEngine.Vector3 normalized
+System.Single magnitude
+System.Single sqrMagnitude
+UnityEngine.Vector3 zero
+UnityEngine.Vector3 one
+UnityEngine.Vector3 forward
+UnityEngine.Vector3 back
+UnityEngine.Vector3 up
+UnityEngine.Vector3 down
+UnityEngine.Vector3 left
+UnityEngine.Vector3 right
+UnityEngine.Vector3 positiveInfinity
+UnityEngine.Vector3 negativeInfinity
+UnityEngine.Vector3 fwd

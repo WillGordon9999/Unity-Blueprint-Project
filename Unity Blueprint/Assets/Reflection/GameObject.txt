@@ -1,0 +1,102 @@
+GetComponent( )
+GetComponent( Type type )
+GetComponent( String type )
+GetComponentInChildren( Type type,  Boolean includeInactive )
+GetComponentInChildren( Type type )
+GetComponentInChildren( )
+GetComponentInChildren( Boolean includeInactive )
+GetComponentInParent( Type type )
+GetComponentInParent( )
+GetComponents( Type type )
+GetComponents( )
+GetComponents( Type type,  List`1 results )
+GetComponents( List`1 results )
+GetComponentsInChildren( Type type )
+GetComponentsInChildren( Type type,  Boolean includeInactive )
+GetComponentsInChildren( Boolean includeInactive )
+GetComponentsInChildren( Boolean includeInactive,  List`1 results )
+GetComponentsInChildren( )
+GetComponentsInChildren( List`1 results )
+GetComponentsInParent( Type type )
+GetComponentsInParent( Type type,  Boolean includeInactive )
+GetComponentsInParent( Boolean includeInactive,  List`1 results )
+GetComponentsInParent( Boolean includeInactive )
+GetComponentsInParent( )
+TryGetComponent( T& component )
+TryGetComponent( Type type,  Component& component )
+FindWithTag( String tag )
+SendMessageUpwards( String methodName,  SendMessageOptions options )
+SendMessage( String methodName,  SendMessageOptions options )
+BroadcastMessage( String methodName,  SendMessageOptions options )
+AddComponent( Type componentType )
+AddComponent( )
+get_transform( )
+get_layer( )
+set_layer( Int32 value )
+get_active( )
+get_activeSelf( )
+get_activeInHierarchy( )
+get_isStatic( )
+get_tag( )
+CompareTag( String tag )
+FindGameObjectWithTag( String tag )
+FindGameObjectsWithTag( String tag )
+SendMessageUpwards( String methodName,  Object value,  SendMessageOptions options )
+SendMessageUpwards( String methodName,  Object value )
+SendMessageUpwards( String methodName )
+SendMessage( String methodName,  Object value,  SendMessageOptions options )
+SendMessage( String methodName,  Object value )
+SendMessage( String methodName )
+BroadcastMessage( String methodName,  Object parameter,  SendMessageOptions options )
+BroadcastMessage( String methodName,  Object parameter )
+BroadcastMessage( String methodName )
+Find( String name )
+get_scene( )
+get_gameObject( )
+SampleAnimation( Object clip,  Single time )
+AddComponent( String className )
+get_rigidbody( )
+get_rigidbody2D( )
+get_camera( )
+get_light( )
+get_animation( )
+get_constantForce( )
+get_renderer( )
+get_audio( )
+get_networkView( )
+get_collider( )
+get_collider2D( )
+get_hingeJoint( )
+get_particleSystem( )
+PlayAnimation( Object animation )
+GetInstanceID( )
+GetHashCode( )
+Equals( Object other )
+get_name( )
+get_hideFlags( )
+ToString( )
+GetType( )
+UnityEngine.Transform transform
+System.Int32 layer
+System.Boolean active
+System.Boolean activeSelf
+System.Boolean activeInHierarchy
+System.Boolean isStatic
+System.String tag
+UnityEngine.SceneManagement.Scene scene
+UnityEngine.GameObject gameObject
+UnityEngine.Component rigidbody
+UnityEngine.Component rigidbody2D
+UnityEngine.Component camera
+UnityEngine.Component light
+UnityEngine.Component animation
+UnityEngine.Component constantForce
+UnityEngine.Component renderer
+UnityEngine.Component audio
+UnityEngine.Component networkView
+UnityEngine.Component collider
+UnityEngine.Component collider2D
+UnityEngine.Component hingeJoint
+UnityEngine.Component particleSystem
+System.String name
+UnityEngine.HideFlags hideFlags

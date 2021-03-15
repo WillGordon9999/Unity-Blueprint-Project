@@ -105,6 +105,11 @@ public class Menu
         canDraw = false;
     }
 
+    public void Clear()
+    {
+        items.Clear();
+    }
+
     public void DrawMenu()
     {
         if (!canDraw)
@@ -151,6 +156,7 @@ public class RealTimeEditor : MonoBehaviour
     static System.Enum retEnum;
     static bool enumReturned = false;
     static Rect currentEnum;
+    static Parameter enumPar;
 
     GUIStyle nodeStyle;
     GUIStyle selectedNodeStyle;
@@ -184,7 +190,7 @@ public class RealTimeEditor : MonoBehaviour
     
 
     public bool isRunning = false;
-
+    public List<string> deleteAsmPath;
 
     public static RealTimeEditor Instance { get { return mInstance; } set { } }
 
@@ -192,11 +198,12 @@ public class RealTimeEditor : MonoBehaviour
     public List<Connection> connections;
     public BlueprintData current;
 
-    private void OnEnable()
+    private void Awake()
     {
         if (mInstance == null)
             mInstance = this;
 
+        deleteAsmPath = new List<string>();
         nodeStyle = new GUIStyle();        
         nodeStyle.border = new RectOffset(12, 12, 12, 12);
 
@@ -211,6 +218,8 @@ public class RealTimeEditor : MonoBehaviour
 
         varDisplay = new VariableDisplay();
         varDisplay.style = nodeStyle;
+
+        //Interpreter.Instance.domain = System.AppDomain.CreateDomain("MyDomain");
     }
 
 
@@ -223,11 +232,16 @@ public class RealTimeEditor : MonoBehaviour
 
     // Update is called once per frame
     void Update()
-    {
+    {        
         if (Input.GetKeyDown(KeyCode.Tab))
         {
             isRunning = !isRunning;
             Time.timeScale = 1.0f - Time.timeScale;
+        }
+
+        if (Input.GetKeyDown(KeyCode.BackQuote))
+        {
+            current = null;            
         }
 
         if (isRunning)
@@ -271,12 +285,13 @@ public class RealTimeEditor : MonoBehaviour
             {
                 enterPressed = false;
                 //current = Interpreter.Instance.LoadBlueprint(text);
-                if (text != "")
+                if (text != "" && !System.IO.File.Exists(Application.persistentDataPath + "/" + name + ".asset"))
                 {
                     loadData = Interpreter.Instance.CreateBlueprint(text);
 
                     current = ScriptableObject.CreateInstance<BlueprintData>();
-
+                    if (nodes != null) nodes.Clear();
+                    if (connections != null) connections.Clear();
                     current.ComponentName = text;
                     blueprintName = text;
                     current.ID_Count = 0; //just to be sure                    
@@ -313,6 +328,8 @@ public class RealTimeEditor : MonoBehaviour
                     loadData = Interpreter.Instance.CreateAsset<BlueprintData>("Assets/" + text + ".asset");
 
                     current = ScriptableObject.CreateInstance<BlueprintData>();
+                    if (nodes != null) nodes.Clear();
+                    if (connections != null) connections.Clear();
 
                     current.ComponentName = text;
                     blueprintName = text;
@@ -358,7 +375,10 @@ public class RealTimeEditor : MonoBehaviour
 
             if (text != "" && enterPressed)
             {
-                loadData = Interpreter.Instance.LoadBlueprint(text);                
+                loadData = Interpreter.Instance.LoadBlueprint(text);
+
+                if (loadData == null)
+                    enterPressed = false;
             }
 
             if (loadData != null && enterPressed)
@@ -440,8 +460,48 @@ public class RealTimeEditor : MonoBehaviour
 
         contextMenu.AddItem("New Blueprint", () => ToggleNewBlueprintUI(contextMenu.rect.position, false));
         contextMenu.AddItem("New Blueprint Assets", () => ToggleNewBlueprintUI(contextMenu.rect.position, true));
+        contextMenu.AddItem("Compile Blueprint", () => Compile());
+        contextMenu.AddItem("Add To Active Inventory", () => { ComponentInventory.Instance.AddClass(current.compiledClassType, current.compiledClassTypeAsmPath); });
 
         contextMenu.canDraw = true;
+    }
+
+    private void OnApplicationQuit()
+    {
+        current = null;
+        nodes = null;
+        connections = null;
+
+        //foreach (string path in deleteAsmPath)
+        //{
+        //    print($"Deleting path {path}");
+        //    System.IO.File.Delete(path);
+        //}
+    }
+
+    void Compile()
+    {
+        Blueprint bp = new Blueprint();
+        bp.name = current.ComponentName;
+        bp.nodes = nodes;
+        bp.dataRef = current;
+
+        foreach (Node node in nodes)
+        {
+            if (node.isEntryPoint)
+                bp.entryPoints[node.input] = node;
+        }
+
+        foreach (Var v in current.variables)
+        {
+            v.type = Interpreter.Instance.LoadVarType(v.strType, v.asmPath);
+            bp.variables[v.name] = v;
+        }
+
+        if (!Interpreter.Instance.UseGameCompile)
+            Interpreter.Instance.FullCompile(bp, typeof(MonoBehaviour));
+        else
+            Interpreter.Instance.FullCompile(bp, typeof(GameComponent));
     }
 
     void OnDrag(Vector2 delta)
@@ -522,7 +582,7 @@ public class RealTimeEditor : MonoBehaviour
         if (connections != null)
         {
             List<Connection> old = new List<Connection>();
-
+            
             foreach (Connection connection in connections)
             {
                 if (connection.inPoint == node.inPoint || connection.outPoint == node.outPoint)
@@ -535,8 +595,7 @@ public class RealTimeEditor : MonoBehaviour
             }
 
             old = null;
-        }
-
+        }        
         nodes.Remove(node);
     }
 
@@ -698,28 +757,41 @@ public class RealTimeEditor : MonoBehaviour
         {
             loadData.ID_Count = current.ID_Count;
 
+            //Nodes
             if (loadData.nodes == null)
                 loadData.nodes = new List<NodeData>();
             else
                 loadData.nodes.Clear();
 
-            //loadData.connections = new List<ConnectionData>();
+            loadData.connections = new List<ConnectionData>();
 
+            //Variables
             if (loadData.variables == null)
                 loadData.variables = new List<Var>();
             else
                 loadData.variables.Clear();
 
+            //Pass In Params
             if (loadData.passInParams == null)
                 loadData.passInParams = new List<Var>();
             else
                 loadData.passInParams.Clear();
 
+            //Entry Points
+            if (loadData.entryPoints == null)
+                loadData.entryPoints = new List<NodeData>();
+            else
+                loadData.nodes.Clear();
+
+            //Witing starts here
+
+            //Nodes
             foreach (NodeData node in current.nodes)
                 loadData.nodes.Add(node);
 
-            //foreach (ConnectionData con in current.connections)
-            //    loadData.connections.Add(con);
+            //Connections
+            foreach (ConnectionData con in current.connections)
+                loadData.connections.Add(con);
 
             //Variables
             foreach (Var v in current.variables)
@@ -728,6 +800,10 @@ public class RealTimeEditor : MonoBehaviour
             //Pass In Params
             foreach (Var v in current.passInParams)
                 loadData.passInParams.Add(v);
+
+            //Entry Points
+            foreach (NodeData nodeData in current.entryPoints)
+                loadData.entryPoints.Add(nodeData);
 
 #if UNITY_EDITOR
             EditorUtility.SetDirty(loadData);
@@ -753,6 +829,9 @@ public class RealTimeEditor : MonoBehaviour
         else
             connections = new List<Connection>();
 
+        if (current != null)
+            current = null;
+
         //Need to make a copy of the loaded blueprintData, current will serve as this copy
         if (current == null)
             current = ScriptableObject.CreateInstance<BlueprintData>();
@@ -762,10 +841,13 @@ public class RealTimeEditor : MonoBehaviour
         current.nodes = new List<NodeData>();
         current.connections = new List<ConnectionData>();
         current.variables = new List<Var>();
-
+        current.passInParams = new List<Var>();
+        current.entryPoints = new List<NodeData>();
+        //Load Nodes
         foreach (NodeData node in loadData.nodes)
             current.nodes.Add(node);
 
+        //Load connections
         foreach (ConnectionData con in loadData.connections)
             current.connections.Add(con);
 
@@ -773,6 +855,7 @@ public class RealTimeEditor : MonoBehaviour
         if (varDisplay.inputs == null)
             varDisplay.inputs = new List<string>();
 
+        //Load Variables
         foreach (Var v in loadData.variables)
         {
             v.type = Interpreter.Instance.LoadVarType(v.strType, v.asmPath);
@@ -785,10 +868,23 @@ public class RealTimeEditor : MonoBehaviour
             current.variables.Add(v);
         }
 
+        //if (current.passInParams == null)
+        //{
+        //    Debug.Log("Current Pass In Params is null allocating");
+        //    current.passInParams = new List<Var>();
+        //}
+
+        //Load Pass In Params
         foreach (Var v in loadData.passInParams)
         {
             v.type = Interpreter.Instance.LoadVarType(v.strType, v.asmPath);
             current.passInParams.Add(v);
+        }
+
+        //Load Entry Points
+        foreach (NodeData nodeData in loadData.entryPoints)
+        {
+            current.entryPoints.Add(nodeData);
         }
 
         //Do stuff
@@ -1120,65 +1216,25 @@ public class RealTimeEditor : MonoBehaviour
     }
 
     //RECT REALLY NEEDED
-    public static System.Enum EnumPopup(Rect rect, System.Enum value, float maxWidth)
+    //public static System.Enum EnumPopup(Rect rect, System.Enum value, float maxWidth)
+    public static void EnumPopup(Rect rect, Parameter value, float maxWidth)
     {
-        string init = value.ToString();
-
-        //if (GUI.Button(rect, init) || enumSelect == rect)
-        //if (GUILayout.Button(init) || (currentEnumParam == parameterName && enumSelect.Overlaps(rect)))
-        //GUI.SetNextControlName("EnumSelector");
-        //if (GUILayout.Button(init, GUILayout.MaxWidth(maxWidth)) || GUI.GetNameOfFocusedControl() == "EnumSelector")
+        string init = value.arg.ToString();
         if (GUILayout.Button(init, GUILayout.MaxWidth(maxWidth)))
-        {
-            //GUI.FocusControl("EnumSelector");
-            string[] names = System.Enum.GetNames(value.GetType());
-            string newName = value.ToString();
+        {            
+            string[] names = System.Enum.GetNames(value.arg.GetType());
+            string newName = value.arg.ToString();
+
+            enumMenu.Clear();
 
             foreach (string str in names)
-            {
-                enumMenu.AddItem(str, () => { retEnum = (System.Enum)System.Enum.Parse(value.GetType(), str); enumReturned = true; });
+            {                
+                enumMenu.AddItem(str, () => { value.arg = (System.Enum)System.Enum.Parse(value.arg.GetType(), str); });
             }
-
-            currentEnum = rect;                        
-            enumMenu.rect.position = new Vector2(rect.x, rect.y + rect.height);
-            enumMenu.canDraw = true;
             
-            //GUILayout.BeginArea(new Rect(rect.x, rect.y + defaultSize.height, rect.width, defaultSize.height * 10));
-            //GUILayout.BeginVertical();
-            //enumScroll = GUILayout.BeginScrollView(enumScroll, GUILayout.MaxWidth(maxWidth), GUILayout.MaxHeight(800.0f));
-
-            //foreach(string str in names)
-            //{
-            //    if (GUILayout.Button(str))
-            //    {
-            //        newName = str;
-            //        enumSelect = Rect.zero;
-            //        //To be safe
-            //        GUI.FocusControl("");
-            //        //GUILayout.EndVertical();
-            //        GUILayout.EndScrollView();
-            //        //GUILayout.EndArea();
-            //        return (System.Enum)System.Enum.Parse(value.GetType(), newName);                    
-            //    }
-            //}
-
-            //GUILayout.EndScrollView();
-            //GUILayout.EndArea();
-            //GUILayout.EndVertical();
-            //currentEnumParam = parameterName;            
-        }
-
-        //System.Enum final;
-        
-        if (enumReturned && rect == currentEnum)
-        {
-            print("Enum Returned is true!");
-            //value = retEnum;
-            enumReturned = false;
-            return retEnum;
-        }
-
-        return value;
+            enumMenu.rect.position = new Vector2(rect.x, rect.y + rect.height);
+            enumMenu.canDraw = true;                               
+        }        
     }
 
     //Source http://wiki.unity3d.com/index.php?title=DrawLine

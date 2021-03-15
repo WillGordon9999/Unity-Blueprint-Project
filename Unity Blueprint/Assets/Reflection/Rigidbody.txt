@@ -1,0 +1,148 @@
+get_velocity( )
+get_angularVelocity( )
+get_drag( )
+get_angularDrag( )
+get_mass( )
+get_useGravity( )
+get_maxDepenetrationVelocity( )
+get_isKinematic( )
+get_freezeRotation( )
+get_constraints( )
+get_collisionDetectionMode( )
+get_centerOfMass( )
+get_worldCenterOfMass( )
+get_inertiaTensorRotation( )
+get_inertiaTensor( )
+set_inertiaTensor( Vector3 value )
+get_detectCollisions( )
+get_position( )
+get_rotation( )
+get_interpolation( )
+get_solverIterations( )
+set_sleepThreshold( Single value )
+get_maxAngularVelocity( )
+MovePosition( Vector3 position )
+MoveRotation( Quaternion rot )
+IsSleeping( )
+GetRelativePointVelocity( Vector3 relativePoint )
+GetPointVelocity( Vector3 worldPoint )
+get_solverVelocityIterations( )
+get_sleepVelocity( )
+get_sleepAngularVelocity( )
+get_useConeFriction( )
+get_solverVelocityIterationCount( )
+ClosestPointOnBounds( Vector3 position )
+SweepTest( Vector3 direction,  RaycastHit& hitInfo,  Single maxDistance,  QueryTriggerInteraction queryTriggerInteraction )
+SweepTest( Vector3 direction,  RaycastHit& hitInfo,  Single maxDistance )
+SweepTest( Vector3 direction,  RaycastHit& hitInfo )
+SweepTestAll( Vector3 direction,  Single maxDistance,  QueryTriggerInteraction queryTriggerInteraction )
+SweepTestAll( Vector3 direction,  Single maxDistance )
+SweepTestAll( Vector3 direction )
+get_transform( )
+get_gameObject( )
+GetComponent( Type type )
+GetComponent( )
+TryGetComponent( Type type,  Component& component )
+TryGetComponent( T& component )
+GetComponent( String type )
+GetComponentInChildren( Type t,  Boolean includeInactive )
+GetComponentInChildren( Type t )
+GetComponentInChildren( Boolean includeInactive )
+GetComponentInChildren( )
+GetComponentsInChildren( Type t,  Boolean includeInactive )
+GetComponentsInChildren( Type t )
+GetComponentsInChildren( Boolean includeInactive )
+GetComponentsInChildren( Boolean includeInactive,  List`1 result )
+GetComponentsInChildren( )
+GetComponentsInChildren( List`1 results )
+GetComponentInParent( Type t )
+GetComponentInParent( )
+GetComponentsInParent( Type t,  Boolean includeInactive )
+GetComponentsInParent( Type t )
+GetComponentsInParent( Boolean includeInactive )
+GetComponentsInParent( Boolean includeInactive,  List`1 results )
+GetComponentsInParent( )
+GetComponents( Type type )
+GetComponents( Type type,  List`1 results )
+GetComponents( List`1 results )
+get_tag( )
+GetComponents( )
+CompareTag( String tag )
+SendMessageUpwards( String methodName,  Object value,  SendMessageOptions options )
+SendMessageUpwards( String methodName,  Object value )
+SendMessageUpwards( String methodName )
+SendMessageUpwards( String methodName,  SendMessageOptions options )
+SendMessage( String methodName,  Object value )
+SendMessage( String methodName )
+SendMessage( String methodName,  Object value,  SendMessageOptions options )
+SendMessage( String methodName,  SendMessageOptions options )
+BroadcastMessage( String methodName,  Object parameter,  SendMessageOptions options )
+BroadcastMessage( String methodName,  Object parameter )
+BroadcastMessage( String methodName )
+BroadcastMessage( String methodName,  SendMessageOptions options )
+get_rigidbody( )
+get_rigidbody2D( )
+get_camera( )
+get_light( )
+get_animation( )
+get_constantForce( )
+get_renderer( )
+get_audio( )
+get_networkView( )
+get_collider( )
+get_collider2D( )
+get_hingeJoint( )
+get_particleSystem( )
+GetInstanceID( )
+GetHashCode( )
+Equals( Object other )
+get_name( )
+get_hideFlags( )
+ToString( )
+GetType( )
+UnityEngine.Vector3 velocity
+UnityEngine.Vector3 angularVelocity
+System.Single drag
+System.Single angularDrag
+System.Single mass
+System.Boolean useGravity
+System.Single maxDepenetrationVelocity
+System.Boolean isKinematic
+System.Boolean freezeRotation
+UnityEngine.RigidbodyConstraints constraints
+UnityEngine.CollisionDetectionMode collisionDetectionMode
+UnityEngine.Vector3 centerOfMass
+UnityEngine.Vector3 worldCenterOfMass
+UnityEngine.Quaternion inertiaTensorRotation
+UnityEngine.Vector3 inertiaTensor
+System.Boolean detectCollisions
+UnityEngine.Vector3 position
+UnityEngine.Quaternion rotation
+UnityEngine.RigidbodyInterpolation interpolation
+System.Int32 solverIterations
+System.Single sleepThreshold
+System.Single maxAngularVelocity
+System.Int32 solverVelocityIterations
+System.Single sleepVelocity
+System.Single sleepAngularVelocity
+System.Boolean useConeFriction
+System.Int32 solverIterationCount
+System.Int32 solverVelocityIterationCount
+UnityEngine.Transform transform
+UnityEngine.GameObject gameObject
+System.String tag
+UnityEngine.Component rigidbody
+UnityEngine.Component rigidbody2D
+UnityEngine.Component camera
+UnityEngine.Component light
+UnityEngine.Component animation
+UnityEngine.Component constantForce
+UnityEngine.Component renderer
+UnityEngine.Component audio
+UnityEngine.Component networkView
+UnityEngine.Component collider
+UnityEngine.Component collider2D
+UnityEngine.Component hingeJoint
+UnityEngine.Component particleSystem
+System.String name
+UnityEngine.HideFlags hideFlags

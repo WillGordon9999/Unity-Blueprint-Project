@@ -103,22 +103,27 @@ public class BlueprintComponent : MonoBehaviour
     //    obj.transform.position = Vector3.Lerp(obj.transform.position, targetPos, speed * Time.deltaTime);
     //}
 
-    public void EnterState()
+    public virtual void EnterState()
     {
 
     }
 
-    public void UpdateState()
+    public virtual void UpdateState()
     {
 
     }
 
-    public void FixedUpdateState()
+    public virtual void FixedUpdateState()
     {
 
     }
 
-    public void ExitState()
+    public virtual void ExitState()
+    {
+
+    }
+
+    public virtual void StateSetup()
     {
 
     }
@@ -447,8 +452,7 @@ public class BlueprintComponent : MonoBehaviour
     public void OnGUI()
     {
         //GUILayout.Button("Press me");
-    }	                                                
-
+    }	                                                       
 }
 
 /*

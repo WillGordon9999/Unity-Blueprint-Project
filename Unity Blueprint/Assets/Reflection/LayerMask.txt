@@ -1,0 +1,12 @@
+op_Implicit( LayerMask mask )
+op_Implicit( Int32 intVal )
+get_value( )
+set_value( Int32 value )
+LayerToName( Int32 layer )
+NameToLayer( String layerName )
+GetMask( String[] layerNames )
+Equals( Object obj )
+GetHashCode( )
+ToString( )
+GetType( )
+System.Int32 value

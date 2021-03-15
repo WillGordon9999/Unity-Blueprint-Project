@@ -1,0 +1,59 @@
+.ctor( Single x,  Single y,  Single z,  Single w )
+.ctor( Single x,  Single y,  Single z )
+.ctor( Single x,  Single y )
+get_Item( Int32 index )
+set_Item( Int32 index,  Single value )
+Set( Single newX,  Single newY,  Single newZ,  Single newW )
+Lerp( Vector4 a,  Vector4 b,  Single t )
+LerpUnclamped( Vector4 a,  Vector4 b,  Single t )
+MoveTowards( Vector4 current,  Vector4 target,  Single maxDistanceDelta )
+Scale( Vector4 a,  Vector4 b )
+Scale( Vector4 scale )
+GetHashCode( )
+Equals( Object other )
+Equals( Vector4 other )
+Normalize( Vector4 a )
+Normalize( )
+get_normalized( )
+Dot( Vector4 a,  Vector4 b )
+Project( Vector4 a,  Vector4 b )
+Distance( Vector4 a,  Vector4 b )
+Magnitude( Vector4 a )
+get_magnitude( )
+get_sqrMagnitude( )
+Min( Vector4 lhs,  Vector4 rhs )
+Max( Vector4 lhs,  Vector4 rhs )
+get_zero( )
+get_one( )
+get_positiveInfinity( )
+get_negativeInfinity( )
+op_Addition( Vector4 a,  Vector4 b )
+op_Subtraction( Vector4 a,  Vector4 b )
+op_UnaryNegation( Vector4 a )
+op_Multiply( Vector4 a,  Single d )
+op_Multiply( Single d,  Vector4 a )
+op_Division( Vector4 a,  Single d )
+op_Equality( Vector4 lhs,  Vector4 rhs )
+op_Inequality( Vector4 lhs,  Vector4 rhs )
+op_Implicit( Vector3 v )
+op_Implicit( Vector4 v )
+op_Implicit( Vector2 v )
+op_Implicit( Vector4 v )
+ToString( )
+ToString( String format )
+SqrMagnitude( Vector4 a )
+SqrMagnitude( )
+GetType( )
+System.Single kEpsilon
+System.Single x
+System.Single y
+System.Single z
+System.Single w
+System.Single Item
+UnityEngine.Vector4 normalized
+System.Single magnitude
+System.Single sqrMagnitude
+UnityEngine.Vector4 zero
+UnityEngine.Vector4 one
+UnityEngine.Vector4 positiveInfinity
+UnityEngine.Vector4 negativeInfinity
