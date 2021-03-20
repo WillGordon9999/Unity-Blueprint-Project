@@ -37,7 +37,7 @@ public interface IGameComponent
 }
 
 public class GameComponent : UnityEngine.MonoBehaviour
-{    
+{
     public new Game.Transform transform { get { if (mTransform == null) mTransform = GetComponent<Game.Transform>(); return mTransform; } }
     private Game.Transform mTransform;
 
@@ -48,13 +48,13 @@ public class GameComponent : UnityEngine.MonoBehaviour
     }
 
     public void OnEnable() //Be wary of this one
-    {        
-        
+    {
+
     }
 
     public void Start()
     {
-        
+
     }
 
     public void Update()
@@ -64,42 +64,42 @@ public class GameComponent : UnityEngine.MonoBehaviour
 
     public void FixedUpdate()
     {
-        
+
     }
 
     public void LateUpdate()
     {
-        
+
     }
 
     public void OnCollisionEnter(UnityEngine.Collision collision)
     {
-        
+
     }
 
     public void OnCollisionStay(UnityEngine.Collision collision)
     {
-        
+
     }
 
     public void OnCollisionExit(UnityEngine.Collision collision)
     {
-        
+
     }
 
     public void OnTriggerEnter(UnityEngine.Collider other)
     {
-        
+
     }
 
     public void OnTriggerStay(UnityEngine.Collider other)
     {
-        
+
     }
 
     public void OnTriggerExit(UnityEngine.Collider other)
     {
-        
+
     }
 
     public virtual void StateSetup()
@@ -124,7 +124,7 @@ public class GameComponent : UnityEngine.MonoBehaviour
 
     //Enforcing game types only shall also be handled on the node side
     //Only game types should be passed in
-    new public T GetComponent<T>() where T: new()
+    new public T GetComponent<T>() where T : new()
     {
         //If it is one of the custom game basic component types
         if (typeof(T).BaseType != typeof(GameComponent))
@@ -135,15 +135,15 @@ public class GameComponent : UnityEngine.MonoBehaviour
             if (comp != null)
             {
                 //So that we can get original game components and custom components without having to make custom components have IGameComponent stuff
-                return GetNewGameComponent<T>(comp);                               
+                return GetNewGameComponent<T>(comp);
             }
 
             else
                 return default;
         }
-       
+
         if (typeof(T).Namespace != "Game" && typeof(T).BaseType != typeof(GameComponent))
-        {            
+        {
             UnityEngine.Debug.LogError("GetComponent trying to use class outside of Game namespace");
             return default;
         }
@@ -180,7 +180,7 @@ public class GameComponent : UnityEngine.MonoBehaviour
     //public void AddStateInput(UnityEngine.KeyCode key, StateManager.InputListener.Type type, StateManager.InputListener.KeyState state)
     //public void SetStateInput(UnityEngine.KeyCode key, string type, string state)
     public void SetStateInput(string stateName, UnityEngine.KeyCode key, StateManager.InputListener.Type type, StateManager.InputListener.KeyState state)
-    {       
+    {
         base.GetComponent<StateManager>().SetInput(stateName, key, type, state);
     }
 
@@ -188,9 +188,9 @@ public class GameComponent : UnityEngine.MonoBehaviour
     {
         base.GetComponent<StateManager>().SetInput("default", key, type, state);
     }
-    
+
     public void SetDefaultInput(string stateName, UnityEngine.KeyCode key, StateManager.InputListener.Type type, StateManager.InputListener.KeyState state)
-    {        
+    {
         base.GetComponent<StateManager>().SetDefaultInput(stateName, key, type, state);
     }
 
@@ -214,11 +214,11 @@ public class GameComponent : UnityEngine.MonoBehaviour
     {
         UnityEngine.Debug.Log(message);
     }
-   
+
 }
 
 namespace Game
-{
+{    
     public class Input : UnityEngine.Input
     {
         new public static UnityEngine.AccelerationEvent GetAccelerationEvent(int index) { return UnityEngine.Input.GetAccelerationEvent(index); }
@@ -238,7 +238,7 @@ namespace Game
         new public static bool GetMouseButtonDown(int button) { return UnityEngine.Input.GetMouseButtonDown(button); }
         new public static bool GetMouseButtonUp(int button) { return UnityEngine.Input.GetMouseButtonUp(button); }
         new public static UnityEngine.Touch GetTouch(int index) { return UnityEngine.Input.GetTouch(index); }
-        new public static bool IsJoystickPreconfigured(string joystickName) { return UnityEngine.Input.IsJoystickPreconfigured(joystickName); }
+        //new public static bool IsJoystickPreconfigured(string joystickName) { return UnityEngine.Input.IsJoystickPreconfigured(joystickName); }
         new public static void ResetInputAxes() { }
     }
      

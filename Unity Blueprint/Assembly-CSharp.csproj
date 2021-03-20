@@ -63,7 +63,9 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Assets\Core\BlueprintData.cs" />
+    <Compile Include="Assets\Core\CSharpCodeCompiler for UnityEngine.cs" />
     <Compile Include="Assets\Core\ComponentLoader.cs" />
+    <Compile Include="Assets\Core\CustomCSharpCodeGenerator.cs" />
     <Compile Include="Assets\Core\FastDelegate.cs" />
     <Compile Include="Assets\Core\GameCodebase.cs" />
     <Compile Include="Assets\Core\GameComponent.cs" />

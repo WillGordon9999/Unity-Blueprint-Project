@@ -15,7 +15,7 @@ public class BlueprintData : ScriptableObject
 
     public string compiledClassType;
     public string compiledClassTypeAsmPath;
-
+    public string compiledAsmName;
 }
 
 [System.Serializable]
@@ -31,6 +31,7 @@ public class BlueprintFile
 
     public string compiledClassType;
     public string compiledClassTypeAsmPath;
+    public string compiledAsmName;
 }
 
 //Supposed thing for turning lists into dictionaries

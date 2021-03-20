@@ -461,7 +461,7 @@ public class RealTimeEditor : MonoBehaviour
         contextMenu.AddItem("New Blueprint", () => ToggleNewBlueprintUI(contextMenu.rect.position, false));
         contextMenu.AddItem("New Blueprint Assets", () => ToggleNewBlueprintUI(contextMenu.rect.position, true));
         contextMenu.AddItem("Compile Blueprint", () => Compile());
-        contextMenu.AddItem("Add To Active Inventory", () => { ComponentInventory.Instance.AddClass(current.compiledClassType, current.compiledClassTypeAsmPath); });
+        contextMenu.AddItem("Add To Active Inventory", () => { ComponentInventory.Instance.AddClassToInventory(current.compiledClassType, current.compiledClassTypeAsmPath, current.compiledAsmName);  });
 
         contextMenu.canDraw = true;
     }
@@ -498,10 +498,15 @@ public class RealTimeEditor : MonoBehaviour
             bp.variables[v.name] = v;
         }
 
+        System.Type type = null;
+
         if (!Interpreter.Instance.UseGameCompile)
-            Interpreter.Instance.FullCompile(bp, typeof(MonoBehaviour));
+            type = Interpreter.Instance.FullCompile(bp, typeof(MonoBehaviour));
         else
-            Interpreter.Instance.FullCompile(bp, typeof(GameComponent));
+             type = Interpreter.Instance.FullCompile(bp, typeof(GameComponent));
+
+        if (type != null)
+            SaveBlueprint(false);
     }
 
     void OnDrag(Vector2 delta)
@@ -748,6 +753,11 @@ public class RealTimeEditor : MonoBehaviour
         if (current.compiledClassTypeAsmPath != null)
         {
             loadData.compiledClassTypeAsmPath = current.compiledClassTypeAsmPath;
+        }
+
+        if (current.compiledAsmName != null)
+        {
+            loadData.compiledAsmName = current.compiledAsmName;
         }
 
         loadData.ComponentName = current.ComponentName;

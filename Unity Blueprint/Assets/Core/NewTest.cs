@@ -10,6 +10,7 @@ using System.CodeDom.Compiler;
 using Microsoft.CSharp;
 using UnityEditor;
 
+
 public class NewTest : MonoBehaviour
 {
     Dictionary<string, Var> variables;
@@ -209,42 +210,56 @@ public class NewTest : MonoBehaviour
 
         
 
+        var code =
+            @"public class Test
+            {
+               public static void GetGameObjectName (UnityEngine.Object obj) { UnityEngine.Debug.Log( "" Test Debug "" + obj.name); }
+            }
+            ";
+
         //var code =
         //    @"public class Test
         //    {
-        //       public static void GetGameObjectName (UnityEngine.Object obj) { UnityEngine.Debug.Log( "" Test Debug "" + obj.name); }
+        //       public static string GetNumber () { return ""Hello""; }
         //    }
         //    ";
-        //
-        //
-        //CSharpCodeProvider compiler = new CSharpCodeProvider(); 
-        //
-        //CompilerParameters parameters = new CompilerParameters();
-        //
-        //parameters.GenerateExecutable = false;
-        //parameters.GenerateInMemory = false;
-        //parameters.ReferencedAssemblies.Add(typeof(string).Assembly.Location);
-        //parameters.ReferencedAssemblies.Add(typeof(GameObject).Assembly.Location);
-        //parameters.ReferencedAssemblies.Add(typeof(Debug).Assembly.Location);        
-        //parameters.OutputAssembly = "WillAssembly2.dll";
-        //
+
+        //Modified.Mono.CSharp.CSharpCodeGenerator generator = new Modified.Mono.CSharp.CSharpCodeGenerator();
+        Modified.Mono.CSharp.CSharpCodeCompiler codeCompiler = new Modified.Mono.CSharp.CSharpCodeCompiler();
+
+        //CSharpCodeProvider compiler = new CSharpCodeProvider();
+        
+        //CompilerInfo[] info = CSharpCodeProvider.GetAllCompilerInfo();        
+        //foreach (CompilerInfo i in info)
+        //    print(i.ToString());
+
+        CompilerParameters parameters = new CompilerParameters();
+        
+        parameters.GenerateExecutable = false;
+        parameters.GenerateInMemory = false;
+        parameters.ReferencedAssemblies.Add(typeof(string).Assembly.Location);
+        parameters.ReferencedAssemblies.Add(typeof(GameObject).Assembly.Location);
+        parameters.ReferencedAssemblies.Add(typeof(Debug).Assembly.Location);        
+        parameters.OutputAssembly = $"BuildTest{UnityEngine.Random.Range(0, 10000)}.dll";
+
         //CompilerResults result = compiler.CompileAssemblyFromSource(parameters, code);
-        //
-        //if (result.Errors.Count > 0)
-        //{
-        //    Debug.Log($"Errors building {code} to  {result.PathToAssembly}");
-        //
-        //    foreach(CompilerError error in result.Errors)
-        //    {
-        //        Debug.Log($"  {error.ToString()}  ");
-        //    }
-        //}
-        //
-        //Type type = result.CompiledAssembly.GetType("Test");
-        //
-        //MethodInfo method = type.GetMethod("GetGameObjectName");
-        //
-        //method.Invoke(null, new object[] { gameObject });
+        CompilerResults result = codeCompiler.CompileAssemblyFromSource(parameters, code);
+
+        if (result.Errors.Count > 0)
+        {
+            Debug.Log($"Errors building {code} to  {result.PathToAssembly}");
+        
+            foreach(CompilerError error in result.Errors)
+            {
+                Debug.Log($"  {error.ToString()}  ");
+            }
+        }
+        
+        Type type = result.CompiledAssembly.GetType("Test");
+        
+        MethodInfo method = type.GetMethod("GetGameObjectName");
+        
+        method.Invoke(null, new object[] { gameObject });
 
         //ParameterExpression arg1 = Expression.Parameter(typeof(float), "num1");
         //ParameterExpression arg2 = Expression.Parameter(typeof(float), "num2");
@@ -322,11 +337,13 @@ public class NewTest : MonoBehaviour
   
     private void Start()
     {
-        List<string> strings = new List<string>();
+        //List<string> strings = new List<string>();
+        //
+        //Type type = strings.GetType();
+        //
+        //print(type);
 
-        Type type = strings.GetType();
-
-        print(type);
+        //Compile();
 
         //Debug.Log("File Path is " + Application.persistentDataPath);
         //Debug.Log($"String Test {gameObject.name}\n  {transform.position.ToString()}");
@@ -372,17 +389,17 @@ public class NewTest : MonoBehaviour
         //    }
         //}                
         
-        var method = this.GetType().GetMethod("Test");
-        
-        var args = method.GetGenericArguments();
-
-        var mainPars = method.GetParameters();
-
-        var newMethod = method.MakeGenericMethod(typeof(int));
-
-        ParameterInfo[] newArgs = newMethod.GetParameters();
-
-        print(newArgs.Length);
+        //var method = this.GetType().GetMethod("Test");
+        //
+        //var args = method.GetGenericArguments();
+        //
+        //var mainPars = method.GetParameters();
+        //
+        //var newMethod = method.MakeGenericMethod(typeof(int));
+        //
+        //ParameterInfo[] newArgs = newMethod.GetParameters();
+        //
+        //print(newArgs.Length);
 
     }
     

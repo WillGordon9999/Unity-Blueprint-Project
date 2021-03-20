@@ -317,6 +317,7 @@ public class Interpreter
 
         bp.compiledClassType = data.compiledClassType;
         bp.compiledClassTypeAsmPath = data.compiledClassTypeAsmPath;
+        bp.compiledAsmName = data.compiledAsmName;
 
         string json = JsonUtility.ToJson(bp);
         System.IO.File.WriteAllText(Application.persistentDataPath + "/" + $"{data.ComponentName}.asset", json);
@@ -1873,7 +1874,7 @@ public class Interpreter
             //Custom class searching
             if (Application.isPlaying)
             {
-                Type t = GameManager.Instance.SearchClass(input);
+                Type t = ComponentInventory.Instance.SearchClass(input);
 
                 if (t != null)
                 {
@@ -2008,6 +2009,12 @@ public class Interpreter
 
                 case "LayerMask":
                     type = new Type[] { typeof(UnityEngine.LayerMask) };
+                    ASM = new Assembly[] { type[0].Assembly };
+                    found = true;
+                    break;
+
+                case "Input":
+                    type = new Type[] { typeof(UnityEngine.Input) };
                     ASM = new Assembly[] { type[0].Assembly };
                     found = true;
                     break;
@@ -2597,18 +2604,25 @@ public class Interpreter
         
         return "";
     }
-    
+
     public Type FullCompile(Blueprint data, Type baseClass)
     {
         if (data == null)
             return null;
 
-        CSharpCodeProvider compiler = new CSharpCodeProvider();
-
+        //CSharpCodeProvider compiler = new CSharpCodeProvider();
+        
         CompilerParameters parameters = new CompilerParameters();
         parameters.GenerateExecutable = false;
         parameters.GenerateInMemory = false;
-        parameters.ReferencedAssemblies.Add(typeof(MonoBehaviour).Assembly.Location);
+        
+        void AddAssembly(string val)
+        {
+            if (!parameters.ReferencedAssemblies.Contains(val))
+                parameters.ReferencedAssemblies.Add(val);
+        }
+
+        AddAssembly(typeof(MonoBehaviour).Assembly.Location);
 
         StringBuilder classFile = new StringBuilder();
 
@@ -2616,15 +2630,16 @@ public class Interpreter
         //refParams = new List<Parameter>();
         //uint compileID = 1;
         //Setup the using directives
-        
+
         foreach (Node node in data.nodes)
         {
             if (!parameters.ReferencedAssemblies.Contains(node.assemblyPath))
             {
-                parameters.ReferencedAssemblies.Add(node.assemblyPath);
+                //parameters.ReferencedAssemblies.Add(node.assemblyPath);
+                AddAssembly(node.assemblyPath);
             }
 
-            foreach(Parameter p in node.paramList)
+            foreach (Parameter p in node.paramList)
             {
                 //p.compileID = compileID;
                 //refParams.Add(p);
@@ -2632,9 +2647,10 @@ public class Interpreter
 
                 if (p.isGeneric)
                 {
-                    parameters.ReferencedAssemblies.Add(p.templateTypeAsmPath);
+                    //parameters.ReferencedAssemblies.Add(p.templateTypeAsmPath);
+                    AddAssembly(p.templateTypeAsmPath);
                 }
-            }            
+            }
         }
 
         //Debug.Log("Initial Parameters");
@@ -2645,8 +2661,18 @@ public class Interpreter
         //classFile.Append("using System.Collections;\n");
         //classFile.Append("using System.Collections.Generic;\n");
 
+
+
+        //string alias = $"{data.name}{UnityEngine.Random.Range(0, 100000)}";
+
         if (UseGameCompile)
-            classFile.Append("using Game;");
+        {
+            //classFile.Append($"extern alias {alias};\n");
+            classFile.Append("using Game;\n");
+        }
+
+        //classFile.Append($"namespace {data.name}_{date}\n");
+        //classFile.Append("{\n");
 
         //Declare the Type
         if (baseClass != null)
@@ -2660,25 +2686,26 @@ public class Interpreter
 
         if (UseGameCompile)
         {
-            parameters.ReferencedAssemblies.Add(this.GetType().Assembly.Location);
-            parameters.ReferencedAssemblies.Add(typeof(Input).Assembly.Location);
-            parameters.ReferencedAssemblies.Add(typeof(Rigidbody).Assembly.Location);
-            parameters.ReferencedAssemblies.Add(typeof(Physics).Assembly.Location);
-            parameters.ReferencedAssemblies.Add(typeof(Time).Assembly.Location);
-            parameters.ReferencedAssemblies.Add(typeof(Collider).Assembly.Location);
-            parameters.ReferencedAssemblies.Add(typeof(Camera).Assembly.Location);
-            parameters.ReferencedAssemblies.Add(typeof(GameObject).Assembly.Location);
-            parameters.ReferencedAssemblies.Add(typeof(Color).Assembly.Location);
-            parameters.ReferencedAssemblies.Add(typeof(Vector3).Assembly.Location);
-            parameters.ReferencedAssemblies.Add(typeof(Quaternion).Assembly.Location);
-            parameters.ReferencedAssemblies.Add(typeof(Renderer).Assembly.Location);
-            parameters.ReferencedAssemblies.Add(typeof(UnityEngine.Random).Assembly.Location);
-            parameters.ReferencedAssemblies.Add(typeof(Mathf).Assembly.Location);
+            //AddAssembly(this.GetType().Assembly.Location);
+            AddAssembly(typeof(Input).Assembly.Location);
+            AddAssembly(typeof(Rigidbody).Assembly.Location);
+            AddAssembly(typeof(Physics).Assembly.Location);
+            AddAssembly(typeof(Time).Assembly.Location);
+            AddAssembly(typeof(Collider).Assembly.Location);
+            AddAssembly(typeof(Camera).Assembly.Location);
+            AddAssembly(typeof(GameObject).Assembly.Location);
+            AddAssembly(typeof(Color).Assembly.Location);
+            AddAssembly(typeof(Vector3).Assembly.Location);
+            AddAssembly(typeof(Quaternion).Assembly.Location);
+            AddAssembly(typeof(Renderer).Assembly.Location);
+            AddAssembly(typeof(UnityEngine.Random).Assembly.Location);
+            AddAssembly(typeof(Mathf).Assembly.Location);
         }
         foreach (string varName in data.variables.Keys)
         {
             Var v = data.variables[varName];
-            parameters.ReferencedAssemblies.Add(v.type.Assembly.Location);
+            //parameters.ReferencedAssemblies.Add(v.type.Assembly.Location);
+            AddAssembly(v.type.Assembly.Location);
             string declare = $"public {v.type.ToString()} {v.name};\n";
             classFile.Append(declare);
         }
@@ -2707,7 +2734,10 @@ public class Interpreter
             string funcDeclaration = "";
 
             if (!node.isVirtual)
-                funcDeclaration = $"public void {entryName}(" + passInParams + ")\n{\n";
+                if (UseGameCompile)
+                    funcDeclaration = $"public new void {entryName}(" + passInParams + ")\n{\n";
+                else
+                    funcDeclaration = $"public void {entryName}(" + passInParams + ")\n{\n";
             else
                 funcDeclaration = $"public override void {entryName}(" + passInParams + ")\n{\n";
 
@@ -2728,8 +2758,9 @@ public class Interpreter
 
                     List<Parameter> generics = new List<Parameter>();
 
-                    parameters.ReferencedAssemblies.Add(node.assemblyPath);
-                  
+                    //parameters.ReferencedAssemblies.Add(node.assemblyPath);
+                    AddAssembly(node.assemblyPath);
+
                     //Set up the parameters
                     //Debug.Log("Function node parameters in initial compile");
                     //PrintNodeParameters(node);
@@ -2832,7 +2863,7 @@ public class Interpreter
                         {
                             //Static No Return
                             if (node.isStatic)
-                            {                               
+                            {
                                 if (node.isGenericFunction)
                                     baseLines.Add($"{node.type}.{split[1]}{genericDefine}(" + passInArgs + ")");
                                 else
@@ -2910,8 +2941,8 @@ public class Interpreter
                             //        lines.Add($"{split[0]}.{split[1]}(" + passInArgs + ");");
                             //}
                         }
-                    } 
-                    
+                    }
+
                     //Enter here if node is contextual or using a base class method
                     else
                     {
@@ -2945,7 +2976,7 @@ public class Interpreter
                                     baseLines.Add($"{node.input}(" + passInArgs + ")");
                                     lines.Add($"{node.returnInput} = {node.input}(" + passInArgs + ");");
                                 }
-                                
+
                             }
                         }
 
@@ -3009,8 +3040,9 @@ public class Interpreter
 
                     List<Parameter> generics = new List<Parameter>();
 
-                    parameters.ReferencedAssemblies.Add(node.assemblyPath);
-                    
+                    //parameters.ReferencedAssemblies.Add(node.assemblyPath);
+                    AddAssembly(node.assemblyPath);
+
                     for (int i = 0; i < node.paramList.Count; i++)
                     {
                         if (node.paramList[i].isGeneric)
@@ -3045,7 +3077,7 @@ public class Interpreter
                     }
 
                     if (split.Length > 1)
-                    {                        
+                    {
                         string line = $"{node.type}.{split[0]}(" + passInArgs + ")";
 
                         if (node.isGenericFunction)
@@ -3066,8 +3098,8 @@ public class Interpreter
                 {
                     string[] split = node.input.Split(' ');
 
-                    parameters.ReferencedAssemblies.Add(node.assemblyPath);
-                    
+                    //parameters.ReferencedAssemblies.Add(node.assemblyPath);
+                    AddAssembly(node.assemblyPath);
 
                     if (node.isContextual)
                     {
@@ -3076,8 +3108,8 @@ public class Interpreter
                         baseLines.Add(newLine);
 
                         if (node.returnInput != "")
-                        {                            
-                            lines.Add($"{node.returnInput} = " + newLine + ";");                                                        
+                        {
+                            lines.Add($"{node.returnInput} = " + newLine + ";");
                         }
                         else
                             lines.Add(newLine + ";");
@@ -3115,7 +3147,8 @@ public class Interpreter
                 {
                     string[] split = node.input.Split(' ');
 
-                    parameters.ReferencedAssemblies.Add(node.assemblyPath);                   
+                    //parameters.ReferencedAssemblies.Add(node.assemblyPath);
+                    AddAssembly(node.assemblyPath);
 
                     if (node.isContextual)
                     {
@@ -3173,8 +3206,8 @@ public class Interpreter
                 {
                     string[] split = node.input.Split(' ');
 
-                    parameters.ReferencedAssemblies.Add(node.assemblyPath);
-                    
+                    //parameters.ReferencedAssemblies.Add(node.assemblyPath);
+                    AddAssembly(node.assemblyPath);
 
                     if (node.isContextual)
                     {
@@ -3220,8 +3253,9 @@ public class Interpreter
                 {
                     string[] split = node.input.Split(' ');
 
-                    parameters.ReferencedAssemblies.Add(node.assemblyPath);
-                   
+                    //parameters.ReferencedAssemblies.Add(node.assemblyPath);
+                    AddAssembly(node.assemblyPath);
+
                     if (node.isContextual)
                     {
                         string prevLine = baseLines[baseLines.Count - 1];
@@ -3418,7 +3452,7 @@ public class Interpreter
 
                             if (node.returnInput != "")
                                 lines.Add($"{node.returnInput} = " + newLine + ";");
-                            
+
                             else
                             {
                                 if (split[1] == "=")
@@ -3446,11 +3480,16 @@ public class Interpreter
 
             //Add space after function
             funcBuilder.Append("}\n");
-            classFile.Append(funcBuilder.ToString());            
+            classFile.Append(funcBuilder.ToString());
         }
 
         //Ending bracket for class
         classFile.Append("}\n");
+
+        //Ending bracket for namespace
+        //classFile.Append("}\n");
+        //parameters.ReferencedAssemblies.Add(this.GetType().Assembly.Location);
+
         //classFile.Append("}\n");
         //string final = classFile.ToString();
         //final += "}\n";
@@ -3466,73 +3505,130 @@ public class Interpreter
 
         //Add actual Compiling here        
         //parameters.OutputAssembly = "NewAssembly.dll";
-                
+
         //Game/Realtime-specific
-        if (File.Exists($"{data.name}.dll"))
-        {
-            if (Application.isPlaying)
-            {
-                Debug.Log("File exists attempting rename");
-                //File.Move($"{data.name}.dll", $"{data.name}-old.dll");
+        //if (File.Exists($"{data.name}.dll"))
+        //{
+        //    if (Application.isPlaying)
+        //    {
+        //        //Debug.Log("File exists attempting rename");
+        //        //File.Move($"{data.name}.dll", $"{data.name}-old.dll");
+        //        
+        //        bool rename = false;
+        //        string newName = $"{data.name}";
+        //        
+        //        while (!rename)
+        //        {                    
+        //            try
+        //            {
+        //                
+        //                int length = (int)UnityEngine.Random.Range(10, 20);
+        //                for (int i = 0; i < length; i++)
+        //                {
+        //                    newName += $"{(int)UnityEngine.Random.Range(0, 10000)}";
+        //                }
+        //        
+        //                //File.Move($"{data.name}.dll", $"{data.name} ");
+        //                File.Move($"{data.name}.dll", newName + ".dll");
+        //                Debug.Log("Setting rename to true");
+        //                rename = true;
+        //            }
+        //        
+        //            catch
+        //            {
+        //                Debug.Log("Failed to rename, trying again");
+        //                rename = false;
+        //            }
+        //        }
+        //                      
+        //        //////////////////////////////////////////////////////////////////////////////////////////////
+        //        ///MAYBE INDIVIDUAL CLASSES CAN BE SELECTED/LOADED BY PUTTING THEM IN THEIR OWN UNIQUE NAMESPACES????
+        //        //////////////////////////////////////////////////////////////////////////////////////////////
+        //        
+        //
+        //        //GameManager.Instance.RemoveClass(data.name);
+        //        ComponentInventory.Instance.RemoveClassFromInventory(data.name);
+        //        ComponentInventory.Instance.RemoveCustomClass(data.name);                
+        //        //File.Delete($"{data.name}-old.dll");
+        //        //RealTimeEditor.Instance.deleteAsmPath.Add($"{data.name}-old.dll");
+        //        //ComponentInventory.Instance.AddOldClass(newName + ".dll");                
+        //        parameters.OutputAssembly = $"{data.name}{UnityEngine.Random.Range(0, 10000)}.dll";
+        //    }
+        //
+        //    else
+        //    {
+        //        File.Delete($"{data.name}.dll");
+        //        parameters.OutputAssembly = $"{data.name}.dll";
+        //    }
+        //}
+        //
+        //else
+        //    parameters.OutputAssembly = $"{data.name}.dll";
 
-                bool rename = false;
-                string newName = $"{data.name}";
-                
-                while (!rename)
-                {                    
-                    try
-                    {
-                        
-                        int length = (int)UnityEngine.Random.Range(10, 20);
-                        for (int i = 0; i < length; i++)
-                        {
-                            newName += $"{(int)UnityEngine.Random.Range(0, 10000)}";
-                        }
-                
-                        //File.Move($"{data.name}.dll", $"{data.name} ");
-                        File.Move($"{data.name}.dll", newName + ".dll");
-                        Debug.Log("Setting rename to true");
-                        rename = true;
-                    }
-                
-                    catch
-                    {
-                        Debug.Log("Failed to rename, trying again");
-                        rename = false;
-                    }
-                }
+        string date = DateTime.Now.ToShortDateString() + "_" + DateTime.Now.ToLongTimeString();
+        date = date.Replace('/', '_');
+        date = date.Replace(' ', '_');
+        date = date.Replace(':', '_');
 
-                //string time = System.DateTime.Now.ToString();
-                //time = time.Replace('/', '-');
-                //string[] parts = time.Split(' ');
-                //
-                //string finalTime = "";
-                //foreach (string str in parts)
-                //    finalTime += str;
-                //
-                //string newName = $"{data.name}{finalTime}.dll";
-                //File.Move($"{data.name}.dll", newName);
-                
-                ComponentInventory.Instance.RemoveClass(data.name);
-                GameManager.Instance.RemoveClass(data.name);
-                //RealTimeEditor.Instance.deleteAsmPath.Add($"{data.name}-old.dll");
-                GameManager.Instance.AddOldClass(newName + ".dll");
-                parameters.OutputAssembly = $"{data.name}.dll";
-            }
-
-            else
-            {
-                File.Delete($"{data.name}.dll");
-                parameters.OutputAssembly = $"{data.name}.dll";
-            }
-        }
-        else
-            parameters.OutputAssembly = $"{data.name}.dll";
+        ComponentInventory.Instance.RemoveClassFromInventory(data.name);
+        ComponentInventory.Instance.RemoveCustomClass(data.name);
+        parameters.OutputAssembly = $"{data.name}{date}.dll";
+        //parameters.ReferencedAssemblies.Add(this.GetType().Assembly.Location);
+        //For build
+        //parameters.ReferencedAssemblies.Add($"{Application.persistentDataPath} + /Assembly-CSharp.dll");
 
         string final = classFile.ToString();
 
-        CompilerResults compile = compiler.CompileAssemblyFromSource(parameters, final);
+        CompilerResults compile = null;
+
+        //string AssemblyList = "";
+        //
+        //for (int i = 0; i < parameters.ReferencedAssemblies.Count; i++)
+        //{
+        //    AssemblyList += parameters.ReferencedAssemblies[i] + "\n";
+        //}
         
+        //Debug.Log(AssemblyList);        
+        
+        //for (int i = 0; i < parameters.ReferencedAssemblies.Count; i++)
+        //{
+        //    if (parameters.ReferencedAssemblies[i].Contains(@"\Library\ScriptAssemblies\"))
+        //    {
+        //        Debug.Log("Removing Library reference Dummy");
+        //        //parameters.ReferencedAssemblies.RemoveAt(i);
+        //    }
+        //}
+
+
+        if (Application.isEditor)
+        {
+            CSharpCodeProvider compiler = new CSharpCodeProvider();
+            compile = compiler.CompileAssemblyFromSource(parameters, final);
+        }
+        
+        else
+        {
+            bool libraryInstance = false;
+
+            for (int i = 0; i < parameters.ReferencedAssemblies.Count; i++)
+            {
+                if (parameters.ReferencedAssemblies[i].Contains(@"\Library\ScriptAssemblies\"))
+                {
+                    //Debug.Log("Removing Library reference");
+                    //parameters.ReferencedAssemblies.RemoveAt(i);
+                    libraryInstance = true;
+                    break;
+                }
+            }
+
+            if (!libraryInstance)
+                parameters.ReferencedAssemblies.Add(this.GetType().Assembly.Location);
+
+            //parameters.ReferencedAssemblies.Add("Assembly-CSharp.dll");
+
+            Modified.Mono.CSharp.CSharpCodeCompiler codeCompiler = new Modified.Mono.CSharp.CSharpCodeCompiler();
+            compile = codeCompiler.CompileAssemblyFromSource(parameters, final);
+        }
 
         if (compile.Errors.Count > 0)
         {
@@ -3543,14 +3639,19 @@ public class Interpreter
                 Debug.Log($"  {error.ToString()}  ");
             }
         }
-
+        
         Type type = compile.CompiledAssembly.GetType(data.name);
 
         data.dataRef.compiledClassType = type.ToString();
         data.dataRef.compiledClassTypeAsmPath = type.Assembly.Location;
+        data.dataRef.compiledAsmName = type.Assembly.GetName().ToString();
 
-        if (Application.isPlaying)        
-            GameManager.Instance.AddClass(type);
+       
+        if (Application.isPlaying)
+        {          
+            ComponentInventory.Instance.AddCustomClass(type);
+            //ComponentInventory.Instance.AddClassToInventory(type.ToString(), type.Assembly.Location, type.Assembly.GetName().ToString());
+        }
         
 
 
@@ -3559,6 +3660,7 @@ public class Interpreter
         AssetDatabase.Refresh();
 #endif
 
+       
         return type;
     }
 
@@ -3569,6 +3671,12 @@ public class Interpreter
 
         //Debug.Log($"Parameters in conditional on {truePath} path");
         //PrintParameters();
+        void AddAssembly(string val)
+        {
+            if (!parameters.ReferencedAssemblies.Contains(val))
+                parameters.ReferencedAssemblies.Add(val);
+        }
+
 
         while (node != null)
         {
@@ -3583,8 +3691,9 @@ public class Interpreter
 
                 List<Parameter> generics = new List<Parameter>();
 
-                parameters.ReferencedAssemblies.Add(node.assemblyPath);
-               
+                //parameters.ReferencedAssemblies.Add(node.assemblyPath);
+                AddAssembly(node.assemblyPath);
+
                 //Debug.Log($"Function node parameters in conditional on {truePath} path");
                 //PrintNodeParameters(node);
 
@@ -3862,7 +3971,8 @@ public class Interpreter
                 string passInArgs = "";
                 string genericDefine = "";
 
-                parameters.ReferencedAssemblies.Add(node.assemblyPath);               
+                //parameters.ReferencedAssemblies.Add(node.assemblyPath);               
+                AddAssembly(node.assemblyPath);
 
                 List<Parameter> generics = new List<Parameter>();
 
@@ -3923,7 +4033,9 @@ public class Interpreter
             {
                 string[] split = node.input.Split(' ');
 
-                parameters.ReferencedAssemblies.Add(node.assemblyPath);               
+                //parameters.ReferencedAssemblies.Add(node.assemblyPath);               
+                AddAssembly(node.assemblyPath);
+
                 if (node.isContextual)
                 {
                     string prevLine = baseLines[baseLines.Count - 1];
@@ -3970,7 +4082,8 @@ public class Interpreter
             {
                 string[] split = node.input.Split(' ');
 
-                parameters.ReferencedAssemblies.Add(node.assemblyPath);                
+                //parameters.ReferencedAssemblies.Add(node.assemblyPath);
+                AddAssembly(node.assemblyPath);
                 if (node.isContextual)
                 {
                     string prevLine = baseLines[baseLines.Count - 1];
@@ -4027,8 +4140,9 @@ public class Interpreter
             {
                 string[] split = node.input.Split(' ');
 
-                parameters.ReferencedAssemblies.Add(node.assemblyPath);
-                
+                //parameters.ReferencedAssemblies.Add(node.assemblyPath);
+                AddAssembly(node.assemblyPath);
+
                 if (node.isContextual)
                 {
                     string prevLine = baseLines[baseLines.Count - 1];
@@ -4073,8 +4187,9 @@ public class Interpreter
             {
                 string[] split = node.input.Split(' ');
 
-                parameters.ReferencedAssemblies.Add(node.assemblyPath);
-                
+                //parameters.ReferencedAssemblies.Add(node.assemblyPath);
+                AddAssembly(node.assemblyPath);
+
                 if (node.isContextual)
                 {
                     string prevLine = baseLines[baseLines.Count - 1];

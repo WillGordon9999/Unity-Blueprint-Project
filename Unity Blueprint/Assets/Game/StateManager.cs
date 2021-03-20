@@ -1,7 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-
+using Game;
 public class StateManager : MonoBehaviour
 {
     public class InputListener
@@ -66,7 +66,7 @@ public class StateManager : MonoBehaviour
         {
             if (input.keyState == InputListener.KeyState.Down)
             {
-                if (Input.GetKeyDown(input.key))
+                if (UnityEngine.Input.GetKeyDown(input.key))
                 {
                     ChangeState(input.stateName);
                     break;
@@ -75,7 +75,7 @@ public class StateManager : MonoBehaviour
 
             if (input.keyState == InputListener.KeyState.Up)
             {
-                if (Input.GetKeyUp(input.key))
+                if (UnityEngine.Input.GetKeyUp(input.key))
                 {
                     ChangeState(input.stateName);
                     break;

@@ -135,7 +135,7 @@ public class GameUnlockManager : MonoBehaviour
             return false;
         }
 
-        return true; //Because if status is null we want to be able to access it
+        return true; //Because if there is no unlock we want to be able to access it
     }
 
     public bool CheckUnlock(Type type)
@@ -149,17 +149,17 @@ public class GameUnlockManager : MonoBehaviour
                 if (data.name == status.name)
                     return data.unlocked;
             }
-
+            
             return false;
         }
 
-        return true; //Because if status is null we want to be able to access it
+        return true; //Because if there is no unlock we want to be able to access it
     }
 
     public void SetUnlock(string name, bool val)
     {
         if (unlockFile != null)
-        {
+        {            
             foreach (UnlockData data in unlockFile.unlocks)
             {
                 if (data.name == name)
@@ -168,6 +168,10 @@ public class GameUnlockManager : MonoBehaviour
                     return;
                 }
             }
+            
+            //If the Unlock is not found Create it
+            //Since the Attribute Constructor 
+            AddUnlock(new UnlockStatus(name, val));
         }
     }
 }

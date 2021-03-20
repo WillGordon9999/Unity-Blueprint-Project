@@ -113,7 +113,7 @@ namespace Game
             instance.localScale = UnityEngine.Vector3.one;
         }
 
-        //[UnlockStatus("Transform SetLocalScale", false)]
+        [UnlockStatus("Transform SetLocalScale", false)]
         public void SetLocalScale(UnityEngine.Vector3 scale, bool revert)
         {                                    
             int cost = 10 * (int)scale.magnitude;
@@ -269,7 +269,7 @@ namespace Game
 
         public new void Translate(float x, float y, float z)
         {
-            int cost = 10 * (int)(new UnityEngine.Vector3(x, y, z) - instance.position).magnitude;
+            int cost = 10 * (int)(instance.TransformPoint(new UnityEngine.Vector3(x, y, z)) - instance.position).magnitude;
 
             if (ManaManager.Instance.ApplyCost(cost))
             {
@@ -278,7 +278,7 @@ namespace Game
         }
         public new void Translate(float x, float y, float z, UnityEngine.Space relativeTo)
         {
-            int cost = 10 * (int)(new UnityEngine.Vector3(x, y, z) - instance.position).magnitude;
+            int cost = 10 * (int)(instance.TransformPoint(new UnityEngine.Vector3(x, y, z)) - instance.position).magnitude;
 
             if (ManaManager.Instance.ApplyCost(cost))
             {
@@ -287,7 +287,7 @@ namespace Game
         }
         public new void Translate(UnityEngine.Vector3 translation)
         {
-            int cost = 10 * (int)(translation - instance.position).magnitude;
+            int cost = 10 * (int)(instance.TransformPoint(translation) - instance.position).magnitude;
 
             if (ManaManager.Instance.ApplyCost(cost))
             {
@@ -296,7 +296,7 @@ namespace Game
         }
         public new void Translate(UnityEngine.Vector3 translation, UnityEngine.Space relativeTo)
         {
-            int cost = 10 * (int)(translation - instance.position).magnitude;
+            int cost = 10 * (int)(instance.TransformPoint(translation) - instance.position).magnitude;
 
             if (ManaManager.Instance.ApplyCost(cost))
             {
@@ -305,7 +305,7 @@ namespace Game
         }
         public void Translate(float x, float y, float z, Transform relativeTo)
         {
-            int cost = 10 * (int)(new UnityEngine.Vector3(x, y, z) - instance.position).magnitude;
+            int cost = 10 * (int)(instance.TransformPoint(new UnityEngine.Vector3(x, y, z)) - instance.position).magnitude;
 
             if (ManaManager.Instance.ApplyCost(cost))
             {
@@ -314,7 +314,7 @@ namespace Game
         }
         public void Translate(UnityEngine.Vector3 translation, Transform relativeTo)
         {
-            int cost = 10 * (int)(translation - instance.position).magnitude;
+            int cost = 10 * (int)(instance.TransformPoint(translation) - instance.position).magnitude;
 
             if (ManaManager.Instance.ApplyCost(cost))
             {

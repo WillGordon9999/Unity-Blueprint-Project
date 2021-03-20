@@ -473,6 +473,11 @@ public class NodeEditor : EditorWindow
             loadData.compiledClassTypeAsmPath = current.compiledClassTypeAsmPath;
         }
 
+        if (current.compiledAsmName != null)
+        {
+            loadData.compiledAsmName = current.compiledAsmName;
+        }
+
         loadData.ComponentName = current.ComponentName;
 
         //Actually pass it onto the real scriptable object

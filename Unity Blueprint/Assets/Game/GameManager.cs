@@ -9,6 +9,11 @@ using System.Reflection;
 public class NukeList
 {
     public List<string> list;
+
+    public NukeList()
+    {
+        list = new List<string>();
+    }
 }
 
 public class GameManager : MonoBehaviour
@@ -21,7 +26,8 @@ public class GameManager : MonoBehaviour
 
     public ClassCollection customClasses;
     List<Type> customTypes;
-    NukeList list;
+    List<AppDomain> appDomains;
+    NukeList list;    
 
     private void OnEnable()
     {
@@ -33,49 +39,53 @@ public class GameManager : MonoBehaviour
         Interpreter.Instance.UseGameCompile = UseGameCompile;
         
         //Nuke List
-        if (System.IO.File.Exists(Application.persistentDataPath + "/" + "OldList.asset"))
-        {
-            string json = System.IO.File.ReadAllText(Application.persistentDataPath + "/" + "OldList.asset");
-            list = JsonUtility.FromJson<NukeList>(json);
-        }
-
-        if (list != null)
-        {
-            foreach (string str in list.list)
-            {
-                print("Attempting to delete lingering old DLLs");
-                System.IO.File.Delete(str);
-            }
-
-            list.list.Clear();
-        }
-
-        else
-            list = new NukeList();
+        //if (System.IO.File.Exists(Application.persistentDataPath + "/" + "OldList.asset"))
+        //{
+        //    string json = System.IO.File.ReadAllText(Application.persistentDataPath + "/" + "OldList.asset");
+        //    list = JsonUtility.FromJson<NukeList>(json);
+        //}
+        //
+        //if (list != null)
+        //{
+        //    foreach (string str in list.list)
+        //    {
+        //        print("Attempting to delete lingering old DLLs");
+        //        System.IO.File.Delete(str);
+        //    }
+        //
+        //    list.list.Clear();
+        //}
+        //
+        //else
+        //    list = new NukeList();
 
         //Set up Custom Class Collection
-        if (System.IO.File.Exists(Application.persistentDataPath + "/" + "CustomClasses.asset"))
-        {
-            string json = System.IO.File.ReadAllText(Application.persistentDataPath + "/" + "CustomClasses.asset");
-            customClasses = JsonUtility.FromJson<ClassCollection>(json);
-        }
-
-        customTypes = new List<Type>();
-
-        if (customClasses != null)
-        {
-            foreach (ClassData data in customClasses.classes)
-            {                              
-                Assembly asm = Assembly.LoadFile(data.classASM);
-                if (asm != null)
-                    customTypes.Add(asm.GetType(data.className));                
-            }
-        }
-
-        else
-        {
-            customClasses = new ClassCollection();
-        }
+        //if (System.IO.File.Exists(Application.persistentDataPath + "/" + "CustomClasses.asset"))
+        //{
+        //    string json = System.IO.File.ReadAllText(Application.persistentDataPath + "/" + "CustomClasses.asset");
+        //    customClasses = JsonUtility.FromJson<ClassCollection>(json);
+        //}
+        //
+        //customTypes = new List<Type>();
+        //
+        //if (customClasses != null)
+        //{
+        //    foreach (ClassData data in customClasses.classes)
+        //    {
+        //        //Assembly asm = Assembly.LoadFile(data.classASM);
+        //        //if (asm != null)
+        //        //    customTypes.Add(asm.GetType(data.className));                
+        //        AppDomain domain = AppDomain.CreateDomain(data.className);
+        //        domain.Load(data.classASM);
+        //        appDomains.Add(domain);
+        //
+        //    }
+        //}
+        //
+        //else
+        //{
+        //    customClasses = new ClassCollection();
+        //}
     }
 
 
@@ -107,39 +117,39 @@ public class GameManager : MonoBehaviour
     {
         Interpreter.Instance.UseGameCompile = UseGameCompile;
 
-        if (Input.GetKeyDown(KeyCode.Return) && input != "")
-        {
-            Assembly assembly = this.GetType().Assembly;
-        
-            foreach(Type t in assembly.GetTypes())
-            {
-                if (t.Namespace == "Game" && t.Name == input)
-                {
-                    print("Should add class");
-                    AddClassToCodeBase(t);
-                    break;
-                }
-            }            
-        }
-    }
+        //if (Input.GetKeyDown(KeyCode.Return) && input != "")
+        //{
+        //    Assembly assembly = this.GetType().Assembly;
+        //
+        //    foreach(Type t in assembly.GetTypes())
+        //    {
+        //        if (t.Namespace == "Game" && t.Name == input)
+        //        {
+        //            print("Should add class");
+        //            AddClassToCodeBase(t);
+        //            break;
+        //        }
+        //    }            
+        //}
+    }   //
 
     private void OnApplicationQuit()
     {
-        if (customClasses.classes.Count > 0)
-        {
-            print("Saving Inventory");
-            string json = JsonUtility.ToJson(customClasses);
-            System.IO.File.WriteAllText(Application.persistentDataPath + "/" + "CustomClasses.asset", json);
-
-            json = JsonUtility.ToJson(list);
-            System.IO.File.WriteAllText(Application.persistentDataPath + "/" + "OldList.asset", json);
-
-            //BinaryFormatter bf = new BinaryFormatter();
-            //FileStream file = File.Create(Application.persistentDataPath + "/Inventory.asset");
-            //bf.Serialize(file, classes);
-            //file.Close();
-
-        }        
+        //if (customClasses.classes.Count > 0)
+        //{
+        //    print("Saving Inventory");
+        //    string json = JsonUtility.ToJson(customClasses);
+        //    System.IO.File.WriteAllText(Application.persistentDataPath + "/" + "CustomClasses.asset", json);
+        //
+        //    //json = JsonUtility.ToJson(list);
+        //    //System.IO.File.WriteAllText(Application.persistentDataPath + "/" + "OldList.asset", json);
+        //
+        //    //BinaryFormatter bf = new BinaryFormatter();
+        //    //FileStream file = File.Create(Application.persistentDataPath + "/Inventory.asset");
+        //    //bf.Serialize(file, classes);
+        //    //file.Close();
+        //
+        //}        
     }
 
     private void OnGUI()
@@ -147,66 +157,81 @@ public class GameManager : MonoBehaviour
         //input = GUI.TextField(new Rect(Screen.width / 2, Screen.height / 2, 300, 100), input);
     }
 
-    public void AddOldClass(string path)
-    {
-        list.list.Add(path);
-    }
+    //public void AddOldClass(string path)
+    //{
+    //    list.list.Add(path);
+    //}
 
 
-    public void AddClass(Type type)
-    {
-        if (type != null)
-        {
-            print("Adding class to Custom Class list");
-            customClasses.classes.Add(new ClassData(type.ToString(), type.Assembly.Location));
-            customTypes.Add(type);
-        }
-    }
+    //public void AddClass(Type type)
+    //{
+    //    if (type != null)
+    //    {
+    //        print("Adding class to Custom Class list");
+    //        customClasses.classes.Add(new ClassData(type.ToString(), type.Assembly.Location));
+    //        customTypes.Add(type);
+    //
+    //        AppDomain domain = AppDomain.CreateDomain(type.Name);
+    //        domain.Load(type.Assembly.Location);
+    //        appDomains.Add(domain);
+    //
+    //    }
+    //}
 
-    public Type SearchClass(string name)
-    {
-        foreach(Type t in customTypes)
-        {
-            if (t.Name == name)
-            {
-                print("Found Custom Class in GameManager");
-                return t;
-            }
-        }
+    //public Type SearchClass(string name)
+    //{
+    //    foreach(Type t in customTypes)
+    //    {
+    //        if (t.Name == name)
+    //        {
+    //            print("Found Custom Class in GameManager");
+    //            return t;
+    //        }
+    //    }
+    //
+    //    return null;
+    //}
 
-        return null;
-    }
-
-    public void RemoveClass(string name)
-    {
-        ClassData data = null;
-        foreach (var comp in customClasses.classes)
-        {
-            if (comp.className == name)
-            {
-                data = comp;
-                break;
-            }
-        }
-
-        if (data != null)
-        {
-            Type target = null;
-            foreach(Type t in customTypes)
-            {
-                if (t.Name == name)
-                {
-                    target = t;
-                    break;
-                }
-            }
-
-            if (target != null)
-                customTypes.Remove(target);
-
-            customClasses.classes.Remove(data);                        
-        }
-    }
+    //public void RemoveClass(string name)
+    //{
+    //    ClassData data = null;
+    //    foreach (var comp in customClasses.classes)
+    //    {
+    //        if (comp.className == name)
+    //        {
+    //            data = comp;
+    //            break;
+    //        }
+    //    }
+    //
+    //    if (data != null)
+    //    {
+    //        Type target = null;
+    //        foreach(Type t in customTypes)
+    //        {
+    //            if (t.Name == name)
+    //            {
+    //                target = t;
+    //                break;
+    //            }
+    //        }
+    //
+    //        if (target != null)
+    //            customTypes.Remove(target);
+    //
+    //        customClasses.classes.Remove(data);                        
+    //    }
+    //
+    //    foreach(AppDomain domain in appDomains)
+    //    {
+    //        if (domain.FriendlyName == name)
+    //        {
+    //            AppDomain.Unload(domain);
+    //            appDomains.Remove(domain);
+    //            return;
+    //        }
+    //    }
+    //}
 
     void AddSubclassesOf(Type type)
     {
