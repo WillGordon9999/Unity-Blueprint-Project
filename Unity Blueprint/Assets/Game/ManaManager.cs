@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+public enum RepeatOptions { Use, Reset, Toggle }
+
 public class ManaManager : MonoBehaviour
 {
     public static ManaManager Instance { get { return mInstance; } set { } }
@@ -13,7 +15,7 @@ public class ManaManager : MonoBehaviour
     public float regenTime = 1.0f; //second    
     StateManager stateManager;
 
-    Game.Transform gameTransform;
+    public bool debugMode = false;
 
     class CostRepeater
     {
@@ -35,7 +37,7 @@ public class ManaManager : MonoBehaviour
     public int baseCost = 10;
     public Vector3 translation = new Vector3(0.0f, 0.0f, 5.0f);
 
-    private void OnEnable()
+    private void Awake()
     {
         if (mInstance == null)
             mInstance = this;
@@ -84,20 +86,23 @@ public class ManaManager : MonoBehaviour
         CostRepeater repeater;
         while (!costRepeaters.TryGetValue(name, out repeater))
         {
-            print("coroutine waiting on repeater reference");
+            //print("coroutine waiting on repeater reference");
             yield return null;
         }
 
-        print("Coroutine got repeater reference");
+        //print("Coroutine got repeater reference");
 
         while (currentMana >= repeater.cost)
         {
-            currentMana -= repeater.cost;
-
-            if (currentMana < 0)
+            if (!debugMode)
             {
-                currentMana = 0;                
-                break;
+                currentMana -= repeater.cost;
+
+                if (currentMana < 0)
+                {
+                    currentMana = 0;
+                    break;
+                }
             }
 
             yield return new WaitForSeconds(1.0f);
@@ -106,18 +111,7 @@ public class ManaManager : MonoBehaviour
         repeater.revert();
         costRepeaters.Remove(name);
     }
-   
-    void Translate(Vector3 vec)
-    {        
-        int cost = baseCost * (int)vec.magnitude;
-
-        if (currentMana >= cost)
-        {
-            currentMana -= cost;
-            transform.Translate(vec);
-        }
-    }
-
+       
     public bool ApplyCost(int cost)
     {
         if (currentMana >= cost)
@@ -150,12 +144,29 @@ public class ManaManager : MonoBehaviour
         }
     }
 
+   
+    //Return true to indicate you need to start it
+    public bool CheckToggle(string name)
+    {
+        CostRepeater cost;
+
+        if (costRepeaters.TryGetValue(name, out cost))
+        {
+            StopCostPerSecond(name);
+            return false;
+        }
+
+        else
+            return true;
+    }
+
     public void StopCostPerSecond(string name)
     {
         CostRepeater repeater;
         if (costRepeaters.TryGetValue(name, out repeater))
         {
             StopCoroutine(repeater.coroutine);
+            repeater.revert();
             costRepeaters.Remove(name);
         }
     }

@@ -189,7 +189,7 @@ public class ComponentInventory : MonoBehaviour
         {
             if (t.ToString() == name)
             {
-                print("Found Custom Class in GameManager");
+                //print("Found Custom Class in GameManager");
                 return t;
             }
         }
@@ -207,6 +207,18 @@ public class ComponentInventory : MonoBehaviour
             Type newType = asmObj.GetType(name);            
             gameObject.AddComponent(newType);
         }
+    }
+
+    //In the new template add state, we want to make sure the state gets removed properly if recompiled
+    public void AddClassToInventoryFromState<T>() where T: GameComponent
+    {
+        Type newType = typeof(T);
+        classes.classes.Add(new ClassData(newType.Name, newType.Assembly.Location, newType.Assembly.GetName().ToString()));
+    }
+
+    public void AddClassToInventoryFromType(Type type)
+    {
+        classes.classes.Add(new ClassData(type.Name, type.Assembly.Location, type.Assembly.GetName().ToString()));
     }
 
     public void AddCustomClass(Type type)

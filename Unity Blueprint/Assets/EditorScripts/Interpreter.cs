@@ -71,16 +71,17 @@ public class InterpreterData
     public ConstructorInfo[] constructors;
 
     //Operator Specifics
-    public string operatorStr;
-    public bool isOperator; //If using a valid operator
-    public bool isAssign;
-    public bool isIncrementOrDecrement;
+    public string operatorStr;              //Used for Setting Operator string in Node
+    public bool isOperator;                 //If using a valid operator
+    public bool isAssign;                   //Used for adding a return parameter or not in Node ChangeToOperation
+    public bool isIncrementOrDecrement;     //Used for NodeGUI control in ChangeToOperation
     public bool isBaseClass = false;
 
-    public bool returnBool;
-    public bool isKeyWord;
-    public bool isStatic; //If class name is called directly and var is not used    
-    public string varName; //The target
+    
+    public bool returnBool;     //Used for checking whether an operation returns or not    
+    public bool isKeyWord;      //Used for node context menu     
+    public bool isStatic;       //If class name is called directly and var is not used        
+    public string varName;      //The target variable
     public Var varRef; //pretty sure this isn't being used
 
     public string input;
@@ -88,17 +89,9 @@ public class InterpreterData
     public Assembly selectedAsm;
     public AccessType access; 
     
+    //Used for determining which fields or properties can be get or set
     public enum AccessType { Get, Set, Both };
-    
-    /*
-     Should there be some kind of InterpreterParameter struct which are args afterwards
-     
-     I think there needs to be
-     baseType of the object, which in this case is just selectedType
-     but then we need an index in a split string array to know which possible function/field/property to evaluate
-
-    This probably isn't the wisest to tackle now
-    */
+       
     public InterpreterData() { }
 
     public InterpreterData(Type[] t, MethodInfo[] m, PropertyInfo[] p, FieldInfo[] f, Assembly[] a)
@@ -1639,8 +1632,10 @@ public class Interpreter
         //}
 
         try
-        {            
-             info = typeof(BlueprintComponent).GetMethod(text);                        
+        {
+            //We need something like this in some capacity just as a reference to build entry points off of
+            //If you use GameComponent directly built in functions like print will be treated as an entry point
+            info = typeof(BlueprintComponent).GetMethod(text);                        
         }
 
         catch
@@ -2026,23 +2021,15 @@ public class Interpreter
             foreach(Type t in assembly.GetTypes())
             {
                 //Support references to other custom components?
-                if (t.Name == input && (t.Namespace == "Game" || t.BaseType == typeof(GameComponent)))
+                if (t.Name == input && (t.Namespace == "Game" || t.BaseType == typeof(GameComponent) || t == typeof(GameComponent)))
                 {
+                    Debug.Log($"t.Name in FindType {t.Name} input is {input} t.Namespace {t.Namespace}");
                     type = new Type[] { t };
                     ASM = new Assembly[] { t.Assembly };
+                    found = true;
 
                     if (UseUnlocks)
-                    {
-                        //UnlockStatus status = t.GetCustomAttribute<UnlockStatus>();
-                        //
-                        //if (status != null)
-                        //    if (!status.unlocked)
-                        //    {
-                        //        type = null;
-                        //        ASM = null;
-                        //        return false;
-                        //    }
-
+                    {                       
                         if (!GameUnlockManager.Instance.CheckUnlock(t))
                         {
                             type = null;
@@ -2050,9 +2037,8 @@ public class Interpreter
                             return false;
                         }
                     }
-
-                    else
-                        return true;
+                                        
+                    return true;
                 }
             }
 
@@ -2062,6 +2048,8 @@ public class Interpreter
                 ASM = null;
                 return false;
             }
+
+            return false;
         }
 
 
@@ -2605,6 +2593,55 @@ public class Interpreter
         return "";
     }
 
+    public void GenerateVariableFunctions(Blueprint data, StringBuilder file)
+    {
+        //Generate Get
+        file.Append("public override T GetVariable<T>(string name)\n{\n");
+
+        file.Append("switch(name)\n{\n");
+
+        string quote = @"""";
+
+        foreach (string varName in data.variables.Keys)
+        {
+            //Var v = data.variables[varName];
+            file.Append("case " + quote + varName + quote + ":\n");
+            file.Append("if (" + varName + ".GetType() == typeof(T))\n{\n");
+            file.Append("object obj = " + varName + ";\n");
+            file.Append("return (T)obj;\n");
+            file.Append("}\n"); //Ending bracket for if
+            file.Append("break;\n\n");
+        }
+
+        file.Append("}\n"); //Ending bracket for switch
+
+        //file.Append("return default;\n");
+        file.Append("return default (T);\n");
+
+        file.Append("}\n\n"); //Ending bracket for Get
+
+        //Generate Set
+
+        file.Append("public override void SetVariable(string name, object val)\n{\n");
+
+        file.Append("switch(name)\n{\n");
+
+        foreach(string varName in data.variables.Keys)
+        {
+            Var v = data.variables[varName];
+            file.Append("case " + quote + varName + quote + ":\n");
+            file.Append("if (" + varName + ".GetType() == val.GetType())\n");
+            file.Append(varName + " = (" + v.type.ToString() + ")val;\n\n");
+            file.Append("break;\n\n");
+        }
+
+
+        file.Append("}\n"); //Ending bracket for switch;
+
+        file.Append("}\n\n"); //Ending bracket for Set
+
+    }
+
     public Type FullCompile(Blueprint data, Type baseClass)
     {
         if (data == null)
@@ -2615,7 +2652,7 @@ public class Interpreter
         CompilerParameters parameters = new CompilerParameters();
         parameters.GenerateExecutable = false;
         parameters.GenerateInMemory = false;
-        
+                
         void AddAssembly(string val)
         {
             if (!parameters.ReferencedAssemblies.Contains(val))
@@ -2711,6 +2748,10 @@ public class Interpreter
         }
 
         classFile.Append("\n");
+
+        //Add Auto-Generated Get and set Variable here
+        if (UseGameCompile)
+            GenerateVariableFunctions(data, classFile);
 
         foreach (string entryName in data.entryPoints.Keys)
         {
@@ -3570,6 +3611,7 @@ public class Interpreter
         date = date.Replace(' ', '_');
         date = date.Replace(':', '_');
 
+        StateManager.Instance.RemoveState(data.name);
         ComponentInventory.Instance.RemoveClassFromInventory(data.name);
         ComponentInventory.Instance.RemoveCustomClass(data.name);
         parameters.OutputAssembly = $"{data.name}{date}.dll";
@@ -5331,7 +5373,7 @@ public class Interpreter
 
     //WARNING THIS CANNOT FIND A FUNCTION IF IT IS FROM A BASE CLASS, ONLY IF THE CLASS DIRECTLY CONTAINS IT
     public MethodInfo[] GetFunctionDefinitions(string text, out string typeStr, out string asmPath)
-    {        
+    {                
         string[] raw = text.Split(' ');
         
         if (raw.Length <= 1)

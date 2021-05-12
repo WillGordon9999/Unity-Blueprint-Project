@@ -8,8 +8,8 @@ public class CameraOrbit : MonoBehaviour
     public float distance = 7.0f;
     public float returnSpeed = 0.1f;
     float defaultDistance;
-    public float xSpeed = 120.0f;
-    public float ySpeed = 120.0f;
+    public float xSpeed = 60.0f;
+    public float ySpeed = 60.0f;
     public float padXSpeed = 60.0f;
     public float padYSpeed = 60.0f;
     public float altSpeed = 20.0f;    
@@ -23,12 +23,15 @@ public class CameraOrbit : MonoBehaviour
 
     private Rigidbody rb;
     float x = 0.0f;
-    float y = 0.0f;
+    float y = 0.0f;    
+    [HideInInspector] public GameObject zeroAnchor;
     // Use this for initialization
 
     private void Awake()
     {
-        target = GameObject.Find("Player").transform;
+        target = GameObject.Find("Player").transform;        
+        zeroAnchor = new GameObject("Camera Zero Anchor");
+        zeroAnchor.transform.position = transform.position;        
     }
 
 
@@ -36,7 +39,7 @@ public class CameraOrbit : MonoBehaviour
     {        
         Vector3 angles = transform.eulerAngles;
         x = angles.y;
-        y = angles.x;
+        y = angles.x;        
         defaultDistance = distance;
 
         rb = GetComponent<Rigidbody>();
@@ -67,16 +70,18 @@ public class CameraOrbit : MonoBehaviour
 
             x += mouseX * xSpeed * distance * 0.02f;
             y -= mouseY * ySpeed * distance * 0.02f;
-
-            y = ClampAngle(y, yMinLimit, yMaxLimit);
+            
+            y = ClampAngle(y, yMinLimit, yMaxLimit);            
 
             Quaternion rotation = Quaternion.Euler(y, x, 0);
+            Quaternion zeroRot = Quaternion.Euler(0, x, 0);
 
             float start = Time.time;
             RaycastHit hit;
             if (Physics.Linecast(target.position, transform.position, out hit))
             {
-                if (hit.distance > returnThreshold && hit.collider.tag != "Enemy")
+                //if (hit.distance > returnThreshold && hit.collider.tag != "Enemy")
+                if (hit.distance > returnThreshold)
                     distance -= hit.distance;
             }
            
@@ -100,9 +105,14 @@ public class CameraOrbit : MonoBehaviour
 
             Vector3 negDistance = new Vector3(0.0f, 0.0f, -distance);
             Vector3 position = rotation * negDistance + target.position;
+            Vector3 zeroPos = zeroRot * negDistance + target.position;
 
             transform.rotation = rotation;
             transform.position = position;
+
+            zeroAnchor.transform.rotation = zeroRot;
+            zeroAnchor.transform.position = zeroPos;
+            
             return;
         }
     }

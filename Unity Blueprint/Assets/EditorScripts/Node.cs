@@ -11,18 +11,19 @@ public enum NodeType { Entry_Point, Function, Constructor, Field_Get, Field_Set,
 
 public class Node
 {
-    public Rect rect;
-    public Rect final; //drawing rect
-    Rect fieldRect;
+    public Rect rect;   //Initial rect
+    public Rect final;  //drawing rect
+    //Rect fieldRect;
     
-    public Vector2 initPos;
-    public Vector2 initDimensions;
-    public string title;
-    public bool isDragged;
-    public bool isSelected;
-    public bool isDefined;
-    public bool isEntryPoint;
+    public Vector2 initPos;         //Init position of node
+    public Vector2 initDimensions;  //Init dimensions of node
+    //public string title;
+    public bool isDragged;          //UI Control
+    public bool isSelected;         //UI Control
+    public bool isDefined;          //Is this node a declared operation, field, property, function or constructor
+    public bool isEntryPoint;       //Is this node the entry point to one of the Unity Messages or virtuals
 
+    //Unclear if still used
     public GUIStyle style;
     public GUIStyle defaultNodeStyle;
     public GUIStyle selectedNodeStyle;
@@ -32,8 +33,8 @@ public class Node
     public ConnectionPoint falsePoint;
 
     //Reflection Specific Stuff
-    public string input;
-    public string type; //the type.ToString() of the class containing the method/member
+    public string input;    //The Raw input from the user
+    public string type;     //the type.ToString() of the class containing the method/member
 
     public string assemblyPath;
     public string declaringTypeAsmPath;
@@ -45,26 +46,25 @@ public class Node
     public int index; //The index of this overloaded function definition when GetMethods is called
     public bool isVirtual = false;
     //Generic Specific
-    public bool isGenericFunction;
-    Type[] genericTypes;
-    Assembly[] genericAsms;
-    Parameter genericParameterToSet;
+    public bool isGenericFunction; //Controls Parameter Generation in Constructors and Methods
+    Type[] genericTypes;           //Cache for selecting a type in a generic function
+    Assembly[] genericAsms;        //Cache for corresponding Assemblies
+    Parameter genericParameterToSet;   //The reference to target generic parameter to update upon selection
 
     public Action<Node> OnRemoveNode;
 
-    public MethodInfo currentMethod;    
-    public FieldInfo fieldVar;
-    public PropertyInfo propertyVar;
-    public ConstructorInfo constructorMethod;
+    public MethodInfo currentMethod;    //MethodInfo reference 
+    public FieldInfo fieldVar;          //FieldInfo reference
+    public PropertyInfo propertyVar;    //PropertyInfo reference
+    public ConstructorInfo constructorMethod;   //Constructor Reference
 
     public InterpreterData metaData = null;
 
     public List<Parameter> paramList;
 
     public NodeType nodeType;
-
-    //public ParameterInfo[] passInParams; //THIS IS PURELY FOR LABELLING ENTRY POINT ARGUMENTS FOR INSTANCE OnTriggerEnter
-    public List<string> passInParams;
+     
+    public List<string> passInParams; //THIS IS PURELY FOR LABELLING ENTRY POINT ARGUMENTS FOR INSTANCE OnTriggerEnter
 
     //Operations Core    
     //public object actualTarget;        
@@ -84,9 +84,9 @@ public class Node
     //public enum ReturnVarType { None, Var, Field, Property }; //Deprecated
     //public ReturnVarType retType;
 
-    public bool isSpecial = false; //Basically the target to call on is the BlueprintComponent
+    public bool isSpecial = false; //Implemented in many places but not actively used in a meaningful capacity
     
-    public string returnInput = ""; // The variable to return to if the function returns
+    public string returnInput = ""; // The variable name to return to if the function returns
 
     //public Parameter returnEntry;
           
@@ -101,9 +101,9 @@ public class Node
     public Blueprint blueprint; //With the primary idea being this is used for variable access
 
     //Game Specific 
-    public bool hasCost = false;
+    public bool hasCost = false; //No longer used in a meaningful capacity
 
-    public bool isContextual = false;
+    public bool isContextual = false; //Is the type the node is referencing in the previous node?
 
     //Should these have default values?
     public int ID; //The way to find the correct node to reference at runtime because serialization
@@ -1346,6 +1346,7 @@ public class Node
 
     }
 
+    //Old Version For Cost Functions No longer used
     public void ChangeToGameMethod(object method)
     {
         nodeType = NodeType.Function;        
@@ -1548,6 +1549,7 @@ public class Node
         isDefined = true;
     }
 
+    //Accounts for Generics
     public void ChangeToConstructor(object method)
     {
         nodeType = NodeType.Constructor;

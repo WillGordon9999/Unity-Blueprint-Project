@@ -78,7 +78,7 @@ public class BlueprintComponent : MonoBehaviour
         }
 
         else
-            Debug.LogError("Error: No Variable Found In Set");
+            Debug.LogError("Error: No Variable Found In Set");        
     }
 
     bool CheckVar(string name)

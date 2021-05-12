@@ -26,12 +26,21 @@ public class StateManager : MonoBehaviour
 
     }
     
+    public static StateManager Instance { get { return mInstance; } private set { } }
+    private static StateManager mInstance;
+
     Dictionary<KeyCode, InputListener> inputs;
     Dictionary<string, GameComponent> states;
     GameComponent currentState;
     GameComponent defaultState;
     public List<InputListener> currentInputs;
-    public List<InputListener> defaultInputs;    
+    public List<InputListener> defaultInputs;
+
+    private void Awake()
+    {
+        if (mInstance == null)
+            mInstance = this;
+    }
 
     private void OnEnable()
     {
@@ -55,6 +64,10 @@ public class StateManager : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        //Safety in case active state gets recompiled and reloaded
+        if (currentState == null)
+            currentState = defaultState;
+
         List<InputListener> listeners = null;
 
         if (currentState == defaultState)
@@ -249,4 +262,94 @@ public class StateManager : MonoBehaviour
             currentState.EnterState();
         }
     }
+
+
+    //Warning, if the state in question is recompiled, any other script calling this function 
+    //will have to be recompiled as well to call the correct version   
+    //public void ChangeState<T>() where T : GameComponent
+    //{
+    //    GameComponent comp;
+    //    System.Type type = typeof(T);
+    //
+    //    if (states.TryGetValue(type.Name, out comp))
+    //    {
+    //        if (currentState != null)
+    //        {
+    //            currentState.ExitState();
+    //            currentState.enabled = false;
+    //        }
+    //
+    //        currentInputs.Clear();
+    //        currentState = comp;
+    //        currentState.enabled = true;
+    //        currentState.EnterState();
+    //    }
+    //
+    //    else
+    //    {
+    //        //states[type.Name] = (GameComponent)gameObject.AddComponent(type);
+    //        ComponentInventory.Instance.AddClassToInventoryFromState<T>();
+    //        states[type.Name] = gameObject.AddComponent<T>();
+    //        currentInputs.Clear();
+    //        currentState = states[type.Name];
+    //        currentState.enabled = true;
+    //        currentState.EnterState();
+    //    }
+    //}
+
+    public void ChangeState<T>() where T: GameComponent
+    {
+        System.Type type = ComponentInventory.Instance.SearchClass(typeof(T).Name);
+
+        if (type != null)
+        {
+            if (currentState != null)
+            {
+                currentState.ExitState();
+                currentState.enabled = false;
+            }
+
+            GameComponent comp = (GameComponent)GetComponent(type);
+
+            if (comp != null)
+            {
+                currentInputs.Clear(); //Just in case
+                currentState = comp;
+                currentState.enabled = true;
+                currentState.EnterState();
+            }
+
+            else
+            {
+                ComponentInventory.Instance.AddClassToInventoryFromType(type);
+                currentState = (GameComponent)gameObject.AddComponent(type);
+                currentState.enabled = true;
+                currentState.EnterState();
+            }
+
+        }
+    }
+
+    //For use on Recompile
+    public void RemoveState(string name)
+    {
+        GameComponent comp = (GameComponent)GetComponent(name);
+
+        if (comp != null)
+        {
+            if (comp == currentState)
+                ChangeToDefaultState();
+        }
+
+        //if (states.TryGetValue(name, out comp))
+        //{
+        //    if (comp == currentState)
+        //    {
+        //        ChangeToDefaultState();                
+        //    }
+        //    print("Removing State from StateManager");
+        //    states.Remove(name);
+        //}
+    }
+
 }

@@ -39,7 +39,7 @@ public interface IGameComponent
 public class GameComponent : UnityEngine.MonoBehaviour
 {
     public new Game.Transform transform { get { if (mTransform == null) mTransform = GetComponent<Game.Transform>(); return mTransform; } }
-    private Game.Transform mTransform;
+    private Game.Transform mTransform;    
 
     public bool active = true;
     public void Awake()
@@ -126,12 +126,18 @@ public class GameComponent : UnityEngine.MonoBehaviour
     //Only game types should be passed in
     new public T GetComponent<T>() where T : new()
     {
-        //If it is one of the custom game basic component types
-        if (typeof(T).BaseType != typeof(GameComponent))
+        if (typeof(T).Namespace != "Game" && typeof(T).BaseType != typeof(GameComponent))
+        {
+            UnityEngine.Debug.LogError("GetComponent trying to use class outside of Game namespace");
+            return default;
+        }
+
+        //For getting basic types such as Transform, Rigidbody, Collider etc        
+        if (typeof(T).GetInterface("IGameComponent") != null)
         {
             //Check to make sure the original component version exists
             UnityEngine.Component comp = base.GetComponent(typeof(T).BaseType);
-
+            
             if (comp != null)
             {
                 //So that we can get original game components and custom components without having to make custom components have IGameComponent stuff
@@ -142,13 +148,45 @@ public class GameComponent : UnityEngine.MonoBehaviour
                 return default;
         }
 
-        if (typeof(T).Namespace != "Game" && typeof(T).BaseType != typeof(GameComponent))
+        //Major Concern over this for recompile
+        //if (typeof(T).BaseType == typeof(GameComponent))
+        //{
+        //    //GetGameComponent<T>();
+        //    System.Type type = ComponentInventory.Instance.SearchClass(typeof(T).Name);
+        //    
+        //    if (type != null)
+        //    {
+        //        GameComponent gameComp = (GameComponent)base.GetComponent(type);
+        //        T comp = base.GetComponent<T>();
+        //        object check1 = gameComp;
+        //        object check2 = comp;
+        //
+        //        if (check1 == check2)
+        //            return comp;
+        //        else
+        //            return (T)check1;
+        //
+        //    }
+        //}
+      
+        return base.GetComponent<T>();
+    }
+
+    public GameComponent GetGameComponent(string name) 
+    {
+        System.Type type = ComponentInventory.Instance.SearchClass(name);
+
+        if (type != null)
         {
-            UnityEngine.Debug.LogError("GetComponent trying to use class outside of Game namespace");
-            return default;
+            GameComponent check = (GameComponent)base.GetComponent(type);
+            //T comp = base.GetComponent<T>();
+            //
+            //if (check == comp)
+            //    return comp;
+            return check;
         }
 
-        return base.GetComponent<T>();
+        return null;
     }
 
     private T GetNewGameComponent<T>(UnityEngine.Component comp) where T : new()
@@ -205,14 +243,30 @@ public class GameComponent : UnityEngine.MonoBehaviour
         base.GetComponent<StateManager>().ChangeState(name);
     }
 
+    public void ChangeState<T>() where T: GameComponent
+    {
+        base.GetComponent<StateManager>().ChangeState<T>();
+    }
+
     public void ChangeToDefaultState()
     {
         base.GetComponent<StateManager>().ChangeToDefaultState();
     }
 
-    public void print(string message)
+    new public void print(object message)
     {
-        UnityEngine.Debug.Log(message);
+        UnityEngine.Debug.Log(message.ToString());
+    }
+
+    //The Decoupled Safe Way to set variables from other classes
+    public virtual void SetVariable(string name, object val) 
+    {
+      
+    }
+    
+    public virtual T GetVariable<T>(string name)
+    {
+        return default;
     }
 
 }
