@@ -1,5 +1,4 @@
 ﻿using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 //using Rewired;
 
@@ -11,7 +10,8 @@ namespace Game
         public bool movementEnabled = true;
         public bool jumpEnabled = true;
         public bool fallCheckEnabled = true;
-
+        public bool useUpdate = false;
+        
         //So it is accessible from the inspector but protected by game-friendly functions
         [SerializeField] float moveSpeed = 10.0f;
         [SerializeField] float rotSpeed = 0.15f;
@@ -24,6 +24,15 @@ namespace Game
         [Header("Ground Collision Checking")]
         [SerializeField] float radius = 0.5f;
         [SerializeField] float distance = 3.0f;
+        [SerializeField] float exitDist = 1.0f;
+        RaycastHit groundHit;
+
+        [Header("Animation Smoothing")]
+        [SerializeField] [Range(0, 1)] float animSmoothTimeX = 0.2f;
+        [SerializeField] [Range(0, 1)] float animVerticalTime = 0.2f;
+        [SerializeField] [Range(0, 1)] float animStartTime = 0.3f;
+        [SerializeField] [Range(0, 1)] float animStopTime = 0.15f;
+        [SerializeField] [Range(0, 1)] float allowPlayerRotation = 0.1f;
 
         const float norm = 0.707f;
         new GameObject camera;
@@ -55,20 +64,35 @@ namespace Game
             maxJumpCount = jumpCount;
             initMaxJumpCount = maxJumpCount;
 
-            cameraAnchor = new GameObject("Camera Anchor");
-            MoveReference move = cameraAnchor.AddComponent<MoveReference>(); //I don't think this is really needed anymore
-            move.cameraTarget = camera.transform;
-            anim = transform.GetChild(0).GetComponent<Animator>();
+            groundHit = new RaycastHit();
+            //cameraAnchor = new GameObject("Camera Anchor");
+            //MoveReference move = cameraAnchor.AddComponent<MoveReference>(); //I don't think this is really needed anymore
+            //move.cameraTarget = camera.transform;
+            if (anim == null)
+            {
+                Animator check;
+
+                if (transform.TryGetComponent<Animator>(out check))                
+                    anim = check;
+                else
+                {
+                    anim = transform.GetComponentInChildren<Animator>();                    
+                }
+            }
 
         }
         
         // Update is called once per frame
         void Update()
         {
-            //FallCheck();
-            //MoveOnInput();
-            //JumpOnInput();
-            //
+            if (useUpdate)
+            {
+
+                FallCheck();
+                MoveOnInput();
+                JumpOnInput();
+            }
+            
             //if (Input.GetKeyDown(KeyCode.F))           
             //{
             //    //Teleport(transform.TransformPoint(0, 0, 5));
@@ -81,22 +105,31 @@ namespace Game
 
         //Controlling Foot IK should be handled here in the Collision Callbacks
         private void OnCollisionEnter(Collision collision)
-        {            
-            RaycastHit hit;
-            if (Physics.SphereCast(transform.position, radius, Vector3.down, out hit, distance))
-            {
-                if (hit.collider != null)
-                {
-                    if (hit.collider.gameObject == gameObject)
-                        Debug.LogWarning("Ground Collision Check Colliding with Player");
+        {
+            //if (GroundCheck())
+            //{
+            //    jumpCount = maxJumpCount;
+            //}
 
-                    jumpCount = maxJumpCount;
-                    isGrounded = true;
-                    anim.SetBool("Grounded", true);
-                    Player.Instance.SetFootIK(true);
-                    groundObj = hit.collider.gameObject;
-                }
-            }
+            //RaycastHit hit;
+                       
+            //if (Physics.SphereCast(transform.position, radius, Vector3.down, out hit, distance))
+            //{
+            //    
+            //    if (hit.collider != null)
+            //    {                    
+            //        if (hit.collider.gameObject == gameObject)
+            //            Debug.LogWarning("Ground Collision Check Colliding with Player");
+            //
+            //        jumpCount = maxJumpCount;
+            //        isGrounded = true;                    
+            //        anim.SetBool("Grounded", true);
+            //        anim.SetBool("IsGrounded", true);
+            //        anim.SetFloat("LandingVelocity", anim.GetFloat("VerticalVelocity"));
+            //        //Player.Instance.SetFootIK(true);
+            //        groundObj = hit.collider.gameObject;
+            //    }
+            //}
 
         }
 
@@ -104,18 +137,53 @@ namespace Game
         {           
             if (groundObj == collision.gameObject)
             {
-                isGrounded = false;
-                anim.SetBool("Grounded", false);
-                Player.Instance.SetFootIK(false);
+                //Vector3 close = collision.collider.ClosestPointOnBounds(transform.position);
+                //
+                //RaycastHit hit;
+                ////Physics.SphereCast(Player.Instance.GroundCheck.position, radius, Vector3.down, out hit, exitDist);
+                //Physics.SphereCast(transform.position, radius, Vector3.down, out hit, exitDist);
+                //
+                //Debug.DrawLine(transform.position, transform.position + Vector3.down * exitDist, Color.red);
+                //
+                //if (hit.collider != null)
+                //{
+                //    print($"exit {hit.collider.gameObject.name}");
+                //}
+                //
+                //else
+                //{
+                //    print("Sucessful ground exit");
+                //    isGrounded = false;
+                //    anim.SetBool("Grounded", false);
+                //    anim.SetBool("IsGrounded", false);
+                //    //Player.Instance.SetFootIK(false);
+                //}                
             }
 
         }
 
-        private void OnAnimatorIK(int layerIndex)
-        {
-            print("Inside OnAnimatorIK");
-        }
+        bool GroundCheck()
+        {            
+            //if (Physics.SphereCast(transform.position, radius, Vector3.down, out groundHit, distance))
+            if (Physics.Raycast(transform.position, Vector3.down, out groundHit, distance))
+            {
+                //print($"Ground Check {groundHit.collider.gameObject.name}");
+                isGrounded = true;
+                jumpCount = maxJumpCount;
+                anim.SetBool("Grounded", true);
+                anim.SetBool("IsGrounded", true);
+                anim.SetFloat("LandingVelocity", anim.GetFloat("VerticalVelocity"));
+                return true;
+            }
 
+            else
+            {
+                isGrounded = false;
+                anim.SetBool("IsGrounded", false);
+                return false;
+            }
+        }
+      
         //Returns true if input is not zero
         public bool MoveOnInput()
         {
@@ -126,14 +194,31 @@ namespace Game
             {
                 moveInput = x != 0.0f || y != 0.0f;
                 anim.SetBool("Move", moveInput);
+                anim.SetFloat("InputHorizontal", x, animSmoothTimeX, Time.deltaTime * 2f);
+                anim.SetFloat("InputVertical", y, animVerticalTime, Time.deltaTime * 2f);
+                float mag = new Vector2(x, y).magnitude;
+
+                //Pretty Animation Smoothing stuff
+                if (mag > allowPlayerRotation)
+                    anim.SetFloat("InputMagnitude", mag, animStartTime, Time.deltaTime);
+                else
+                    anim.SetFloat("InputMagnitude", mag, animStopTime, Time.deltaTime);
 
                 if (moveInput)
                 {
-                    //Vector3 dir = camera.GetComponent<CameraOrbit>().zeroAnchor.transform.TransformDirection(new Vector3(x, 0.0f, y));
-                    Vector3 dir = cameraAnchor.transform.TransformDirection(new Vector3(x, 0.0f, y));
+                    Vector3 dir = camera.GetComponent<CameraOrbit>().zeroAnchor.transform.TransformDirection(new Vector3(x, 0.0f, y));
+                    //Vector3 dir = cameraAnchor.transform.TransformDirection(new Vector3(x, 0.0f, y));
                     transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(new Vector3(dir.x, 0, dir.z)), rotSpeed);
 
-                    Vector3 move = dir * norm * moveSpeed;
+                    float dotVal = 1.0f; //Initially
+
+                    if (isGrounded)
+                    {
+                        Vector3 cross = Vector3.Cross(groundHit.normal, -transform.right);
+                        dotVal = Vector3.Dot(dir.normalized, cross.normalized);
+                    }
+
+                    Vector3 move = (dir * norm * moveSpeed) * dotVal;
                     rb.velocity = new Vector3(move.x, rb.velocity.y, move.z);
                     return true;
                 }
@@ -148,13 +233,14 @@ namespace Game
             if (jumpEnabled)
             {
                 if (jumpCount > 0)
-                {
-                    if (Input.GetButtonDown("Jump"))
-                    {
+                {                    
+                    if (UnityEngine.Input.GetButtonDown("Jump"))
+                    {                        
                         rb.AddForce(0.0f, jumpForce, 0.0f);                        
                         jumpCount--;
                         anim.SetTrigger("Jump");                        
                         anim.SetFloat("Y Speed", rb.velocity.y);
+                        anim.SetFloat("VerticalVelocity", rb.velocity.y);
                         return true;
                     }
                 }
@@ -173,23 +259,27 @@ namespace Game
                     jumpCount--;
                     anim.SetTrigger("Jump");                    
                     anim.SetFloat("Y Speed", rb.velocity.y);
+                    anim.SetFloat("VerticalVelocity", rb.velocity.y);
                 }
             }
         }
 
-        public bool FallCheck()
+        public void FallCheck()
         {
             if (fallCheckEnabled)
             {
                 anim.SetFloat("Y Speed", rb.velocity.y);
+                anim.SetFloat("VerticalVelocity", rb.velocity.y);
 
-                if (!isGrounded && rb.velocity.y < -1.0f)
-                {                   
-                    return true;
-                }                
+                GroundCheck();
+
+                //if (!isGrounded && rb.velocity.y < -1.0f)
+                //{                   
+                //    return true;
+                //}                
             }
-
-            return false;
+          
+            //return false
         }
 
         //BEGIN CUSTOM FUNCTIONS 

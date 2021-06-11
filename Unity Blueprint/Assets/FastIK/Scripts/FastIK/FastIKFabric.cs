@@ -39,6 +39,11 @@ namespace DitzelGames.FastIK
         public float SnapBackStrength = 1f;
 
 
+        //WILL EDIT
+        public bool manualSet = false;
+        Vector3 targetPos;
+        Quaternion targetRot;
+
         protected float[] BonesLength; //Target to Origin
         protected float CompleteLength;
         protected Transform[] Bones;
@@ -187,11 +192,29 @@ namespace DitzelGames.FastIK
                 }
             }
 
-            //set position & rotation
+            targetPos = targetPosition;
+            targetRot = targetRotation;
+
+            if (manualSet == false)
+            {
+                //set position & rotation
+                for (int i = 0; i < Positions.Length; i++)
+                {
+                    if (i == Positions.Length - 1)
+                        SetRotationRootSpace(Bones[i], Quaternion.Inverse(targetRotation) * StartRotationTarget * Quaternion.Inverse(StartRotationBone[i]));
+                    else
+                        SetRotationRootSpace(Bones[i], Quaternion.FromToRotation(StartDirectionSucc[i], Positions[i + 1] - Positions[i]) * Quaternion.Inverse(StartRotationBone[i]));
+                    SetPositionRootSpace(Bones[i], Positions[i]);
+                }
+            }
+        }
+
+        public void ManualApplyCalculations()
+        {
             for (int i = 0; i < Positions.Length; i++)
             {
                 if (i == Positions.Length - 1)
-                    SetRotationRootSpace(Bones[i], Quaternion.Inverse(targetRotation) * StartRotationTarget * Quaternion.Inverse(StartRotationBone[i]));
+                    SetRotationRootSpace(Bones[i], Quaternion.Inverse(targetRot) * StartRotationTarget * Quaternion.Inverse(StartRotationBone[i]));
                 else
                     SetRotationRootSpace(Bones[i], Quaternion.FromToRotation(StartDirectionSucc[i], Positions[i + 1] - Positions[i]) * Quaternion.Inverse(StartRotationBone[i]));
                 SetPositionRootSpace(Bones[i], Positions[i]);

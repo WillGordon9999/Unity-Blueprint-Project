@@ -11,6 +11,7 @@ public class Player : MonoBehaviour
     public Transform RightFootTarget;
     public Transform LeftHandTarget;
     public Transform RightHandTarget;
+    public Transform GroundCheck;
     public DitzelGames.FastIK.FastIKFabric LeftFootIK;
     public DitzelGames.FastIK.FastIKFabric RightFootIK;
     public DitzelGames.FastIK.FastIKFabric LeftHandIK;
@@ -27,13 +28,19 @@ public class Player : MonoBehaviour
     
     public void SetFootIK(bool val)
     {
-        LeftFootIK.enabled = val;
-        RightFootIK.enabled = val;
+        if (LeftFootIK != null)
+            LeftFootIK.enabled = val;
+
+        if (RightFootIK != null)
+            RightFootIK.enabled = val;
     }
 
     public void SetHandIK(bool val)
     {
-        RightHandIK.enabled = val;
-        LeftHandIK.enabled = val;
+        if (RightHandIK != null)
+            RightHandIK.enabled = val;
+
+        if (LeftHandIK != null)
+            LeftHandIK.enabled = val;
     }
 }

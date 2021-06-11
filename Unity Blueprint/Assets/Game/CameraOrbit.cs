@@ -29,7 +29,9 @@ public class CameraOrbit : MonoBehaviour
 
     private void Awake()
     {
-        target = GameObject.Find("Player").transform;        
+        if (target == null)
+            target = GameObject.Find("Player").transform;        
+
         zeroAnchor = new GameObject("Camera Zero Anchor");
         zeroAnchor.transform.position = transform.position;        
     }

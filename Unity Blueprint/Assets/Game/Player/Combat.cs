@@ -12,7 +12,18 @@ namespace Game
         // Start is called before the first frame update
         void Start()
         {
-            anim = transform.GetChild(0).GetComponent<Animator>();
+            //anim = transform.GetChild(0).GetComponent<Animator>();
+            if (anim == null)
+            {
+                Animator check;
+
+                if (transform.TryGetComponent<Animator>(out check))
+                    anim = check;
+                else
+                {
+                    anim = transform.GetComponentInChildren<Animator>();
+                }
+            }
         }
 
         // Update is called once per frame

@@ -10,6 +10,7 @@ public class PlayerStateMachine : MonoBehaviour
     [HideInInspector] public Game.Movement move;
     [HideInInspector] public Rigidbody rb;
     [HideInInspector] public Game.Combat combat;
+    [HideInInspector] public WeaponInventory weaponInventory;
 
     public static PlayerStateMachine Instance { get { return mInstance; } private set { } }
     private static PlayerStateMachine mInstance;
@@ -20,10 +21,23 @@ public class PlayerStateMachine : MonoBehaviour
             mInstance = this;
 
         stateMachine = new StateMachine<PlayerStateMachine>(this);
-        animator = transform.GetChild(0).GetComponent<Animator>();        
+
+        if (animator == null)
+        {
+            Animator check;
+
+            if (transform.TryGetComponent<Animator>(out check))
+                animator = check;
+            else
+            {
+                animator = transform.GetComponentInChildren<Animator>();
+            }
+        }
+        
         move = GetComponent<Game.Movement>();
         rb = GetComponent<Rigidbody>();
         combat = GetComponent<Game.Combat>();
+        weaponInventory = GetComponent<WeaponInventory>();
     }
 
     // Start is called before the first frame update
