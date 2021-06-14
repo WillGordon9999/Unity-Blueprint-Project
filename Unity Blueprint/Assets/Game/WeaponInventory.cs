@@ -24,8 +24,8 @@ public class WeaponInventory : MonoBehaviour
     public enum WeaponSlot { Right, Left }
     public enum WeaponEquipAnimation { LowFront, LowBack, High }
     public List<WeaponItem> weaponItems;
-    public List<Invector.vWeaponHolder> initHolders;
-    public Dictionary<string, Invector.vWeaponHolder> holders;
+    //public List<Invector.vWeaponHolder> initHolders;
+    //public Dictionary<string, Invector.vWeaponHolder> holders;
     //public Dictionary<string, List<Invector.vWeaponHolder>> holders;
 
     public GameObject rightHandWeapon;
@@ -48,16 +48,16 @@ public class WeaponInventory : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-        initHolders.AddRange(GetComponentsInChildren<Invector.vWeaponHolder>());
-        holders = new Dictionary<string, Invector.vWeaponHolder>();
+        //initHolders.AddRange(GetComponentsInChildren<Invector.vWeaponHolder>());
+        //holders = new Dictionary<string, Invector.vWeaponHolder>();
         //holders = new Dictionary<string, List<Invector.vWeaponHolder>>();
         anim = GetComponent<Animator>();
 
-        foreach(Invector.vWeaponHolder hold in initHolders)
-        {
-            //WARNING WILL ONLY HAVE ONE SLOT FOR EACH TYPE OF WEAPON
-            holders.Add(hold.gameObject.name, hold);
-        }
+        //foreach(Invector.vWeaponHolder hold in initHolders)
+        //{
+        //    //WARNING WILL ONLY HAVE ONE SLOT FOR EACH TYPE OF WEAPON
+        //    holders.Add(hold.gameObject.name, hold);
+        //}
 
         //The problem with the list is how do you deduce where to put what weapon?
         //foreach(Invector.vWeaponHolder hold in initHolders)
@@ -213,37 +213,37 @@ public class WeaponInventory : MonoBehaviour
 
     public void OldEquipWeapon(WeaponSlot slot, WeaponItem item)
     {
-        WeaponData data = item.weaponPrefab.GetComponent<WeaponData>();
-
-        if (data != null)
-        {
-            Invector.vWeaponHolder hold;
-
-            string str = $"{slot.ToString()}Holder@{data.weaponType.ToString()}";
-
-            //print("Weapon Holder String: " + str);
-
-            //FIX THIS
-
-            if (holders.TryGetValue(str, out hold))
-            {
-                hold.SetActiveHolder(true);
-                hold.SetActiveWeapon(true);
-            }
-
-            //data.Init();
-            //int i = Random.Range(0, initHolders.Count);
-            ////11 is the GreatSword
-            //initHolders[i].weaponObject.GetComponent<MeshFilter>().mesh = data.weaponMesh.sharedMesh;
-            //initHolders[i].weaponObject.GetComponent<MeshRenderer>().materials = data.weaponMats;
-            //initHolders[i].holderObject.GetComponent<MeshFilter>().mesh = data.holderMesh.sharedMesh;
-            //initHolders[i].holderObject.GetComponent<MeshRenderer>().materials = data.holderMats;
-            //initHolders[i].SetActiveHolder(true);
-            //initHolders[i].SetActiveWeapon(true);
-        }
-
-        else
-            Debug.LogError($"WeaponInventory Equip Weapon: {item.weaponPrefab.name} does not have a WeaponData component!");
+        //WeaponData data = item.weaponPrefab.GetComponent<WeaponData>();
+        //
+        //if (data != null)
+        //{
+        //    Invector.vWeaponHolder hold;
+        //
+        //    string str = $"{slot.ToString()}Holder@{data.weaponType.ToString()}";
+        //
+        //    //print("Weapon Holder String: " + str);
+        //
+        //    //FIX THIS
+        //
+        //    if (holders.TryGetValue(str, out hold))
+        //    {
+        //        hold.SetActiveHolder(true);
+        //        hold.SetActiveWeapon(true);
+        //    }
+        //
+        //    //data.Init();
+        //    //int i = Random.Range(0, initHolders.Count);
+        //    ////11 is the GreatSword
+        //    //initHolders[i].weaponObject.GetComponent<MeshFilter>().mesh = data.weaponMesh.sharedMesh;
+        //    //initHolders[i].weaponObject.GetComponent<MeshRenderer>().materials = data.weaponMats;
+        //    //initHolders[i].holderObject.GetComponent<MeshFilter>().mesh = data.holderMesh.sharedMesh;
+        //    //initHolders[i].holderObject.GetComponent<MeshRenderer>().materials = data.holderMats;
+        //    //initHolders[i].SetActiveHolder(true);
+        //    //initHolders[i].SetActiveWeapon(true);
+        //}
+        //
+        //else
+        //    Debug.LogError($"WeaponInventory Equip Weapon: {item.weaponPrefab.name} does not have a WeaponData component!");
     }
 
     public void DrawWeaponScroll(WeaponSlot slot)

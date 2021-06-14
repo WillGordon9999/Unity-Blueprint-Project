@@ -124,8 +124,7 @@ public class IKControl : MonoBehaviour
         Vector3 newPelvisPos = animator.bodyPosition + Vector3.up * totalOffset;
 
         newPelvisPos.y = Mathf.Lerp(lastPelvisPosY, newPelvisPos.y, pelvisYSpeed);
-
-        //I made an edit
+        
         //Original
         animator.bodyPosition = newPelvisPos;
         lastPelvisPosY = animator.bodyPosition.y;       

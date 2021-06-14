@@ -49,16 +49,7 @@ public class ManaManager : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-        StartCoroutine("Regen");
-        //GameObject obj = new GameObject("Child");
-        ////obj.transform.parent = transform;        
-        //gameTransform = new Game.Transform();
-        //gameTransform.SetComponent(transform);
-        //
-        //Game.Transform objTrans = new Game.Transform();
-        //objTrans.SetComponent(obj.transform);
-        //objTrans.SetParent(gameTransform);
-        //Game.Transform child = gameTransform.Find("Child");
+        StartCoroutine("Regen");       
     }
 
     private void OnGUI()
@@ -173,10 +164,6 @@ public class ManaManager : MonoBehaviour
 
     // Update is called once per frame
     void Update()
-    {
-        //if (Input.GetKeyDown(KeyCode.E))
-        //{
-        //    Translate(translation);
-        //}
+    {     
     }
 }

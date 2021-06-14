@@ -17,7 +17,8 @@ public class MainState : State<PlayerStateMachine>
 
         bool shift = Input.GetKey(KeyCode.LeftShift);
         WeaponInventory.WeaponSlot slot = shift ? WeaponInventory.WeaponSlot.Left : WeaponInventory.WeaponSlot.Right;
-      
+
+        Debug.Log("HI");
         owner.weaponInventory.SetScroll();
 
         if (Input.GetKeyDown(KeyCode.E))
