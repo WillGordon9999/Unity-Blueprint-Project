@@ -11,14 +11,13 @@ public class MainState : State<PlayerStateMachine>
     public override void UpdateState(PlayerStateMachine owner)
     {
         owner.move.FallCheck();
-        owner.move.MoveOnInput();
         owner.move.JumpOnInput();
+        owner.move.MoveOnInput();
         owner.combat.AttackOnInput(100.0f);
 
         bool shift = Input.GetKey(KeyCode.LeftShift);
         WeaponInventory.WeaponSlot slot = shift ? WeaponInventory.WeaponSlot.Left : WeaponInventory.WeaponSlot.Right;
-
-        Debug.Log("HI");
+        
         owner.weaponInventory.SetScroll();
 
         if (Input.GetKeyDown(KeyCode.E))

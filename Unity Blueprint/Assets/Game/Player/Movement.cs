@@ -18,14 +18,16 @@ namespace Game
         [SerializeField] int jumpCount = 1;
         [SerializeField] float jumpForce = 300.0f;        
         internal bool isGrounded;
+        internal bool jump; //The input specifically
         int maxJumpCount;
         int initMaxJumpCount;
 
         [Header("Ground Collision Checking")]
         [SerializeField] float radius = 0.5f;
         [SerializeField] float distance = 3.0f;
-        [SerializeField] float exitDist = 1.0f;
+        [SerializeField] float jumpDist = 0.1f;
         RaycastHit groundHit;
+        float origDist;
 
         [Header("Animation Smoothing")]
         [SerializeField] [Range(0, 1)] float animSmoothTimeX = 0.2f;
@@ -33,6 +35,11 @@ namespace Game
         [SerializeField] [Range(0, 1)] float animStartTime = 0.3f;
         [SerializeField] [Range(0, 1)] float animStopTime = 0.15f;
         [SerializeField] [Range(0, 1)] float allowPlayerRotation = 0.1f;
+
+        [Header("Debug")]
+        public Vector3 moveDebug;
+        public Vector3 groundNormal;
+        public bool useNormal;
 
         const float norm = 0.707f;
         new GameObject camera;
@@ -63,7 +70,7 @@ namespace Game
             initMoveSpeed = moveSpeed;
             maxJumpCount = jumpCount;
             initMaxJumpCount = maxJumpCount;
-
+            origDist = distance;
             groundHit = new RaycastHit();
             //cameraAnchor = new GameObject("Camera Anchor");
             //MoveReference move = cameraAnchor.AddComponent<MoveReference>(); //I don't think this is really needed anymore
@@ -87,10 +94,9 @@ namespace Game
         {
             if (useUpdate)
             {
-
                 FallCheck();
-                MoveOnInput();
                 JumpOnInput();
+                MoveOnInput();
             }
             
             //if (Input.GetKeyDown(KeyCode.F))           
@@ -163,8 +169,10 @@ namespace Game
         }
 
         bool GroundCheck()
-        {            
+        {
             //if (Physics.SphereCast(transform.position, radius, Vector3.down, out groundHit, distance))
+            Debug.DrawLine(transform.position, transform.position + Vector3.down * distance, Color.red);
+
             if (Physics.Raycast(transform.position, Vector3.down, out groundHit, distance))
             {
                 //print($"Ground Check {groundHit.collider.gameObject.name}");
@@ -204,30 +212,73 @@ namespace Game
                 else
                     anim.SetFloat("InputMagnitude", mag, animStopTime, Time.deltaTime);
 
+                groundNormal = groundHit.normal;
+
                 if (moveInput)
                 {
-                    Vector3 dir = camera.GetComponent<CameraOrbit>().zeroAnchor.transform.TransformDirection(new Vector3(x, 0.0f, y));
-                    //Vector3 dir = cameraAnchor.transform.TransformDirection(new Vector3(x, 0.0f, y));
+                    Vector3 dir = camera.GetComponent<CameraOrbit>().zeroAnchor.transform.TransformDirection(new Vector3(x, 0.0f, y));                    
                     transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(new Vector3(dir.x, 0, dir.z)), rotSpeed);
 
-                    float dotVal = 1.0f; //Initially
+                    if (dir.magnitude > 1) dir.Normalize();
+                    //Vector3 move = (dir * moveSpeed);
+                    Vector3 move = dir;
+
+                    float dotVal = 1.0f;
 
                     if (isGrounded)
                     {
+                        move = Vector3.ProjectOnPlane(move, groundHit.normal);
+
                         Vector3 cross = Vector3.Cross(groundHit.normal, -transform.right);
-                        dotVal = Vector3.Dot(dir.normalized, cross.normalized);
+                        dotVal = Vector3.Dot(move, cross.normalized);
+                        //dotVal = Vector3.Dot(dir, cross.normalized);
+
+                        move = move * moveSpeed * dotVal;
+
+                        moveDebug = move;
+                        rb.velocity = move;
+                        //rb.velocity = new Vector3(move.x, rb.velocity.y + move.y, move.z);
                     }
 
-                    Vector3 move = (dir * norm * moveSpeed) * dotVal;
-                    rb.velocity = new Vector3(move.x, rb.velocity.y, move.z);
+                    else
+                    {
+                        move *= moveSpeed;
+                        move = new Vector3(move.x, rb.velocity.y, move.z);
+                        moveDebug = move;
+                        rb.velocity = move;
+                    }
+
                     return true;
+
+                    /*
+                    float dotVal = 1.0f; //Initially
+
+                    if (dir.magnitude > 1) dir.Normalize();
+                    Vector3 move = (dir * moveSpeed);
+
+                    if (isGrounded)
+                    {
+                        //Vector3 cross = Vector3.Cross(groundHit.normal, -transform.right);
+                        //dotVal = Vector3.Dot(dir.normalized, cross.normalized);
+                        dir = Vector3.ProjectOnPlane(dir, groundHit.normal);
+                    }
+
+                    //Vector3 move = (dir * norm * moveSpeed) * dotVal;
+                    //Vector3 move = (dir * norm * moveSpeed);
+                    moveDebug = move;
+
+                    if (!useNormal)
+                        rb.velocity = new Vector3(move.x, rb.velocity.y, move.z);
+                    else
+                        rb.velocity = new Vector3(move.x, move.y, move.z);
+ 
+                    */
                 }
             }
 
             return false;
         }
-        
-        //I THINK IT WOULD BE BEST TO SET UP THE MOVEMENT SPECIFIC ANIMATOR PARAMETERS TO NOT USE TRIGGERS IF POSSIBLE
+                
         public bool JumpOnInput()
         {
             if (jumpEnabled)
@@ -236,11 +287,12 @@ namespace Game
                 {                    
                     if (UnityEngine.Input.GetButtonDown("Jump"))
                     {                        
-                        rb.AddForce(0.0f, jumpForce, 0.0f);                        
+                        rb.AddForce(0.0f, jumpForce, 0.0f);
+                        distance = jumpDist;
                         jumpCount--;
                         anim.SetTrigger("Jump");                        
                         anim.SetFloat("Y Speed", rb.velocity.y);
-                        anim.SetFloat("VerticalVelocity", rb.velocity.y);
+                        anim.SetFloat("VerticalVelocity", rb.velocity.y);                        
                         return true;
                     }
                 }
@@ -257,6 +309,7 @@ namespace Game
                 {
                     rb.AddForce(0.0f, jumpForce, 0.0f);
                     jumpCount--;
+                    distance = jumpDist;
                     anim.SetTrigger("Jump");                    
                     anim.SetFloat("Y Speed", rb.velocity.y);
                     anim.SetFloat("VerticalVelocity", rb.velocity.y);
@@ -270,6 +323,12 @@ namespace Game
             {
                 anim.SetFloat("Y Speed", rb.velocity.y);
                 anim.SetFloat("VerticalVelocity", rb.velocity.y);
+
+                if (distance != origDist)
+                {
+                    if (rb.velocity.y < 0)
+                        distance = origDist;
+                }
 
                 GroundCheck();
 

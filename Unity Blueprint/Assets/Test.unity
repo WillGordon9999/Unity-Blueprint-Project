@@ -4037,7 +4037,6 @@ GameObject:
   - component: {fileID: 1469389780}
   - component: {fileID: 1469389779}
   - component: {fileID: 1469389777}
-  - component: {fileID: 1469389776}
   m_Layer: 8
   m_Name: Player
   m_TagString: Untagged
@@ -4119,12 +4118,15 @@ MonoBehaviour:
   jumpForce: 400
   radius: 0.5
   distance: 1.5
-  exitDist: 0.3
+  jumpDist: 0.1
   animSmoothTimeX: 0.2
   animVerticalTime: 0.2
   animStartTime: 0.1
   animStopTime: 0.15
   allowPlayerRotation: 0.1
+  moveDebug: {x: 0, y: 0, z: 0}
+  groundNormal: {x: 0, y: 0, z: 0}
+  useNormal: 0
 --- !u!54 &1469389774
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -4155,25 +4157,6 @@ CapsuleCollider:
   m_Height: 1.8
   m_Direction: 1
   m_Center: {x: 0, y: 0, z: 0}
---- !u!320 &1469389776
-PlayableDirector:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1469389769}
-  m_Enabled: 1
-  serializedVersion: 3
-  m_PlayableAsset: {fileID: 11400000, guid: 883113a7b31158d49919247bd63ebd38, type: 2}
-  m_InitialState: 1
-  m_WrapMode: 2
-  m_DirectorUpdateMode: 1
-  m_InitialTime: 0
-  m_SceneBindings:
-  - key: {fileID: 4240465997320393417, guid: 883113a7b31158d49919247bd63ebd38, type: 2}
-    value: {fileID: 1469389779}
-  m_ExposedReferences:
-    m_References: []
 --- !u!114 &1469389777
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4187,24 +4170,36 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   ikActive: 1
-  rightFootWeight: 0.1
+  rightFootWeight: 1
   rightFootRotWeight: 0
-  leftFootWeight: 0.1
+  leftFootWeight: 1
   leftFootRotWeight: 0
   rightHandObj: {fileID: 0}
   lookObj: {fileID: 0}
-  heightFromGroundRaycast: 1.14
-  raycastDownDist: 1.5
+  newPelvisPos: {x: 0, y: 0, z: 0}
+  animBodyPos: {x: 0, y: 0, z: 0}
+  pelvisYDiff: 0
+  lastPelvisPosY: 0
+  lastRightFootPosY: 0
+  lastLeftFootPosY: 0
+  rightFootPos: {x: 0, y: 0, z: 0}
+  leftFootPos: {x: 0, y: 0, z: 0}
+  ikRightFootPos: {x: 0, y: 0, z: 0}
+  ikLeftFootPos: {x: 0, y: 0, z: 0}
+  heightFromGroundRaycast: 0.15
+  raycastDownDist: 0.899
   environmentLayer:
     serializedVersion: 2
     m_Bits: 1
   pelvisOffset: 1
   pelvisYSpeed: 0.28
+  usePelvisMove: 0
   ikFeetPositionSpeed: 0.5
   leftFootAnimVariableName: LeftFootCurve
   rightFootAnimVariableName: RightFootCurve
   useProIkFeature: 1
   showSolverDebug: 1
+  showDebugObjects: 0
 --- !u!4 &1469389778
 Transform:
   m_ObjectHideFlags: 0
@@ -4304,7 +4299,6 @@ MonoBehaviour:
       type: 3}
     weaponHolder: {fileID: 0}
     slot: 0
-  initHolders: []
   rightHandWeapon: {fileID: 678371758}
   rightHandShield: {fileID: 1940709326}
   leftHandWeapon: {fileID: 941596388}

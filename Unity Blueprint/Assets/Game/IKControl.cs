@@ -19,16 +19,27 @@ public class IKControl : MonoBehaviour
     
     Game.Movement move;
 
-    //FilmStorm Stuff - Source: https://www.youtube.com/watch?v=MonxKdgxi2w
+    //FilmStorm Stuff - Source: https://www.youtube.com/watch?v=MonxKdgxi2w    
+  
+    //[Header("Debug")]
+    Vector3 newPelvisPos;
+    Vector3 animBodyPos;
+    float pelvisYDiff;
+    float lastPelvisPosY, lastRightFootPosY, lastLeftFootPosY;
+
+    //These sometimes need to be debugged
     Vector3 rightFootPos, leftFootPos, ikRightFootPos, ikLeftFootPos;
     Quaternion ikLeftFootRotation, ikRightFootRotation;
-    float lastPelvisPosY, lastRightFootPosY, lastLeftFootPosY;
+
+    GameObject rightFootPosObj, leftFootPosObj, ikRightFootPosObj, ikLeftFootPosObj;
+
 
     [Range(0, 2)] public float heightFromGroundRaycast = 1.14f;
     [Range(0, 2)] public float raycastDownDist = 1.5f;
     public LayerMask environmentLayer; //Will use questionably
     public float pelvisOffset = 0f;
     public float pelvisYSpeed = 0.28f;
+    public bool usePelvisMove = false;
     public float ikFeetPositionSpeed = 0.5f;
 
     public string leftFootAnimVariableName = "LeftFootCurve";
@@ -36,6 +47,9 @@ public class IKControl : MonoBehaviour
 
     public bool useProIkFeature = false;
     public bool showSolverDebug = true;
+    public bool showDebugObjects = false;
+
+
 
     void Start()
     {
@@ -45,30 +59,72 @@ public class IKControl : MonoBehaviour
         rightFoot = Player.Instance.RightFootIK.transform;
         leftFootTarget = Player.Instance.LeftFootTarget;
         rightFootTarget = Player.Instance.RightFootTarget;
+
+        if (showDebugObjects)
+        {
+            rightFootPosObj = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            rightFootPosObj.transform.localScale = Vector3.one * 0.25f;
+            rightFootPosObj.GetComponent<Renderer>().material.color = Color.green;
+            Destroy(rightFootPosObj.GetComponent<SphereCollider>());
+        
+            leftFootPosObj = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            leftFootPosObj.transform.localScale = Vector3.one * 0.25f;
+            leftFootPosObj.GetComponent<Renderer>().material.color = Color.green;
+            Destroy(leftFootPosObj.GetComponent<SphereCollider>());
+        
+            ikRightFootPosObj = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            ikRightFootPosObj.transform.localScale = Vector3.one * 0.25f;
+            ikRightFootPosObj.GetComponent<Renderer>().material.color = Color.blue;
+            Destroy(ikRightFootPosObj.GetComponent<SphereCollider>());
+        
+            ikLeftFootPosObj = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            ikLeftFootPosObj.transform.localScale = Vector3.one * 0.25f;
+            ikLeftFootPosObj.GetComponent<Renderer>().material.color = Color.blue;
+            Destroy(ikLeftFootPosObj.GetComponent<SphereCollider>());
+        
+        }
+
     }
 
     private void FixedUpdate()
     {
         if (animator == null || !ikActive) return;
 
+        //Get the Raycasting position
         AdjustFeetTarget(ref rightFootPos, HumanBodyBones.RightFoot);
         AdjustFeetTarget(ref leftFootPos, HumanBodyBones.LeftFoot);
 
-        //Raycast
+        if (showDebugObjects)
+        {
+            rightFootPosObj.transform.position = rightFootPos;
+            leftFootPosObj.transform.position = leftFootPos;
+        }
+
+        //Shoot actual raycasts here
         FeetPositionSolver(rightFootPos, ref ikRightFootPos, ref ikRightFootRotation);
         FeetPositionSolver(leftFootPos, ref ikLeftFootPos, ref ikLeftFootRotation);
+
+        if (showDebugObjects)
+        {
+            ikRightFootPosObj.transform.position = ikRightFootPos;
+            ikLeftFootPosObj.transform.position = ikLeftFootPos;
+        }
 
     }
 
     //a callback for calculating IK
     void OnAnimatorIK(int layerIndex)
     {
+        //if (animator == null || !ikActive || !move.isGrounded) return;
         if (animator == null || !ikActive) return;
 
-        MovePelvisHeight();
+        if (usePelvisMove)
+            MovePelvisHeight();
 
         //Right
-        animator.SetIKPositionWeight(AvatarIKGoal.RightFoot, 1);
+        //animator.SetIKPositionWeight(AvatarIKGoal.RightFoot, 1);
+        animator.SetIKPositionWeight(AvatarIKGoal.RightFoot, rightFootWeight);
+
 
         if (useProIkFeature)
             animator.SetIKRotationWeight(AvatarIKGoal.RightFoot, animator.GetFloat(rightFootAnimVariableName));
@@ -76,13 +132,13 @@ public class IKControl : MonoBehaviour
         MoveFeetToIKPoint(AvatarIKGoal.RightFoot, ikRightFootPos, ikRightFootRotation, ref lastRightFootPosY);
 
         //Left
-        animator.SetIKPositionWeight(AvatarIKGoal.LeftFoot, 1);
+        //animator.SetIKPositionWeight(AvatarIKGoal.LeftFoot, 1);
+        animator.SetIKPositionWeight(AvatarIKGoal.LeftFoot, leftFootWeight);
 
         if (useProIkFeature)
             animator.SetIKRotationWeight(AvatarIKGoal.LeftFoot, animator.GetFloat(leftFootAnimVariableName));
 
         MoveFeetToIKPoint(AvatarIKGoal.LeftFoot, ikLeftFootPos, ikLeftFootRotation, ref lastLeftFootPosY);
-
 
     }
 
@@ -109,10 +165,20 @@ public class IKControl : MonoBehaviour
     }
 
     void MovePelvisHeight()
-    {
-        if (ikRightFootPos == Vector3.zero || ikLeftFootPos == Vector3.zero || lastPelvisPosY == 0.0f)
+    {        
+        //From testing this will only fire once, on start up
+        if (lastPelvisPosY == 0.0f)
         {
             lastPelvisPosY = animator.bodyPosition.y;
+            animBodyPos = animator.bodyPosition;
+            return;
+        }
+
+        if (ikRightFootPos == Vector3.zero || ikLeftFootPos == Vector3.zero || lastPelvisPosY == 0.0f)
+        {
+            pelvisYDiff = animator.bodyPosition.y - lastPelvisPosY;
+            lastPelvisPosY = animator.bodyPosition.y;            
+            animBodyPos = animator.bodyPosition;
             return;
         }
 
@@ -121,13 +187,17 @@ public class IKControl : MonoBehaviour
 
         float totalOffset = (leftOffset < rightOffset) ? leftOffset : rightOffset;
 
-        Vector3 newPelvisPos = animator.bodyPosition + Vector3.up * totalOffset;
+        newPelvisPos = animator.bodyPosition + Vector3.up * totalOffset;
 
         newPelvisPos.y = Mathf.Lerp(lastPelvisPosY, newPelvisPos.y, pelvisYSpeed);
-        
+
+        pelvisYDiff = newPelvisPos.y - animator.bodyPosition.y;
+
         //Original
+        print("Applying Pelvis");
         animator.bodyPosition = newPelvisPos;
-        lastPelvisPosY = animator.bodyPosition.y;       
+        animBodyPos = animator.bodyPosition;
+        lastPelvisPosY = animator.bodyPosition.y;        
     }
 
     void FeetPositionSolver(Vector3 fromSkyPosition, ref Vector3 feetIKPos, ref Quaternion feetIKRot)
@@ -152,6 +222,7 @@ public class IKControl : MonoBehaviour
         feetIKPos = Vector3.zero; //Fail
     }
 
+    //Get the raycasting firing position
     void AdjustFeetTarget(ref Vector3 feetPos, HumanBodyBones foot)
     {
         feetPos = animator.GetBoneTransform(foot).position;
