@@ -187,7 +187,8 @@ public class IKControl : MonoBehaviour
 
         float totalOffset = (leftOffset < rightOffset) ? leftOffset : rightOffset;
 
-        newPelvisPos = animator.bodyPosition + Vector3.up * totalOffset;
+        //newPelvisPos = animator.bodyPosition + Vector3.up * totalOffset;
+        newPelvisPos = animator.bodyPosition + transform.TransformDirection(Vector3.up) * totalOffset;
 
         newPelvisPos.y = Mathf.Lerp(lastPelvisPosY, newPelvisPos.y, pelvisYSpeed);
 
@@ -205,17 +206,20 @@ public class IKControl : MonoBehaviour
         RaycastHit hit;
 
         if (showSolverDebug)
-            Debug.DrawLine(fromSkyPosition, fromSkyPosition + Vector3.down * (raycastDownDist + heightFromGroundRaycast), Color.yellow);
+            //Debug.DrawLine(fromSkyPosition, fromSkyPosition + Vector3.down * (raycastDownDist + heightFromGroundRaycast), Color.yellow);
+            Debug.DrawLine(fromSkyPosition, fromSkyPosition + transform.TransformDirection(Vector3.down) * (raycastDownDist + heightFromGroundRaycast), Color.yellow);
 
         //Can I do this without layers? I could use RaycastAll and iterate but that might be a little too costly
         //It may just depend on what is needed for the player
-        if (Physics.Raycast(fromSkyPosition, Vector3.down, out hit, raycastDownDist + heightFromGroundRaycast, environmentLayer))        
+        //if (Physics.Raycast(fromSkyPosition, Vector3.down, out hit, raycastDownDist + heightFromGroundRaycast, environmentLayer))        
+        if (Physics.Raycast(fromSkyPosition, transform.TransformDirection(Vector3.down), out hit, raycastDownDist + heightFromGroundRaycast, environmentLayer))
         {
             //print($"IK hit {hit.collider.gameObject.name}");
 
             feetIKPos = fromSkyPosition;
             feetIKPos.y = hit.point.y + pelvisOffset;
-            feetIKRot = Quaternion.FromToRotation(Vector3.up, hit.normal) * transform.rotation;
+            //feetIKRot = Quaternion.FromToRotation(Vector3.up, hit.normal) * transform.rotation;
+            feetIKRot = Quaternion.FromToRotation(transform.TransformDirection(Vector3.up), hit.normal) * transform.rotation;
             return;
         }
 
@@ -226,7 +230,12 @@ public class IKControl : MonoBehaviour
     void AdjustFeetTarget(ref Vector3 feetPos, HumanBodyBones foot)
     {
         feetPos = animator.GetBoneTransform(foot).position;
-        feetPos.y = transform.position.y + heightFromGroundRaycast;
+        //feetPos.y = transform.position.y + heightFromGroundRaycast;
+        //feetPos.y = transform.localPosition.y + heightFromGroundRaycast;
+        Vector3 pos = transform.InverseTransformPoint(feetPos);
+        pos.y = 0.0f;
+        pos.y += heightFromGroundRaycast;
+        feetPos = transform.TransformPoint(pos);
     }
 
     /*

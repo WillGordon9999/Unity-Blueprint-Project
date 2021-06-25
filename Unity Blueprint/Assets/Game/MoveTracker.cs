@@ -6,20 +6,29 @@ using UnityEngine;
 /// </summary>
 public class MoveTracker : MonoBehaviour
 {
-    public Transform target;
-    public float lerpSpeed = 0.5f;
-    // Start is called before the first frame update
-    void Start()
-    {
-        
-    }
-
+    public Transform target;    
+    public bool move = true;
+    public bool rotate = true;
+    public bool alignWithGravity = true;
+   
     // Update is called once per frame
-    void FixedUpdate()
+    void Update()
     {
         if (target != null)
         {
-            transform.position = Vector3.Lerp(transform.position, target.transform.position, lerpSpeed);
+            if (move) transform.position = target.transform.position;
+            if (rotate) transform.rotation = target.transform.rotation;
+            if (alignWithGravity) transform.rotation = Quaternion.LookRotation(Vector3.forward, -Physics.gravity.normalized);
         }
     }
+
+    //private void LateUpdate()
+    //{
+    //    if (target != null)
+    //    {
+    //        if (move) transform.position = target.transform.position;
+    //        if (rotate) transform.rotation = target.transform.rotation;
+    //        if (alignWithGravity) transform.rotation = Quaternion.LookRotation(Vector3.forward, -Physics.gravity.normalized);
+    //    }
+    //}
 }
